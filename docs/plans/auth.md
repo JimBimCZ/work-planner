@@ -1349,10 +1349,31 @@ $ docker compose up --build
 
 The third bullet is the author's observation, not mine — see Step 4.
 
-**Auth is not yet done.** Section D's verification turned up a dead end in the
-refusal itself: a person refused on one provider has no way to retry with a
-different account on the other, because the provider has already
-auto-authenticated the remembered session. Recorded under the spec's open
-decisions; it needs its own brainstorm.
+Re-observed 2026-08-30 on `main` at `f8750ea`, after the account-switch fix
+landed (#26, #27):
+
+```
+$ pnpm typecheck   next typegen && tsc --noEmit      exit 0
+$ pnpm lint        eslint                            exit 0
+$ pnpm test        Test Files 8 passed (8)  Tests 46 passed (46)
+$ pnpm test:e2e    16 passed (17.7s)                 exit 0
+```
+
+Docker was not re-run for this pass; the healthy-container line above stands
+from the run that produced it.
+
+**Every section is merged, and the dead end is closed in code.** Section D's
+verification had turned one up in the refusal itself: a person refused on one
+provider had no way to retry with a different account, because the provider had
+already auto-authenticated the remembered session. Rather than carry it, #26
+fixed it — the refusal redirect carries the attempted provider, and the retry
+re-runs that provider with `prompt=select_account`, which both Google and GitHub
+document. The spec's open decision is marked resolved.
+
+**One check remains, and it is the author's.** That the account picker actually
+appears has not been observed: showing it needs a browser already signed in to
+the provider and real credentials, so #26 could only prove the parameter reaches
+both providers' authorize endpoints. Confirm it on the deployed site, then this
+plan is done.
 
 Carried forward to sub-project 3, and not to be decided while executing this plan: whether `assigneeId` and `wipLimit` are real requirements, and how `board_members` keys off `users.id` — which is `text`, not `uuid`.
