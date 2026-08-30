@@ -620,7 +620,7 @@ Branch: `feat/foundation-design-system`
 - Consumes: nothing. This module has no imports by design.
 - Produces: `flowHue(index: number, total: number): number`. Sub-project 4 calls this per column to derive the column rule and header wash.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/flow.test.ts`:
 
@@ -657,7 +657,7 @@ describe('flowHue', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm test lib/flow.test.ts
@@ -665,7 +665,7 @@ pnpm test lib/flow.test.ts
 
 Expected: FAIL — `Cannot find module './flow'`.
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 Create `lib/flow.ts`:
 
@@ -681,7 +681,7 @@ export function flowHue(index: number, total: number): number {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 ```bash
 pnpm test lib/flow.test.ts
@@ -689,7 +689,7 @@ pnpm test lib/flow.test.ts
 
 Expected: 5 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/flow.ts lib/flow.test.ts
@@ -706,7 +706,7 @@ git commit -m "feat: derive column hue from position in the flow"
 - Consumes: nothing.
 - Produces: the CSS custom properties and Tailwind colour utilities (`bg-canvas`, `text-ink`, `border-line`, `bg-flow-mid`, `text-time-over`) that every later component uses, and the `data-theme` contract on `<html>`.
 
-- [ ] **Step 1: Initialise shadcn/ui**
+- [x] **Step 1: Initialise shadcn/ui**
 
 ```bash
 pnpm dlx shadcn@latest init
@@ -720,7 +720,7 @@ node -e "console.log(JSON.stringify(require('./components.json').tailwind,null,2
 
 Expected: `"config": ""`.
 
-- [ ] **Step 2: Write the token layer**
+- [x] **Step 2: Write the token layer**
 
 Replace the contents of `app/globals.css` with the following. This intentionally
 discards the palette the shadcn CLI generated — Step 3 puts its variable *names*
@@ -790,7 +790,7 @@ the CLI's class-based `(&:is(.dark *))` version; there must be exactly one.
 
 `--muted` is defined once, outside the theme blocks: `CLAUDE.md` specifies the same value in both modes.
 
-- [ ] **Step 3: Retarget the shadcn variables**
+- [x] **Step 3: Retarget the shadcn variables**
 
 Append these declarations to the `:root` block you wrote in Step 2, so every
 shadcn component resolves to a project token and no untouched shadcn default
@@ -816,7 +816,7 @@ matters — put them last.
 }
 ```
 
-- [ ] **Step 4: Wire the fonts and the pre-paint theme script**
+- [x] **Step 4: Wire the fonts and the pre-paint theme script**
 
 Replace `app/layout.tsx`:
 
@@ -864,7 +864,7 @@ export default function RootLayout({
 
 `suppressHydrationWarning` on `<html>` is required: the script mutates `data-theme` before React hydrates, so the server and client markup differ by that attribute on purpose.
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm build
@@ -882,7 +882,7 @@ Two failures to recognise rather than guess at:
   Fonts CSS API does serve Roboto as a variable face spanning 100–900, so prefer
   the variable form and only fall back if the build rejects it.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/globals.css app/layout.tsx components.json lib/utils.ts
@@ -898,7 +898,7 @@ git commit -m "feat: add design tokens, Roboto and the data-theme mechanism"
 - Consumes: `flowHue` from `@/lib/flow`, and the tokens from Task 6.
 - Produces: nothing later sub-projects depend on. This route is deleted at the close of sub-project 4.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `e2e/design.spec.ts`:
 
@@ -937,7 +937,7 @@ test('the chosen theme survives a reload', async ({ page }) => {
 
 The last test is the one that actually proves the pre-paint script works; the others would pass with a naive React-only toggle.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm test:e2e e2e/design.spec.ts
@@ -945,7 +945,7 @@ pnpm test:e2e e2e/design.spec.ts
 
 Expected: all four FAIL with a 404 on `/design`.
 
-- [ ] **Step 3: Write the toggle**
+- [x] **Step 3: Write the toggle**
 
 Create `app/design/theme-toggle.tsx`. This is the only client component in Foundation.
 
@@ -983,7 +983,7 @@ export function ThemeToggle() {
 
 The initial state is read in an effect rather than during render because the attribute is set by the pre-paint script, which React does not know about.
 
-- [ ] **Step 4: Write the proof sheet**
+- [x] **Step 4: Write the proof sheet**
 
 Create `app/design/page.tsx`. A Server Component apart from the toggle.
 
@@ -1103,7 +1103,7 @@ export default function DesignPage() {
 }
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 ```bash
 pnpm test:e2e e2e/design.spec.ts
@@ -1111,7 +1111,7 @@ pnpm test:e2e e2e/design.spec.ts
 
 Expected: 4 passed.
 
-- [ ] **Step 6: Look at it**
+- [x] **Step 6: Look at it**
 
 ```bash
 pnpm dev
@@ -1119,7 +1119,7 @@ pnpm dev
 
 Open `http://localhost:3000/design` and confirm by eye, in both themes: the three spectrums form unbroken bands, the only warm colour on the page is the overdue card, and the focus ring is visible when tabbing. Stop the dev server when done.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/design e2e/design.spec.ts
@@ -1128,7 +1128,7 @@ git commit -m "feat: add a temporary proof sheet for the design tokens"
 
 ### Section C gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
 - [ ] Screenshots of `/design` in both themes attached to the PR, per the rule that UI changes ship with screenshots.
 - [ ] Open the PR. Stop. Start Section D in a fresh session.
 
