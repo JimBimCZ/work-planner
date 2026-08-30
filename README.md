@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Work Planner
 
-## Getting Started
+A collaborative kanban board application, JIRA-board style. Multiple boards per
+user, multiple users collaborating on the same board.
 
-First, run the development server:
+This is Foundation-stage: a scaffold, a design system proof sheet, and a health
+route. There is no auth, no boards, and no cards yet.
+
+## Stack
+
+Next.js 16 (App Router, TypeScript strict), Tailwind CSS v4 with shadcn/ui,
+Drizzle ORM against Neon Postgres, Auth.js v5 for OAuth-only sign-in, Pusher
+Channels for realtime, Vitest and Playwright for tests.
+
+See `CLAUDE.md` for the full stack table and architectural decisions.
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env
+docker compose up -d postgres
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm dev            # dev server
+pnpm build           # production build
+pnpm start           # run a production build
+pnpm lint            # eslint
+pnpm typecheck       # tsc --noEmit
+pnpm test            # vitest
+pnpm test:watch      # vitest, watch mode
+pnpm test:e2e        # playwright
+pnpm db:generate     # generate a SQL migration from schema changes
+pnpm db:migrate      # apply migrations
+pnpm db:studio       # drizzle studio
+```
 
-## Learn More
+## Docker
 
-To learn more about Next.js, take a look at the following resources:
+`docker compose up --build` runs the app and a local Postgres together.
+`docker build -t kanban .` builds the app image alone, for self-hosting.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Vercel is production. Docker is for local development and self-hosting, not
+the deployment path.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## CI
 
-## Deploy on Vercel
+Every pull request runs typecheck, lint, unit tests, and end-to-end tests.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Contributing
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`docs/specs/` holds feature specs, `docs/plans/` holds implementation plans.
+`CLAUDE.md` is the contributor guide — read it before making changes.
