@@ -42,3 +42,28 @@ test('someone else’s board never appears in your list', async ({ page, context
   await removeSeededUser(owner.userId);
   await removeSeededUser(viewer.userId);
 });
+
+test('creating a board adds it to the list', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+
+  await page.goto('/boards');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByLabel('Board name').fill('Roadmap');
+  await page.getByRole('button', { name: 'Create board' }).click();
+
+  await expect(page.getByRole('link', { name: 'Roadmap' })).toBeVisible();
+
+  await removeSeededUser(userId);
+});
+
+test('a board with no name cannot be created', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+
+  await page.goto('/boards');
+  await page.getByRole('button', { name: 'New board' }).click();
+  await page.getByRole('button', { name: 'Create board' }).click();
+
+  await expect(page.getByText('Enter a name for the board')).toBeVisible();
+
+  await removeSeededUser(userId);
+});
