@@ -152,9 +152,15 @@ variables. Foundation is complete when the preview URL serves `/design` and
 
 Foundation is done when, with output observed rather than assumed:
 
-- `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass locally.
-- `docker compose up --build` serves the app and its healthcheck reports healthy.
-- The Vercel preview serves `/design` in both themes and `/api/health` returns `ok`.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass locally.
+      Observed on `main` at `a4e3306`: typecheck and lint clean, 23 unit tests passed,
+      7 Playwright tests passed.
+- [x] `docker compose up --build` serves the app and its healthcheck reports healthy.
+      `work-planner-app-1` reached `healthy`; `/api/health` returned `{"ok":true}` and `/design`
+      returned 200 through the container. Stack shut down afterwards.
+- [x] The Vercel preview serves `/design` in both themes and `/api/health` returns `ok`.
+      `{"ok":true}` from the production deployment of `a4e3306`, and `/design` rendered in
+      Chrome under both an emulated dark and an emulated light colour scheme.
 
 ## Open decisions carried forward
 
