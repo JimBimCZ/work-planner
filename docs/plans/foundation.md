@@ -356,8 +356,8 @@ git commit -m "feat: redirect the root to the board list"
 ### Section A gate
 
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
-- [ ] Open the PR with `gh pr create`, stating what was verified and the observed output.
-- [ ] Stop. Start Section B in a fresh session.
+- [x] Open the PR with `gh pr create`, stating what was verified and the observed output.
+- [x] Stop. Start Section B in a fresh session.
 
 ---
 
@@ -374,7 +374,7 @@ Branch: `feat/foundation-data-layer`
 - Consumes: `DATABASE_URL` and `DATABASE_URL_UNPOOLED` from Task 1's `.env.example`.
 - Produces: `export const db` from `@/lib/db` — a Drizzle instance over a `pg.Pool`. Task 4 and every later server action import exactly this.
 
-- [ ] **Step 1: Add local Postgres**
+- [x] **Step 1: Add local Postgres**
 
 Create `docker-compose.yml` with the database only. The app service is added in Task 8, once there is a Dockerfile to build.
 
@@ -400,7 +400,7 @@ volumes:
   pgdata:
 ```
 
-- [ ] **Step 2: Start it and confirm it accepts connections**
+- [x] **Step 2: Start it and confirm it accepts connections**
 
 ```bash
 cp -n .env.example .env
@@ -410,7 +410,7 @@ docker compose exec -T postgres pg_isready -U kanban
 
 Expected: `accepting connections`. If it is not, stop — nothing below can be verified without it.
 
-- [ ] **Step 3: Write the client**
+- [x] **Step 3: Write the client**
 
 Create `lib/db/index.ts`:
 
@@ -441,7 +441,7 @@ does not need one. `pg.Pool` connects lazily, so a missing or wrong URL surfaces
 on the first query — which is exactly what the health route in Task 4 reports as
 a 503. Do not "improve" this by adding an eager check.
 
-- [ ] **Step 4: Create the empty schema module**
+- [x] **Step 4: Create the empty schema module**
 
 Create `lib/db/schema.ts`:
 
@@ -451,7 +451,7 @@ Create `lib/db/schema.ts`:
 export {};
 ```
 
-- [ ] **Step 5: Configure drizzle-kit**
+- [x] **Step 5: Configure drizzle-kit**
 
 Create `drizzle.config.ts`. The shape below was verified against the `drizzle-kit` 0.31 published types: `dialect` plus `dbCredentials.url`, with no `driver` key. Older examples showing `driver: 'pg'` and `connectionString` are for a superseded major.
 
@@ -471,7 +471,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 ```bash
 pnpm typecheck && pnpm lint
@@ -479,7 +479,7 @@ pnpm typecheck && pnpm lint
 
 Expected: both pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add docker-compose.yml lib/db drizzle.config.ts
@@ -496,7 +496,7 @@ git commit -m "feat: add the pooled database client and drizzle-kit config"
 - Consumes: `db` from `@/lib/db`.
 - Produces: `GET /api/health` returning `200 {"ok":true}` or `503 {"ok":false}`. Task 8's container healthcheck depends on exactly this contract.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `app/api/health/route.test.ts`. The database is mocked so the test asserts the route's branching, not Postgres — the real connection is proven by the e2e test in Step 5.
 
@@ -533,7 +533,7 @@ describe('GET /api/health', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm test
@@ -541,7 +541,7 @@ pnpm test
 
 Expected: FAIL — `Cannot find module './route'`.
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 Create `app/api/health/route.ts`:
 
@@ -563,7 +563,7 @@ export async function GET() {
 
 `force-dynamic` matters: without it the route is statically evaluated at build time and the container healthcheck would report a cached success forever.
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 ```bash
 pnpm test
@@ -571,7 +571,7 @@ pnpm test
 
 Expected: 2 passed.
 
-- [ ] **Step 5: Add the end-to-end check against real Postgres**
+- [x] **Step 5: Add the end-to-end check against real Postgres**
 
 Append to `e2e/routing.spec.ts`:
 
@@ -583,7 +583,7 @@ test('the health route reaches the database', async ({ request }) => {
 });
 ```
 
-- [ ] **Step 6: Run it with Postgres up**
+- [x] **Step 6: Run it with Postgres up**
 
 ```bash
 docker compose up -d postgres
@@ -592,7 +592,7 @@ pnpm test:e2e
 
 Expected: 3 passed. If this passes while `docker compose` is down, the route is not actually querying — investigate rather than proceeding.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/api/health e2e/routing.spec.ts
@@ -601,9 +601,9 @@ git commit -m "feat: add the health route backed by a real query"
 
 ### Section B gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass with Postgres running, output observed.
-- [ ] Confirm `/api/health` returns 503 with Postgres stopped, then restart it.
-- [ ] Open the PR. Stop. Start Section C in a fresh session.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass with Postgres running, output observed.
+- [x] Confirm `/api/health` returns 503 with Postgres stopped, then restart it.
+- [x] Open the PR. Stop. Start Section C in a fresh session.
 
 ---
 
