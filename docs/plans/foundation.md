@@ -163,11 +163,18 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['lib/**/*.test.ts', 'app/**/*.test.ts'],
+    passWithNoTests: true,
   },
 });
 ```
 
 The `include` pattern deliberately excludes `e2e/`, which Playwright owns.
+
+`passWithNoTests` is required, not cosmetic: the first unit test does not arrive
+until Task 5, and without it `vitest run` exits 1 on an empty suite — which would
+fail every `&&`-chained gate in Sections A and B and the CI job in Task 9. Do not
+satisfy this by adding a placeholder test; a test that asserts nothing is a
+defect.
 
 - [ ] **Step 6: Write `.env.example`**
 
