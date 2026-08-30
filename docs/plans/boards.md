@@ -909,7 +909,7 @@ Branch: `feat/boards-list`.
   - `seedBoard(ownerId: string, name?: string): Promise<string>` returning the board id, and `seedMember(boardId: string, userId: string, role: BoardRole): Promise<void>`
 - Task 7 and Task 8 render inside this list; Section D's e2e uses both helpers.
 
-- [ ] **Step 1: Write the seed helpers**
+- [x] **Step 1: Write the seed helpers**
 
 Append to `e2e/support/session.ts`. It talks to Postgres directly rather than through Drizzle, matching how `seedSession` already works, and it cannot import `lib/actions/boards.ts` — that is a server-action module.
 
@@ -957,7 +957,7 @@ export async function seedMember(
 
 No new cleanup: `boards.owner_id` cascades from `user`, so the existing `removeSeededUser` takes seeded boards, memberships and columns with it.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 `e2e/boards.spec.ts`:
 
@@ -1007,12 +1007,12 @@ test('someone else’s board never appears in your list', async ({ page, context
 });
 ```
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 Run: `pnpm test:e2e e2e/boards.spec.ts`
 Expected: FAIL — the page still renders the "Nothing here yet" placeholder, so neither the heading nor the link is found.
 
-- [ ] **Step 4: Write the read**
+- [x] **Step 4: Write the read**
 
 `lib/boards.ts`:
 
@@ -1040,7 +1040,7 @@ export async function listBoardsForUser(userId: string): Promise<BoardSummary[]>
 }
 ```
 
-- [ ] **Step 5: Write the list**
+- [x] **Step 5: Write the list**
 
 `components/boards/board-list.tsx` — a Server Component, no `'use client'`:
 
@@ -1131,12 +1131,12 @@ export default async function BoardsPage() {
 
 The "New board" button arrives in Task 7; the empty-state test asserting it will still fail until then, so leave that assertion failing and say so in the commit — or move it into Task 7's step. Do not delete it.
 
-- [ ] **Step 6: Run the tests and watch them pass**
+- [x] **Step 6: Run the tests and watch them pass**
 
 Run: `pnpm test:e2e e2e/boards.spec.ts`
 Expected: the two list tests PASS. The empty-state test still fails on the missing button until Task 7.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/boards.ts components/boards/board-list.tsx "app/(app)/boards/page.tsx" e2e/support/session.ts e2e/boards.spec.ts
@@ -1155,7 +1155,7 @@ git commit -m "feat: list the boards you are a member of"
 - Consumes: `createBoard` (Task 4).
 - Produces: `<NewBoardDialog />`, a client component rendering the "New board" trigger. Task 8 reuses `components/ui/dialog.tsx`.
 
-- [ ] **Step 1: Add the dialog primitive**
+- [x] **Step 1: Add the dialog primitive**
 
 ```bash
 pnpm dlx shadcn@latest add dialog
@@ -1163,7 +1163,7 @@ pnpm dlx shadcn@latest add dialog
 
 Re-tokenise it exactly as `components/ui/dropdown-menu.tsx` was: modal radius 16, `--surface` background, `--line` border, the 2px accent focus ring at 2px offset. Untouched shadcn is recognisable on sight and undoes the design system.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Append to `e2e/boards.spec.ts`:
 
@@ -1194,12 +1194,12 @@ test('a board with no name cannot be created', async ({ page, context }) => {
 });
 ```
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 Run: `pnpm test:e2e e2e/boards.spec.ts`
 Expected: FAIL — no "New board" button exists.
 
-- [ ] **Step 4: Write the dialog**
+- [x] **Step 4: Write the dialog**
 
 `components/boards/new-board-dialog.tsx`:
 
@@ -1273,12 +1273,12 @@ export function NewBoardDialog() {
 
 Render `<NewBoardDialog />` twice on the page: in the header row beside the title, and inside the empty state under "Create your first board".
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm test:e2e e2e/boards.spec.ts`
 Expected: PASS, all five tests including Task 6's empty-state test.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/ui/dialog.tsx components/boards/new-board-dialog.tsx "app/(app)/boards/page.tsx" e2e/boards.spec.ts
@@ -1296,7 +1296,7 @@ git commit -m "feat: create a board from the list"
 - Consumes: `renameBoard`, `deleteBoard` (Task 5), the dropdown primitive already in `components/ui/dropdown-menu.tsx`, the dialog from Task 7.
 - Produces: `<BoardRowMenu board={...} />`, rendered only when `board.role === 'owner'`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `e2e/boards.spec.ts`:
 
@@ -1342,12 +1342,12 @@ test('deleting a board needs its name typed exactly', async ({ page, context }) 
 
 The first half of the delete test is the point: a near-miss does not delete. It proves the guard, not the happy path.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test:e2e e2e/boards.spec.ts`
 Expected: FAIL — no "Board actions for Roadmap" button.
 
-- [ ] **Step 3: Write the menu**
+- [x] **Step 3: Write the menu**
 
 `components/boards/board-row-menu.tsx`:
 
@@ -1481,16 +1481,16 @@ export function BoardRowMenu({ board }: { board: BoardSummary }) {
 
 The submit says "Delete board" and the heading names the board, so the copy rule holds: the name survives the flow. The button is enabled as soon as anything is typed — the *server* rejects a mismatch, per Task 5, so a disabled button is a convenience and never the guard.
 
-- [ ] **Step 4: Render it from the row**
+- [x] **Step 4: Render it from the row**
 
 In `components/boards/board-list.tsx`, render `<BoardRowMenu board={board} />` in the right-hand group when `board.role === 'owner'`.
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm test:e2e e2e/boards.spec.ts`
 Expected: PASS, seven tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/boards/board-row-menu.tsx components/boards/board-list.tsx e2e/boards.spec.ts
@@ -1499,10 +1499,10 @@ git commit -m "feat: rename and delete a board from its row"
 
 ### Section C gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
-- [ ] A near-miss on the delete confirmation does not delete — observed in the e2e run, not inferred from the code.
-- [ ] Screenshots of the list, the empty state and the delete confirm, in both themes, attached to the PR. Section C of the Foundation plan shipped without screenshots and its gate stayed unticked; Section C of Auth did not repeat it. Do not restart the habit.
-- [ ] Open the PR. Stop. Start Section D in a fresh session.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
+- [x] A near-miss on the delete confirmation does not delete — observed in the e2e run, not inferred from the code.
+- [x] Screenshots of the list, the empty state and the delete confirm, in both themes, attached to the PR. Section C of the Foundation plan shipped without screenshots and its gate stayed unticked; Section C of Auth did not repeat it. Do not restart the habit.
+- [x] Open the PR. Stop. Start Section D in a fresh session. — PR #36, based on `feat/boards-permissions`.
 
 ---
 
