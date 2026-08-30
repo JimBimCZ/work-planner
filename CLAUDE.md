@@ -64,12 +64,26 @@ docker build -t kanban .           # app image only, self-host
 
 `drizzle.config.ts` loads `.env.local` itself and lets it override `.env`. drizzle-kit only auto-loads
 `.env`, so without that the app talks to Neon while migrations silently hit the docker Postgres in
-`.env` — the two drift with no error. A variable set in the shell outranks both, so
-`DATABASE_URL_UNPOOLED=<production> pnpm db:migrate` migrates what it names — **this is how production
-is migrated.** That override is not cosmetic: the config used to replace `process.env` unconditionally,
-so the same command migrated the `.env.local` database and still printed `migrations applied
-successfully!`. Because drizzle-kit has already loaded `.env` before the config evaluates, "set in the
-shell" is decided by comparing against `.env`'s own value, not by presence in `process.env`. Also note `drizzle-kit migrate` exits 1 with an empty stderr
+`.env` — the two drift with no error.
+
+**`MIGRATE_URL` names the database outright, and is how production is migrated:**
+
+```bash
+MIGRATE_URL="$(npx neonctl@4 connection-string main --project-id <id>)" pnpm db:migrate
+```
+
+It exists because provenance cannot be inferred. drizzle-kit loads `.env` into `process.env` before
+the config evaluates, and dotenv does not overwrite a variable the shell already set — so a value that
+*differs* from `.env`'s must have come from the shell, but a value *equal* to it is undecidable. The
+config used to guess by exactly that comparison, and it broke in the one case `.env` exists to
+describe: `DATABASE_URL_UNPOOLED=postgres://kanban:kanban@localhost:5432/kanban pnpm db:migrate`
+matched `.env`, read as "not from the shell", and migrated the Neon dev branch while printing
+`migrations applied successfully!`. `MIGRATE_URL` carries no value to be confused with.
+`lib/db/migrate-target.ts` holds the rule and its tests.
+
+`DATABASE_URL_UNPOOLED` still works from the shell when its value differs from `.env`'s — that is what
+CI relies on — but prefer `MIGRATE_URL` when it matters, and confirm with `\dt` rather than the
+success line. Also note `drizzle-kit migrate` exits 1 with an empty stderr
 when `lib/db/migrations/` does not exist; the first `db:generate` creates it.
 
 Before declaring any task done, run `pnpm typecheck && pnpm lint && pnpm test`. Do not report success on output you have not seen.
@@ -373,6 +387,7 @@ Env vars:
 ```
 DATABASE_URL                  # pooled
 DATABASE_URL_UNPOOLED         # migrations only
+MIGRATE_URL                   # optional, names the target for one db:migrate run
 AUTH_SECRET
 AUTH_TRUST_HOST
 AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET
