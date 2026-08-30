@@ -2339,7 +2339,7 @@ Per `CLAUDE.md`, before writing any of this UI. The brief is already fixed by th
 
 - [ ] **Step 2: Write the failing test**
 
-Extend `e2e/board-view.spec.ts` with a card assertion, so the rewrite is proven to still render both columns and their contents:
+Extend `e2e/board-view.spec.ts` with a card assertion, so the rewrite is proven to still render both columns and their contents. This is card rank ordering's only proof against a real database in the whole sub-project, so the two cards below are seeded with explicit ranks whose insertion order contradicts their rank order — 'Second' is inserted first but ranks after 'First'. Seeding them in rank order instead would let the assertion pass on insertion order alone and prove nothing about rank ordering; do not "simplify" it to that:
 
 ```ts
 test("the board shows each column's cards in rank order", async ({ page, context }) => {
