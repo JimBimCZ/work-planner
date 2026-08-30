@@ -94,11 +94,22 @@ export async function closeSeedPool(): Promise<void> {
 export async function boardColumns(
   boardId: string,
 ): Promise<{ id: string; name: string; rank: string }[]> {
-  const { rows } = await seedPool().query(
+  const { rows } = await seedPool().query<{ id: string; name: string; rank: string }>(
     'select id, name, rank from columns where board_id = $1 order by rank',
     [boardId],
   );
   return rows;
+}
+
+// generateKeyBetween(null, null) always returns the same key, so seeding two
+// cards into one column with no explicit rank would collide unless the
+// default is read from that column's current last rank instead.
+async function nextCardRank(columnId: string): Promise<string> {
+  const { rows } = await seedPool().query<{ rank: string }>(
+    'select rank from cards where column_id = $1 order by rank desc limit 1',
+    [columnId],
+  );
+  return generateNKeysBetween(rows[0]?.rank ?? null, null, 1)[0];
 }
 
 export async function seedCard(
@@ -106,16 +117,10 @@ export async function seedCard(
   opts: { boardId: string; createdById: string; title?: string; rank?: string },
 ): Promise<string> {
   const cardId = crypto.randomUUID();
+  const rank = opts.rank ?? (await nextCardRank(columnId));
   await seedPool().query(
     'insert into cards (id, board_id, column_id, title, rank, created_by_id) values ($1, $2, $3, $4, $5, $6)',
-    [
-      cardId,
-      opts.boardId,
-      columnId,
-      opts.title ?? 'Seeded card',
-      opts.rank ?? generateNKeysBetween(null, null, 1)[0],
-      opts.createdById,
-    ],
+    [cardId, opts.boardId, columnId, opts.title ?? 'Seeded card', rank, opts.createdById],
   );
   return cardId;
 }
