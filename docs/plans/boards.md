@@ -1898,15 +1898,18 @@ Sub-project 3 is complete when every checkbox above is ticked and:
 - [x] Deleting a board leaves no orphaned `board_members` or `columns` rows — confirmed with a `select`, not assumed from the foreign keys. Proved end to end against the dev branch: a board with 3 members and 5 columns deleted through the row-menu UI, so `deleteBoard` ran rather than raw SQL, leaving `boards=0 board_members=0 columns=0`. A scan for rows whose `board_id` has no `boards` row returned 0 in both tables, and `pg_constraint` confirms both foreign keys are genuinely `CASCADE` in the migrated database.
 - [x] Production has been migrated by hand and holds the six tables — re-confirmed 2026-08-30 by comparing the SHA-256 of each local migration file against `drizzle.__drizzle_migrations`; both match, so production ran exactly these migrations.
 
-### [drizzle-config-provenance]
+### [drizzle-config-provenance] — resolved
 
-Open, and not fixed while closing these gates because it changes how every
-production migration resolves its target. `drizzle.config.ts` infers whether a
-variable came from the shell by comparing its value against `.env`, which cannot
-distinguish "the operator typed this" from "`.env` already said this" —
-`drizzle-kit` has loaded `.env` into `process.env` before the config evaluates.
-The fix is to stop inferring provenance: snapshot `process.env` before `.env` is
-read, or take an explicit target rather than guessing. Until then, migrating the
-docker Postgres needs a URL that differs textually from `.env`'s.
+`drizzle.config.ts` inferred whether a variable came from the shell by comparing
+its value against `.env`, which cannot distinguish "the operator typed this" from
+"`.env` already said this" — `drizzle-kit` has loaded `.env` into `process.env`
+before the config evaluates. Naming the docker Postgres therefore migrated the
+Neon dev branch and reported success.
+
+Fixed by `MIGRATE_URL`, which is never written to an env file and so has no value
+to be confused with. `lib/db/migrate-target.ts` holds the precedence rule and its
+tests; `drizzle.config.ts` is a thin wrapper over it. `DATABASE_URL_UNPOOLED`
+still works from the shell when its value differs from `.env`'s — that case was
+always decidable, and it is what CI relies on.
 
 Carried forward to the invite sub-project, and not to be decided while executing this plan: when invites land relative to the card modal, and whether a board can change owner.
