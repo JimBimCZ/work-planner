@@ -282,7 +282,7 @@ Branch: `feat/auth-signin`
 **Interfaces:**
 - Produces: `safeCallbackUrl(raw: string | null | undefined, fallback?: string): string`. Used by the proxy's redirect target and by the sign-in screen.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // lib/safe-redirect.test.ts
@@ -322,12 +322,12 @@ describe('safeCallbackUrl', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm vitest run lib/safe-redirect.test.ts`
 Expected: FAIL — `Failed to resolve import './safe-redirect'`.
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 ```ts
 // lib/safe-redirect.ts
@@ -345,12 +345,12 @@ export function safeCallbackUrl(
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm vitest run lib/safe-redirect.test.ts`
 Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/safe-redirect.ts lib/safe-redirect.test.ts
@@ -366,7 +366,7 @@ git commit -m "feat: reject callback URLs that leave our origin"
 **Interfaces:**
 - Produces: `conflictingProvider(existing: string[], incoming: string): string | null`. Consumed by the `signIn` callback in Task 5.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // lib/account-conflict.test.ts
@@ -393,12 +393,12 @@ describe('conflictingProvider', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm vitest run lib/account-conflict.test.ts`
 Expected: FAIL — `Failed to resolve import './account-conflict'`.
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 ```ts
 // lib/account-conflict.ts
@@ -408,12 +408,12 @@ export function conflictingProvider(existing: string[], incoming: string): strin
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm vitest run lib/account-conflict.test.ts`
 Expected: PASS, 4 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/account-conflict.ts lib/account-conflict.test.ts
@@ -432,7 +432,7 @@ git commit -m "feat: name the provider that already owns an address"
 - Consumes: `db`, `users`, `accounts` from `lib/db`, `conflictingProvider` from Task 4.
 - Produces: `auth`, `handlers`, `signIn`, `signOut` from `lib/auth.ts`. Section C's layout and the sign-in screen both import from here.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `/boards` is currently public, and `e2e/routing.spec.ts` has two tests that
 assume it — "the root redirects to the board list" and "the empty board list
@@ -455,12 +455,12 @@ test('signed out, the root lands on sign in', async ({ page }) => {
 
 The "Nothing here yet" assertion is not deleted — it returns in Section C, behind a seeded session, which is the only state in which a signed-in board list can be asserted at all.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test:e2e`
 Expected: FAIL — `/boards` still renders, so the URL never becomes `/signin`.
 
-- [ ] **Step 3: Write the Auth.js configuration**
+- [x] **Step 3: Write the Auth.js configuration**
 
 ```ts
 // lib/auth.ts
@@ -505,7 +505,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
 `Google` and `GitHub` are passed bare: Auth.js v5 reads `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET` from the environment by convention, and `.env.example` already uses exactly those names.
 
-- [ ] **Step 4: Write the route handler**
+- [x] **Step 4: Write the route handler**
 
 ```ts
 // app/api/auth/[...nextauth]/route.ts
@@ -514,7 +514,7 @@ import { handlers } from '@/lib/auth';
 export const { GET, POST } = handlers;
 ```
 
-- [ ] **Step 5: Write the proxy**
+- [x] **Step 5: Write the proxy**
 
 ```ts
 // proxy.ts
@@ -541,12 +541,12 @@ export function proxy(request: NextRequest) {
 export const config = { matcher: '/boards/:path*' };
 ```
 
-- [ ] **Step 6: Run the tests and watch them pass**
+- [x] **Step 6: Run the tests and watch them pass**
 
 Run: `pnpm test:e2e`
 Expected: PASS. `/boards` now redirects to `/signin?callbackUrl=%2Fboards`, and `/signin` renders Next's 404 for the moment — the redirect is what is under test, and Task 6 builds the screen.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/auth.ts app/api/auth proxy.ts e2e/routing.spec.ts
@@ -564,7 +564,7 @@ git commit -m "feat: protect the board routes with a session-cookie proxy"
 - Consumes: `signIn` from `lib/auth.ts`, `safeCallbackUrl` from Task 3.
 - Produces: the `/signin` route, including the `?error=account-exists&provider=` state.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // e2e/signin.spec.ts
@@ -589,12 +589,12 @@ test('any other error explains itself without apologising', async ({ page }) => 
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/signin.spec.ts`
 Expected: FAIL — `/signin` is a 404, so no button is found.
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 ```tsx
 // app/(auth)/signin/page.tsx
@@ -663,12 +663,12 @@ export default async function SignInPage({
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test:e2e`
 Expected: PASS, every spec.
 
-- [ ] **Step 5: Correct CLAUDE.md's middleware wording**
+- [x] **Step 5: Correct CLAUDE.md's middleware wording**
 
 Next 16 deprecated `middleware.ts` and renamed it to `proxy.ts`. In the "Auth and permissions" section, replace:
 
@@ -680,7 +680,7 @@ with:
 
 Update the following line — "**Every server action and route handler independently re-checks permission.** Middleware is routing, not authorisation." — to say "The proxy is routing, not authorisation." Add `(auth)/signin/`, `proxy.ts` and `lib/auth.ts` to the Layout tree.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add "app/(auth)" e2e/signin.spec.ts CLAUDE.md
@@ -689,10 +689,10 @@ git commit -m "feat: add the sign-in screen and its refusal copy"
 
 ### Section B gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
-- [ ] `/boards` redirects to `/signin` with a `callbackUrl`, and `/signin` renders both buttons.
-- [ ] A real sign-in is **not** verifiable yet — the OAuth clients do not exist until Section D. Do not claim it works.
-- [ ] Open the PR. Stop. Start Section C in a fresh session.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
+- [x] `/boards` redirects to `/signin` with a `callbackUrl`, and `/signin` renders both buttons.
+- [x] A real sign-in is **not** verifiable yet — the OAuth clients do not exist until Section D. Do not claim it works.
+- [x] Open the PR. Stop. Start Section C in a fresh session.
 
 ---
 

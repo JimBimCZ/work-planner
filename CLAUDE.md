@@ -105,6 +105,8 @@ lib/
 docs/
   specs/                    # brainstorm output, one per feature
   plans/                    # implementation plans with checkboxes
+proxy.ts                    # Next 16's renamed middleware: cookie-presence
+                            # redirect on /boards/*. Imports nothing from lib/
 ```
 
 The card modal is an intercepting parallel route, so cards have shareable URLs and browser-back closes the modal. Both halves are required: the intercept renders the modal over the board for in-app navigation, and the canonical `/cards/[cardId]` page is what a pasted link opens on a cold load. Do not replace either with local modal state.
@@ -177,8 +179,8 @@ Ably is an acceptable substitute if Pusher's free tier proves too small. Polling
 ## Auth and permissions
 
 - `lib/auth.ts` exports `auth`, `handlers`, `signIn`, `signOut`. Drizzle adapter, `session.strategy = 'database'`.
-- Middleware protects `/boards/*` and redirects unauthenticated users to `/signin`.
-- **Every server action and route handler independently re-checks permission.** Middleware is routing, not authorisation.
+- `proxy.ts` protects `/boards/*` and redirects unauthenticated users to `/signin`. Next 16 renamed the `middleware` convention to `proxy`; it defaults to the Node.js runtime and its `runtime` option cannot be set. It checks only that a session cookie is present and imports nothing from `lib/`, because Next's own documentation warns that this file may be deployed away from the app runtime and must not rely on shared modules — `lib/db` holds a connection pool.
+- **Every server action and route handler independently re-checks permission.** The proxy is routing, not authorisation.
 - All checks go through `lib/permissions.ts`: `assertBoardAccess(userId, boardId, minRole)`. Never inline a membership query in an action.
 - `viewer` can read and comment; `member` can mutate cards and columns; `owner` can manage members and delete the board.
 - Invite flow: owner adds a member by email. If no user exists with that email, store a pending invite keyed on email and resolve it at first sign-in.
