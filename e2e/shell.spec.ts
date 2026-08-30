@@ -9,7 +9,7 @@ test('a signed-in session sees the board list and the top bar', async ({ page, c
   const { userId } = await seedSession(context);
   try {
     await page.goto('/boards');
-    await expect(page.getByText('Nothing here yet')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Create your first board' })).toBeVisible();
     await expect(page.getByRole('banner').getByText('Work Planner')).toBeVisible();
   } finally {
     await removeSeededUser(userId);
