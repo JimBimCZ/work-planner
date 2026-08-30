@@ -1256,8 +1256,13 @@ Nothing is broken by this today: both GitHub values are in the author's local
 rather than a fault — `pnpm env:pull development` overwrites `.env.local` from
 Vercel, after which Development's Google credentials would outrank `.env`'s
 while GitHub silently fell through to the older file. Two values that disagree
-and no error is the same failure shape as the drift #23 fixed. Add the pair to
-Development.
+and no error is the same failure shape as the drift #23 fixed.
+
+**Left as it is, by the author's decision, 2026-08-30.** Local GitHub sign-in
+works from `.env`, so this buys nothing today. Recorded so the gap reads as a
+known choice rather than an oversight — and so that whoever runs
+`pnpm env:pull development` and then cannot sign in with GitHub locally has
+this note to find.
 
 - [x] **Step 3: Migrate production, by hand** — **done 2026-08-30.**
 

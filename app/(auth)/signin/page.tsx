@@ -1,20 +1,25 @@
+import { supportedProvider } from '@/lib/account-conflict';
 import { signIn } from '@/lib/auth';
 import { safeCallbackUrl } from '@/lib/safe-redirect';
-
-const PROVIDER_NAMES: Record<string, string> = { google: 'Google', github: 'GitHub' };
 
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; provider?: string; callbackUrl?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    provider?: string;
+    attempted?: string;
+    callbackUrl?: string;
+  }>;
 }) {
-  const { error, provider, callbackUrl } = await searchParams;
+  const { error, provider, attempted, callbackUrl } = await searchParams;
   const target = safeCallbackUrl(callbackUrl);
-  const owner = provider ? PROVIDER_NAMES[provider] : undefined;
+  const owner = supportedProvider(provider);
+  const retry = error === 'account-exists' && owner ? supportedProvider(attempted) : null;
 
   const message =
     error === 'account-exists' && owner
-      ? `That email already signs in with ${owner}. Continue with ${owner} instead.`
+      ? `That email already signs in with ${owner.label}. Continue with ${owner.label} instead.`
       : error
         ? 'Something went wrong signing you in. Try again.'
         : null;
@@ -57,6 +62,19 @@ export default async function SignInPage({
             Continue with GitHub
           </button>
         </form>
+
+        {retry ? (
+          <form
+            action={async () => {
+              'use server';
+              await signIn(retry.id, { redirectTo: target }, { prompt: 'select_account' });
+            }}
+          >
+            <button type="submit" className="w-full px-4 py-1 text-[15px] text-muted underline">
+              Use a different {retry.label} account
+            </button>
+          </form>
+        ) : null}
       </div>
     </main>
   );
