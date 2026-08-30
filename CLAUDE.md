@@ -496,6 +496,16 @@ One section of the plan, one branch, one PR. Ship the PR as soon as the section 
 - Then stop and hand back. Opening the PR is the checkpoint — start the next section in a fresh session from the plan document rather than continuing on a full context.
 - Do not merge your own PR. Wait for review.
 - If a section depends on one still in review, stack it: branch from that branch and set the PR base to it. Say so in the body.
+- **A stack merges child first, then parent.** The child's PR targets the parent
+  branch, so merging the parent into `main` first consumes the base and the
+  child's later merge lands in a branch `main` no longer tracks. GitHub still
+  reports it as merged, and nothing in the PR list looks wrong. This has
+  happened twice — Section C via #36, then Section D via #38, both stranded on
+  `feat/boards-permissions` and both needing a recovery PR. Prefer branching the
+  next section from `main` once its parent has landed; stack only while the
+  parent is genuinely still open, and merge bottom-up. Before starting a
+  section, confirm its base is real:
+  `git merge-base --is-ancestor <parent-tip> origin/main`.
 - Never force-push a branch that has an open PR, and never rebase a branch someone may have pulled.
 - If the Vercel preview or CI fails, fix it on the same branch. Don't open a replacement PR.
 - Nothing secret is ever committed. `.env*` stays ignored; `.env.example` is the only env file in the repo.
