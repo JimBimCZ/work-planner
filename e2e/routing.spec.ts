@@ -10,3 +10,9 @@ test('the empty board list invites rather than apologises', async ({ page }) => 
   await expect(page.getByRole('heading', { name: 'Boards' })).toBeVisible();
   await expect(page.getByText('Nothing here yet')).toBeVisible();
 });
+
+test('the health route reaches the database', async ({ request }) => {
+  const response = await request.get('/api/health');
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toEqual({ ok: true });
+});
