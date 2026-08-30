@@ -384,6 +384,40 @@ Consequences to accept, not work around:
 - If a feature turns out to be several independent subsystems, say so and decompose it into sub-projects, each with its own spec → plan → implementation cycle. Don't spec a whole platform in one pass.
 - No skipping stages because something looks trivial. The deceptively simple requests are the ones that turn into scope creep.
 
+### Model selection
+
+Fixed, and not a per-task judgement call:
+
+| Work | Model |
+|---|---|
+| Brainstorming, planning, writing specs | Opus |
+| Final whole-branch review, before a section's PR | Opus |
+| Per-task review and scoped re-review | Sonnet |
+| Implementation | Sonnet |
+
+This applies to the main session and to every subagent. Always pass the model
+explicitly when dispatching a subagent: an omitted model silently inherits the
+caller's, which defeats the whole table.
+
+The split between the two review rows is deliberate. A per-task review reads one
+task's diff against one brief — a narrow, well-bounded question that Sonnet
+answers reliably. The final review reads the whole branch against the spec, the
+plan and this file at once, and that is where breadth pays for itself.
+
+The evidence is from this repository. During Section A the per-task reviews
+passed the scaffold as compliant, and each was right about the diff it was given.
+The final review then found that `pnpm typecheck` succeeded locally but would
+fail on every clean checkout and in CI, because `app/layout.tsx` used
+`LayoutProps`, a Next 16 typegen global emitted into gitignored `.next/types/`.
+Seeing that needed the branch, the CI job planned three sections later, and the
+pre-push gate this file mandates — none of which is visible in a single task's
+diff. Do not economise on the final review.
+
+Implementation is the opposite case: when a plan carries the exact code to write,
+implementation is transcription plus verification, and Sonnet does it at a
+fraction of the cost with no observed quality loss across Section A's four
+implementation dispatches.
+
 ### Increments
 
 - Work in small increments. One coherent change at a time, verified, committed, then the next.
