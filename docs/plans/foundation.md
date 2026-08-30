@@ -68,7 +68,7 @@ Branch: `feat/foundation-scaffold`
 - Consumes: nothing.
 - Produces: the `pnpm` script names every later task runs — `dev`, `build`, `start`, `lint`, `typecheck`, `test`, `test:e2e`, `db:generate`, `db:migrate`, `db:studio`. The `@/*` path alias resolving to the repo root.
 
-- [ ] **Step 1: Scaffold into the existing repository**
+- [x] **Step 1: Scaffold into the existing repository**
 
 The repo already contains `CLAUDE.md`, `LICENSE` and `docs/`, so scaffold into a
 temporary directory and move the files in rather than letting the generator
@@ -109,7 +109,7 @@ why before continuing.
 The generated `package.json` takes its `name` from the temp directory. Set it to
 `work-planner`.
 
-- [ ] **Step 2: Confirm the generated versions are what this plan assumes**
+- [x] **Step 2: Confirm the generated versions are what this plan assumes**
 
 ```bash
 node -e "const p=require('./package.json');console.log('next',p.dependencies.next);console.log('react',p.dependencies.react);console.log('tailwind',p.devDependencies.tailwindcss)"
@@ -117,7 +117,7 @@ node -e "const p=require('./package.json');console.log('next',p.dependencies.nex
 
 Expected: `next` on 16.x, `react` on 19.x, `tailwind` on 4.x. If `next` is not 16.x, stop and report it — the whole plan is written against 16.
 
-- [ ] **Step 3: Add the remaining dev dependencies**
+- [x] **Step 3: Add the remaining dev dependencies**
 
 ```bash
 pnpm add -D vitest vite-tsconfig-paths @playwright/test
@@ -126,7 +126,7 @@ pnpm add -D drizzle-kit @types/pg
 pnpm exec playwright install --with-deps chromium
 ```
 
-- [ ] **Step 4: Write the scripts block**
+- [x] **Step 4: Write the scripts block**
 
 Replace the `scripts` block in `package.json` with exactly this. The names are fixed by `CLAUDE.md`; `test` must be `vitest run` and not watch mode, or CI hangs.
 
@@ -137,7 +137,7 @@ Replace the `scripts` block in `package.json` with exactly this. The names are f
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
@@ -148,7 +148,9 @@ Replace the `scripts` block in `package.json` with exactly this. The names are f
 }
 ```
 
-- [ ] **Step 5: Configure Vitest**
+`typecheck` runs `next typegen` first because `app/layout.tsx` and other route files use typegen globals like `LayoutProps<"/">`, emitted into `.next/types/routes.d.ts`. That directory is gitignored, so on a clean checkout — including every CI run — a bare `tsc --noEmit` fails with `Cannot find name 'LayoutProps'` before a single real type error is checked.
+
+- [x] **Step 5: Configure Vitest**
 
 Node environment, not jsdom: Foundation has no component unit tests, so React Testing Library and jsdom would be unused dependencies. Component behaviour is covered by Playwright instead.
 
@@ -162,13 +164,16 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     environment: 'node',
-    include: ['lib/**/*.test.ts', 'app/**/*.test.ts'],
+    include: ['lib/**/*.test.ts?(x)', 'app/**/*.test.ts?(x)'],
     passWithNoTests: true,
   },
 });
 ```
 
-The `include` pattern deliberately excludes `e2e/`, which Playwright owns.
+The `include` pattern deliberately excludes `e2e/`, which Playwright owns. The
+`?(x)` suffix collects both `.test.ts` and `.test.tsx`, so a future component
+test isn't silently dropped from the suite — with `passWithNoTests` on, a
+too-narrow glob would fail closed as a green build with nothing run.
 
 `passWithNoTests` is required, not cosmetic: the first unit test does not arrive
 until Task 5, and without it `vitest run` exits 1 on an empty suite — which would
@@ -176,7 +181,7 @@ fail every `&&`-chained gate in Sections A and B and the CI job in Task 9. Do no
 satisfy this by adding a placeholder test; a test that asserts nothing is a
 defect.
 
-- [ ] **Step 6: Write `.env.example`**
+- [x] **Step 6: Write `.env.example`**
 
 Every variable from the `CLAUDE.md` deployment section, including ones not used until later sub-projects, so this file is not revisited each time.
 
@@ -203,7 +208,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ENV
 ```
 
-- [ ] **Step 7: Ensure `.gitignore` covers env files and test output**
+- [x] **Step 7: Ensure `.gitignore` covers env files and test output**
 
 Append if not already present:
 
@@ -220,7 +225,7 @@ The generated `.gitignore` may already contain a bare `.env*` with no exception,
 which would silently make `.env.example` uncommittable. Ensure the `!.env.example`
 negation is present and comes after the ignore lines.
 
-- [ ] **Step 8: Verify the toolchain**
+- [x] **Step 8: Verify the toolchain**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm build
@@ -228,7 +233,7 @@ pnpm typecheck && pnpm lint && pnpm build
 
 Expected: all three succeed. `pnpm test` is expected to report no test files at this point; that is fine and is fixed in Task 2.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add -A
@@ -247,18 +252,20 @@ git commit -m "chore: scaffold Next.js 16 app with test and db tooling"
 - Consumes: the `pnpm build` / `pnpm start` scripts from Task 1.
 - Produces: the `/boards` route that sub-project 3 replaces with a real board list, and `playwright.config.ts` which every later e2e task adds specs to.
 
-- [ ] **Step 1: Configure Playwright**
+- [x] **Step 1: Configure Playwright**
 
 Create `playwright.config.ts`:
 
 ```ts
 import { defineConfig, devices } from '@playwright/test';
 
+const isCI = Boolean(process.env.CI);
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
-  forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 2 : 0,
+  forbidOnly: isCI,
+  retries: isCI ? 2 : 0,
   reporter: 'list',
   use: {
     baseURL: 'http://localhost:3000',
@@ -268,15 +275,18 @@ export default defineConfig({
   webServer: {
     command: 'pnpm build && pnpm start',
     url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+    // Always start a fresh production server: reusing a stray `next dev` on
+    // port 3000 would run the suite against dev overlays instead of the
+    // build this config exists to test.
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 });
 ```
 
-The suite runs against a production build rather than `next dev`, because the redirect and the theme script behave differently under dev-only overlays.
+The suite runs against a production build rather than `next dev`, because the redirect and the theme script behave differently under dev-only overlays. `reuseExistingServer` is `false` unconditionally — including locally — precisely so a stray `next dev` left running on port 3000 can never get silently substituted for the production build this config exists to test.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `e2e/routing.spec.ts`:
 
@@ -295,7 +305,7 @@ test('the empty board list invites rather than apologises', async ({ page }) => 
 });
 ```
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 ```bash
 pnpm test:e2e
@@ -303,7 +313,7 @@ pnpm test:e2e
 
 Expected: both tests FAIL. The first because `/` renders the generator's default page instead of redirecting; the second with a 404 on `/boards`.
 
-- [ ] **Step 4: Write the minimal implementation**
+- [x] **Step 4: Write the minimal implementation**
 
 Replace `app/page.tsx` entirely:
 
@@ -328,7 +338,7 @@ export default function BoardsPage() {
 }
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 ```bash
 pnpm test:e2e
@@ -336,7 +346,7 @@ pnpm test:e2e
 
 Expected: 2 passed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/page.tsx "app/(app)/boards/page.tsx" e2e/routing.spec.ts playwright.config.ts
@@ -345,7 +355,7 @@ git commit -m "feat: redirect the root to the board list"
 
 ### Section A gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
 - [ ] Open the PR with `gh pr create`, stating what was verified and the observed output.
 - [ ] Stop. Start Section B in a fresh session.
 
