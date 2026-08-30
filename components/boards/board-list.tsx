@@ -1,5 +1,7 @@
 import Link from 'next/link';
 
+import { BoardRowMenu } from '@/components/boards/board-row-menu';
+
 import type { BoardSummary } from '@/lib/boards';
 
 const UNITS = [
@@ -39,6 +41,7 @@ export function BoardList({ boards }: { boards: BoardSummary[] }) {
             <time dateTime={board.updatedAt.toISOString()} className="font-mono text-xs text-muted">
               {formatUpdated(board.updatedAt)}
             </time>
+            {board.role === 'owner' && <BoardRowMenu board={board} />}
           </div>
         </li>
       ))}

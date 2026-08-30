@@ -67,3 +67,51 @@ test('a board with no name cannot be created', async ({ page, context }) => {
 
   await removeSeededUser(userId);
 });
+
+test('renaming a board keeps the new name after a reload', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  await seedBoard(userId, 'Roadmap');
+
+  await page.goto('/boards');
+  await page.getByRole('button', { name: 'Board actions for Roadmap' }).click();
+  await page.getByRole('menuitem', { name: 'Rename' }).click();
+  await page.getByLabel('Board name').fill('Q3 roadmap');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+
+  await expect(page.getByRole('link', { name: 'Q3 roadmap' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('link', { name: 'Q3 roadmap' })).toBeVisible();
+
+  await removeSeededUser(userId);
+});
+
+test('deleting a board needs its name typed exactly', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  await seedBoard(userId, 'Roadmap');
+
+  await page.goto('/boards');
+  await page.getByRole('button', { name: 'Board actions for Roadmap' }).click();
+  await page.getByRole('menuitem', { name: 'Delete' }).click();
+
+  await page.getByLabel('Type the board name to confirm').fill('roadmap');
+  await page.getByRole('button', { name: 'Delete board' }).click();
+  await expect(
+    page.getByText('That is not the board name. Type it exactly to delete.'),
+  ).toBeVisible();
+
+  // The modal marks the page behind it aria-hidden, so the surviving row is
+  // only reachable once the dialog is closed — and the row surviving is the
+  // actual proof that the near-miss did not delete.
+  await page.getByRole('button', { name: 'Close' }).click();
+  await expect(page.getByRole('link', { name: 'Roadmap' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Board actions for Roadmap' }).click();
+  await page.getByRole('menuitem', { name: 'Delete' }).click();
+  await page.getByLabel('Type the board name to confirm').fill('Roadmap');
+  await page.getByRole('button', { name: 'Delete board' }).click();
+
+  await expect(page.getByRole('link', { name: 'Roadmap' })).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Create your first board' })).toBeVisible();
+
+  await removeSeededUser(userId);
+});
