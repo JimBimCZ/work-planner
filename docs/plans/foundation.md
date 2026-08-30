@@ -1340,7 +1340,7 @@ jobs:
 
 There is no migration step: Foundation ships no migrations. The migrate-on-main job is added by sub-project 2.
 
-- [ ] **Step 2: Verify it passes on the pull request**
+- [x] **Step 2: Verify it passes on the pull request**
 
 Push the branch, open the PR, and watch the run:
 
@@ -1360,8 +1360,8 @@ git commit -m "ci: verify typecheck, lint, unit and e2e on every pull request"
 ### Section D gate
 
 - [x] The container reached `healthy` and was then shut down, output observed.
-- [ ] The CI run on the PR passed, watched rather than assumed.
-- [ ] Open the PR. Stop. Start Section E in a fresh session.
+- [x] The CI run on the PR passed, watched rather than assumed.
+- [x] Open the PR. Stop. Start Section E in a fresh session.
 
 Two deviations from this section's literal text, both verified before they were made:
 
