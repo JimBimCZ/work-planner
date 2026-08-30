@@ -69,7 +69,15 @@ docker build -t kanban .           # app image only, self-host
 is migrated.** That override is not cosmetic: the config used to replace `process.env` unconditionally,
 so the same command migrated the `.env.local` database and still printed `migrations applied
 successfully!`. Because drizzle-kit has already loaded `.env` before the config evaluates, "set in the
-shell" is decided by comparing against `.env`'s own value, not by presence in `process.env`. Also note `drizzle-kit migrate` exits 1 with an empty stderr
+shell" is decided by comparing against `.env`'s own value, not by presence in `process.env`.
+**That comparison has a hole: passing the value `.env` already holds reads as "not from the
+shell", so `.env.local` wins.** Migrating the docker Postgres with the documented
+`postgres://kanban:kanban@localhost:5432/kanban` therefore prints `migrations applied
+successfully!` and migrates the Neon dev branch instead — the failure mode this whole
+paragraph exists to prevent, in the one case `.env` exists to describe. Until the config
+stops inferring provenance, name that database with a string that differs textually from
+`.env` (`127.0.0.1` for `localhost` is the same host), and confirm with `\dt` rather than
+the success line. Also note `drizzle-kit migrate` exits 1 with an empty stderr
 when `lib/db/migrations/` does not exist; the first `db:generate` creates it.
 
 Before declaring any task done, run `pnpm typecheck && pnpm lint && pnpm test`. Do not report success on output you have not seen.

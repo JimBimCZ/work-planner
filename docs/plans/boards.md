@@ -1880,7 +1880,9 @@ git commit -m "feat: render the board shell behind a permission check"
 
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed — 72 unit tests in 11 files, 28 e2e tests.
 - [ ] A second **real** account — not a seeded session — gets a 404 on the first account's board URL, observed in a browser on the deployed preview. **Not done:** needs the preview deploy and two real OAuth logins. The seeded-session equivalent passes and asserts the status code, which is the mechanism; this box is the human confirmation of it.
-- [ ] `docker compose up --build` reaches a healthy app container with the new migration applied, and the stack is shut down afterwards. **Not done:** the Docker daemon was not running on the machine this section was built on (`Cannot connect to the Docker daemon at unix:///Users/…/docker.sock`). Nothing in this section touches the Dockerfile or the migration, but that is an argument, not evidence — run it before merging.
+- [x] `docker compose up --build` reaches a healthy app container with the new migration applied, and the stack is shut down afterwards.
+      Done 2026-08-30. Both containers reached `healthy`; `/api/health` returned `200 {"ok":true}` and `/boards` returned `307` to `/signin?callbackUrl=%2Fboards`. The container database was migrated to all six tables with both `CASCADE` constraints, verified with `\dt` and `pg_constraint` rather than the success line. Torn down with `docker compose down -v`.
+      **The first attempt was a false success, and the reason is worth keeping.** `DATABASE_URL_UNPOOLED=postgres://kanban:kanban@localhost:5432/kanban pnpm db:migrate` printed `migrations applied successfully!` while the container database stayed empty — it had migrated the Neon dev branch. `drizzle.config.ts` decides "came from the shell" as `key in process.env && process.env[key] !== dotEnv.get(key)`, and `.env` already holds that exact string, so passing the documented local URL makes the test false and `.env.local` wins. The heuristic fails precisely in the case `.env` exists to describe. `127.0.0.1` in place of `localhost` is the same host and a different string, which is what got the migration through. **This is a bug in the file that guards production migrations — see [drizzle-config-provenance] below.**
 - [x] Screenshots of the board shell in both themes attached to the PR, at 1440px and 390px.
 - [x] Open the PR. Stop.
 
@@ -1890,10 +1892,21 @@ git commit -m "feat: render the board shell behind a permission check"
 
 Sub-project 3 is complete when every checkbox above is ticked and:
 
-- `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass on `main`.
-- A board created in a browser shows its five columns in the order `Ready to Work, In Progress, In Testing, In Review, Done`.
-- A second account gets a 404 on a board it is not a member of.
-- Deleting a board leaves no orphaned `board_members` or `columns` rows — confirmed with a `select`, not assumed from the foreign keys.
-- Production has been migrated by hand and holds the six tables.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass on `main` — observed at `3082615`: 72 unit tests in 11 files, 28 e2e tests.
+- [x] A board created in a browser shows its five columns in the order `Ready to Work, In Progress, In Testing, In Review, Done`.
+- [ ] A second account gets a 404 on a board it is not a member of. **Playwright asserts `response.status() === 404`; the real-account confirmation in a browser is still outstanding.**
+- [x] Deleting a board leaves no orphaned `board_members` or `columns` rows — confirmed with a `select`, not assumed from the foreign keys. Proved end to end against the dev branch: a board with 3 members and 5 columns deleted through the row-menu UI, so `deleteBoard` ran rather than raw SQL, leaving `boards=0 board_members=0 columns=0`. A scan for rows whose `board_id` has no `boards` row returned 0 in both tables, and `pg_constraint` confirms both foreign keys are genuinely `CASCADE` in the migrated database.
+- [x] Production has been migrated by hand and holds the six tables — re-confirmed 2026-08-30 by comparing the SHA-256 of each local migration file against `drizzle.__drizzle_migrations`; both match, so production ran exactly these migrations.
+
+### [drizzle-config-provenance]
+
+Open, and not fixed while closing these gates because it changes how every
+production migration resolves its target. `drizzle.config.ts` infers whether a
+variable came from the shell by comparing its value against `.env`, which cannot
+distinguish "the operator typed this" from "`.env` already said this" —
+`drizzle-kit` has loaded `.env` into `process.env` before the config evaluates.
+The fix is to stop inferring provenance: snapshot `process.env` before `.env` is
+read, or take an explicit target rather than guessing. Until then, migrating the
+docker Postgres needs a URL that differs textually from `.env`'s.
 
 Carried forward to the invite sub-project, and not to be decided while executing this plan: when invites land relative to the card modal, and whether a board can change owner.

@@ -266,10 +266,19 @@ Done when, with output observed rather than assumed:
   URL — observed in a browser, not only in the Playwright run. **The Playwright
   half is done and asserts `response.status() === 404`; the real-account half is
   outstanding and needs the preview deploy.**
-- [ ] Deleting a board removes its `board_members` and `columns` rows; a `select`
-  against production or the dev branch confirms no orphans. **Not yet run.**
-- [ ] `docker compose up --build` still reaches a healthy app container with the new
-  migration applied. **Not yet run — no Docker daemon on the build machine.**
+- [x] Deleting a board removes its `board_members` and `columns` rows; a `select`
+  against production or the dev branch confirms no orphans. Run against the dev
+  branch: a board with 3 members and 5 columns, deleted through the row-menu UI
+  so `deleteBoard` ran rather than raw SQL, left `boards=0 board_members=0
+  columns=0`. A scan for rows whose `board_id` has no `boards` row returned 0 in
+  both tables, and `pg_constraint` confirms both foreign keys are `CASCADE` in
+  the migrated database rather than only in `schema.ts`.
+- [x] `docker compose up --build` still reaches a healthy app container with the new
+  migration applied. Both containers reached `healthy`; `/api/health` returned
+  `200 {"ok":true}`, `/boards` returned `307` to `/signin`. See the plan's
+  Section D gate for the false success that preceded it — the printed
+  `migrations applied successfully!` had migrated the Neon dev branch, not the
+  container.
 
 ## Open decisions carried forward
 
