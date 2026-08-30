@@ -1245,14 +1245,24 @@ and the same three with `/github`. Preview deployments get a fresh URL per commi
 
 `AUTH_SECRET` (generate with `openssl rand -base64 32`), `AUTH_TRUST_HOST=true`, and the four provider variables, in all three Vercel environments. Then `pnpm env:pull development` to refresh `.env.local`.
 
-- [ ] **Step 3: Migrate production, by hand**
+- [x] **Step 3: Migrate production, by hand** — **done 2026-08-30.**
 
 ```bash
-pnpm db:migrate   # with DATABASE_URL_UNPOOLED pointing at production
-psql "$DATABASE_URL_UNPOOLED" -c '\dt'
+DATABASE_URL_UNPOOLED="$(npx neonctl@4 connection-string main --project-id <id>)" pnpm db:migrate
 ```
 
 Expected: `user`, `account`, `session`. Do this **before** announcing the deploy is usable — until it runs, every sign-in on production fails on a missing table.
+
+Observed, by catalog query rather than `psql`, which is not installed on the author's machine:
+
+```
+drizzle.__drizzle_migrations
+public.account
+public.session
+public.user
+```
+
+Three tables and no others, which is the gate's third item. Note the command needs the shell-precedence fix from PR #23 — before it, the same line migrated the `.env.local` database and still printed `migrations applied successfully!`. The `neon_auth` schema is excluded from the query deliberately; it is the inert leftover recorded in `CLAUDE.md`.
 
 - [ ] **Step 4: Sign in for real, both providers**
 
@@ -1273,7 +1283,7 @@ Tick this plan's boxes and the spec's verification list, and report what was obs
 
 - [ ] A real Google sign-in and a real GitHub sign-in both reach `/boards`, observed in a browser.
 - [ ] The cross-provider refusal names the other provider, observed rather than inferred.
-- [ ] Production holds the three tables and no others.
+- [x] Production holds the three tables and no others.
 
 ---
 
