@@ -1130,7 +1130,7 @@ git commit -m "feat: add a temporary proof sheet for the design tokens"
 
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
 - [ ] Screenshots of `/design` in both themes attached to the PR, per the rule that UI changes ship with screenshots.
-- [ ] Open the PR. Stop. Start Section D in a fresh session.
+- [x] Open the PR. Stop. Start Section D in a fresh session.
 
 ---
 
