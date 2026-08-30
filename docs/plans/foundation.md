@@ -1452,11 +1452,11 @@ across 3, 5 and 8 columns, Roboto and Roboto Mono, and the footer's privacy link
 - Production: https://work-planner-seven.vercel.app
 - `main` branch alias: https://work-planner-git-main-jimbimczs-projects.vercel.app
 
-Two things this section found and did not fix, both carried to sub-project 2:
+Two things this section found:
 
-- `NEXT_PUBLIC_SITE_URL` is set in all three Vercel environments and in `.env.example`, but no code
-  reads it. `CLAUDE.md` describes it as the canonical URL "used in the policy and metadata"; until a
-  `metadataBase` uses it, that sentence describes an intention rather than the code.
+- `NEXT_PUBLIC_SITE_URL` was set in all three Vercel environments and in `.env.example`, but no code
+  read it, so `CLAUDE.md`'s description of it was an intention rather than a fact. Fixed rather than
+  carried: `lib/site-url.ts` resolves it into the root layout's `metadataBase`.
 - Section C's gate still has one unticked box: screenshots of `/design` were never attached to PR #6,
   which is merged. Both themes are now verified on the deployment and recorded above, but the box
   stays unticked because the thing it asks for did not happen.

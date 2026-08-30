@@ -347,7 +347,7 @@ AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET
 AUTH_GITHUB_ID / AUTH_GITHUB_SECRET
 PUSHER_APP_ID / PUSHER_SECRET
 NEXT_PUBLIC_PUSHER_KEY / NEXT_PUBLIC_PUSHER_CLUSTER   # cluster is read by both sides
-NEXT_PUBLIC_SITE_URL          # canonical URL, used in the policy and metadata
+NEXT_PUBLIC_SITE_URL          # canonical URL; resolved by lib/site-url.ts into metadataBase
 ```
 
 `.env.example` is committed and stays in sync. `.env*` is not.
