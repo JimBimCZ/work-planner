@@ -1502,7 +1502,7 @@ git commit -m "feat: rename and delete a board from its row"
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
 - [x] A near-miss on the delete confirmation does not delete — observed in the e2e run, not inferred from the code.
 - [x] Screenshots of the list, the empty state and the delete confirm, in both themes, attached to the PR. Section C of the Foundation plan shipped without screenshots and its gate stayed unticked; Section C of Auth did not repeat it. Do not restart the habit.
-- [ ] Open the PR. Stop. Start Section D in a fresh session.
+- [x] Open the PR. Stop. Start Section D in a fresh session. — PR #36, based on `feat/boards-permissions`.
 
 ---
 
