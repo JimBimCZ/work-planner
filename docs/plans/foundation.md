@@ -1386,7 +1386,7 @@ Branch: none. This section is a handoff, not a code change.
 - Consumes: the merged output of Sections A through D on `main`.
 - Produces: a preview URL, and the environment variables sub-project 2 will extend.
 
-- [ ] **Step 1: Create the Vercel project**
+- [x] **Step 1: Create the Vercel project**
 
 Create a project on the `JimBimCZ's projects` team linked to the `JimBimCZ/work-planner` GitHub
 repository. Do not deploy yet — set the environment variables first.
@@ -1402,15 +1402,15 @@ project creation fails with `bad_request` — "To link a GitHub repository, you 
 GitHub integration first." The app being installed for other repositories is not enough when its
 access is scoped to selected ones. Add `work-planner` at https://github.com/apps/vercel first.
 
-- [ ] **Step 2: Hand off to the author**
+- [x] **Step 2: Hand off to the author**
 
 Report the project name and ask for a Neon project with two connection strings: the pooled endpoint for `DATABASE_URL` and the direct endpoint for `DATABASE_URL_UNPOOLED`. Per the spec, Neon and Vercel should both be pinned to an EU region so the privacy policy's data-location answer stays simple.
 
-- [ ] **Step 3: Set the environment variables**
+- [x] **Step 3: Set the environment variables**
 
 Set `DATABASE_URL`, `DATABASE_URL_UNPOOLED` and `NEXT_PUBLIC_SITE_URL` for production, preview and development.
 
-- [ ] **Step 4: Verify the preview**
+- [x] **Step 4: Verify the preview**
 
 ```bash
 curl -s https://<preview-url>/api/health
@@ -1419,13 +1419,47 @@ curl -s -o /dev/null -w '%{http_code}\n' https://<preview-url>/design
 
 Expected: `{"ok":true}` and `200`. Then open `/design` in a browser and confirm both themes render, since a status code does not prove the fonts or tokens loaded.
 
-- [ ] **Step 5: Record the outcome**
+- [x] **Step 5: Record the outcome**
 
 Tick the Foundation verification list in `docs/specs/foundation.md` and report the preview URL.
 
 ### Section E gate
 
-- [ ] The preview serves `/design` in both themes and `/api/health` returns `ok`, observed in a browser and not inferred.
+- [x] The preview serves `/design` in both themes and `/api/health` returns `ok`, observed in a browser and not inferred.
+
+### Section E outcome
+
+Steps 1 through 3 were carried out while Sections D and the privacy-policy branch were in flight, so
+this section verified them rather than performing them. Project `work-planner` on
+`JimBimCZ's projects`, linked to `JimBimCZ/work-planner`; Neon wired through the Vercel integration,
+which supplies `DATABASE_URL` and `DATABASE_URL_UNPOOLED` to Production and Preview, and to
+Development from the `dev` branch created in PR #12.
+
+Deployment `dpl_A3aRz74Fikd9FcruKrJXMjcsK1CA`, `main` at `a4e3306`, state READY. Observed:
+
+```
+$ curl -s https://work-planner-seven.vercel.app/api/health
+{"ok":true}
+$ curl -s -o /dev/null -w '%{http_code}\n' https://work-planner-git-main-jimbimczs-projects.vercel.app/design
+200
+```
+
+`/design` was then opened in Chrome against
+`work-planner-git-main-jimbimczs-projects.vercel.app` under an emulated `prefers-color-scheme` of
+`dark` and of `light`. Both render: the token swatches, the three flow spectrums re-interpolating
+across 3, 5 and 8 columns, Roboto and Roboto Mono, and the footer's privacy link. URLs:
+
+- Production: https://work-planner-seven.vercel.app
+- `main` branch alias: https://work-planner-git-main-jimbimczs-projects.vercel.app
+
+Two things this section found and did not fix, both carried to sub-project 2:
+
+- `NEXT_PUBLIC_SITE_URL` is set in all three Vercel environments and in `.env.example`, but no code
+  reads it. `CLAUDE.md` describes it as the canonical URL "used in the policy and metadata"; until a
+  `metadataBase` uses it, that sentence describes an intention rather than the code.
+- Section C's gate still has one unticked box: screenshots of `/design` were never attached to PR #6,
+  which is merged. Both themes are now verified on the deployment and recorded above, but the box
+  stays unticked because the thing it asks for did not happen.
 
 ---
 
