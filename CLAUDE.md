@@ -23,7 +23,7 @@ Repository: `https://github.com/JimBimCZ/work-planner`
 | Framework | Next.js 16, App Router, TypeScript strict | Server Components by default. Was pinned to 15; moved to 16 at project start because 16 was already stable and `next-auth@5` declares `^16.0.0` as a supported peer |
 | Styling | Tailwind CSS v4 + shadcn/ui | Radix primitives under the hood |
 | Drag and drop | `@dnd-kit/core` + `@dnd-kit/sortable` | Not react-beautiful-dnd (unmaintained, no React 19 support) |
-| Auth | Auth.js v5 (`next-auth@5`) | Google + GitHub providers, database sessions |
+| Auth | Auth.js v5 (`next-auth@5`) | Google + GitHub providers, database sessions. Deliberately not Neon Auth — see "Auth and permissions" |
 | DB | Neon Postgres | Same `node-postgres` driver against Neon's pooled endpoint and against local Postgres — no driver switch by environment |
 | ORM | Drizzle ORM + drizzle-kit | Typed schema, SQL-first migrations |
 | Data fetching | Server Components + Server Actions | TanStack Query only where realtime cache reconciliation needs it |
@@ -50,6 +50,8 @@ pnpm lint               # eslint
 pnpm typecheck          # tsc --noEmit
 pnpm test               # vitest
 pnpm test:e2e           # playwright
+pnpm env:pull [target]  # pull Neon connection strings from Vercel into .env.local
+pnpm db:dev-branch      # create the Neon dev branch, point Vercel Development at it
 pnpm db:generate        # generate SQL migration from schema changes
 pnpm db:migrate         # apply migrations
 pnpm db:studio          # drizzle studio
@@ -59,6 +61,11 @@ docker build -t kanban .           # app image only, self-host
 ```
 
 `db:migrate` uses `DATABASE_URL_UNPOOLED` and is run from CI or by hand — never at application startup.
+
+`drizzle.config.ts` loads `.env.local` itself and lets it override `.env`. drizzle-kit only auto-loads
+`.env`, so without that the app talks to Neon while migrations silently hit the docker Postgres in
+`.env` — the two drift with no error. Also note `drizzle-kit migrate` exits 1 with an empty stderr
+when `lib/db/migrations/` does not exist; the first `db:generate` creates it.
 
 Before declaring any task done, run `pnpm typecheck && pnpm lint && pnpm test`. Do not report success on output you have not seen.
 
@@ -175,6 +182,21 @@ Ably is an acceptable substitute if Pusher's free tier proves too small. Polling
 - All checks go through `lib/permissions.ts`: `assertBoardAccess(userId, boardId, minRole)`. Never inline a membership query in an action.
 - `viewer` can read and comment; `member` can mutate cards and columns; `owner` can manage members and delete the board.
 - Invite flow: owner adds a member by email. If no user exists with that email, store a pending invite keyed on email and resolve it at first sign-in.
+
+**Neon Auth is deliberately not used, and stays disabled on every Neon branch.** The Vercel-managed
+Neon integration provisions it automatically, so it may come back — if it does, disable it rather than
+adopting it. Two reasons, both structural:
+
+- It is a *hosted* service reached over a Neon-managed endpoint, so it cannot run against the plain
+  Postgres in `docker-compose.yml`. Adopting it would break local development and self-hosting, which
+  "Deployment" commits to supporting.
+- Neon documents that foreign keys must reference `neon_auth.user(id)` and that its constraints may
+  change in future updates, breaking those references and blocking migrations. `boards.ownerId`,
+  `board_members.userId`, `cards.createdById` and `comments.authorId` all point at users; that is not
+  a table to hand to a vendor.
+
+To remove it: `neon neon-auth disable --project-id <id> --branch <branch>`, then delete the
+`NEON_AUTH_BASE_URL` and `VITE_NEON_AUTH_URL` variables it adds to the Vercel project.
 
 ## Server action conventions
 
@@ -309,6 +331,7 @@ What that constrains:
 - Migrations do **not** run at boot. `pnpm db:migrate` runs from CI on the production branch before the deploy promotes, or manually. Never call it from `instrumentation.ts` or a route handler.
 - Use Neon's pooled connection string in `DATABASE_URL`; drizzle-kit uses the direct (unpooled) URL via `DATABASE_URL_UNPOOLED`.
 - Preview deployments get their own Neon branch. OAuth callback URLs must include the preview domain pattern or sign-in will fail on previews — expect to test auth on a stable preview alias.
+- Local development uses the Neon `dev` branch, never production `main`. The integration scopes its variables to Production and Preview only, so a bare `vercel env pull` finds nothing; `pnpm db:dev-branch` creates the branch and registers it as Development-scoped, and `pnpm env:pull development` refreshes `.env.local` from it.
 - `AUTH_URL`/`AUTH_TRUST_HOST` need care on previews. Set `AUTH_TRUST_HOST=true` and let Auth.js infer the host rather than hardcoding.
 
 Docker (local/self-host): multi-stage deps → build → runner on `node:22-alpine`, `output: 'standalone'` enabled by `DOCKER_BUILD=1` in the build stage (Vercel builds must use Next's default output), non-root `nextjs` user, `HOSTNAME=0.0.0.0`. `docker-compose.yml` runs app + local Postgres. Add `/api/health` for the container healthcheck. Keep secrets out of `NEXT_PUBLIC_*` — those are inlined at build time.
