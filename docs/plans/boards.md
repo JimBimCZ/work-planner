@@ -327,8 +327,9 @@ git commit -m "feat: add boards, board_members and columns"
 - [x] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed.
 - [x] The generated SQL was read, not just generated.
 - [x] CI is green on the PR — that is what proves the migration applies to an empty database, since the workflow runs `pnpm db:migrate` against a throwaway Postgres before the test steps.
-- [ ] **Production is migrated by hand when this merges:** `DATABASE_URL_UNPOOLED=<production> pnpm db:migrate`, then confirm the three tables exist against production. Vercel deploys from the push to `main`, so CI cannot gate this.
-- [ ] Open the PR. Stop. Start Section B in a fresh session.
+- [x] **Production is migrated by hand when this merges:** `DATABASE_URL_UNPOOLED=<production> pnpm db:migrate`, then confirm the three tables exist against production. Vercel deploys from the push to `main`, so CI cannot gate this.
+      Done 2026-08-30 against `ep-plain-truth-b2qok7du` (`VERCEL_ENV=production`). Verified by querying the catalogs rather than trusting the success line: six public tables, `board_role` as `owner, member, viewer`, the four foreign keys, `board_members_user_id_idx` and `columns_board_id_rank_idx`, and both migration hashes in `drizzle.__drizzle_migrations`.
+- [x] Open the PR. Stop. Start Section B in a fresh session.
 
 ---
 
