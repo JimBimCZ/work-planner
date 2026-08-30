@@ -1,6 +1,8 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 
+import * as schema from './schema';
+
 // The dev server re-evaluates modules on every hot reload, which would leak a
 // pool per reload. Production gets a fresh module per cold start, so the cache
 // is deliberately dev-only.
@@ -11,4 +13,4 @@ if (process.env.NODE_ENV !== 'production') {
   globalForDb.pool = pool;
 }
 
-export const db = drizzle({ client: pool });
+export const db = drizzle({ client: pool, schema });

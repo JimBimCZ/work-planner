@@ -1,6 +1,7 @@
+import { getTableName } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, test } from 'vitest';
-import { accounts, sessions, users } from './schema';
+import { accounts, boardMembers, boardRole, boards, columns, sessions, users } from './schema';
 
 // DrizzleAdapter is called with no schema argument, so it queries its own
 // default table definitions. These names are a contract with the adapter, and
@@ -28,5 +29,22 @@ describe('the adapter tables', () => {
       'provider',
       'providerAccountId',
     ]);
+  });
+});
+
+describe('board tables', () => {
+  test('use snake_case names of our own, not the adapter dialect', () => {
+    expect(getTableName(boards)).toBe('boards');
+    expect(getTableName(boardMembers)).toBe('board_members');
+    expect(getTableName(columns)).toBe('columns');
+  });
+
+  test('key membership off the text user id the adapter defines', () => {
+    expect(boardMembers.userId.columnType).toBe('PgText');
+    expect(boards.ownerId.columnType).toBe('PgText');
+  });
+
+  test('constrain the role to the three roles CLAUDE.md defines', () => {
+    expect(boardRole.enumValues).toEqual(['owner', 'member', 'viewer']);
   });
 });
