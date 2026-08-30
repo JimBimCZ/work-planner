@@ -70,15 +70,44 @@ Branch: `feat/foundation-scaffold`
 
 - [ ] **Step 1: Scaffold into the existing repository**
 
-The repo already contains `CLAUDE.md`, `LICENSE` and `docs/`, so scaffold into a temporary directory and move the files in rather than letting the generator refuse a non-empty target.
+The repo already contains `CLAUDE.md`, `LICENSE` and `docs/`, so scaffold into a
+temporary directory and move the files in rather than letting the generator
+refuse a non-empty target.
 
 ```bash
-pnpm dlx create-next-app@latest .scaffold \
-  --ts --app --tailwind --eslint --src-dir=false \
-  --import-alias "@/*" --use-pnpm --turbopack --no-git
-rsync -a --exclude .git .scaffold/ ./
-rm -rf .scaffold
+pnpm dlx create-next-app@latest scaffold-tmp \
+  --ts --app --tailwind --eslint \
+  --import-alias "@/*" --use-pnpm --disable-git
+
+# create-next-app defaults to --agents-md, which writes AGENTS.md AND a stub
+# CLAUDE.md containing only "@AGENTS.md". Merging that over the real CLAUDE.md
+# destroys it. Delete both before the merge, not after.
+rm -f scaffold-tmp/AGENTS.md scaffold-tmp/CLAUDE.md
+
+rsync -a --exclude .git scaffold-tmp/ ./
+rm -rf scaffold-tmp
 ```
+
+The flags above are verified against `create-next-app@16.3.3`. Three plausible
+flags do **not** work on this version, so do not reintroduce them: the target
+directory cannot begin with a period (npm naming rules), `--src-dir=false` is
+invalid because the flag is a boolean switch whose absence already means no
+`src/`, `--no-git` is spelled `--disable-git`, and `--turbopack` no longer exists
+because Turbopack is the default bundler (`--rspack` opts out).
+
+Then confirm the pre-existing files are untouched before going further:
+
+```bash
+git status --short
+git diff --stat -- CLAUDE.md LICENSE docs/
+```
+
+Expected: no changes to `CLAUDE.md`, `LICENSE` or `docs/`. If `CLAUDE.md` shows
+as modified, the merge clobbered it — `git checkout -- CLAUDE.md` and find out
+why before continuing.
+
+The generated `package.json` takes its `name` from the temp directory. Set it to
+`work-planner`.
 
 - [ ] **Step 2: Confirm the generated versions are what this plan assumes**
 
@@ -177,7 +206,12 @@ Append if not already present:
 !.env.example
 /test-results/
 /playwright-report/
+.superpowers/
 ```
+
+The generated `.gitignore` may already contain a bare `.env*` with no exception,
+which would silently make `.env.example` uncommittable. Ensure the `!.env.example`
+negation is present and comes after the ignore lines.
 
 - [ ] **Step 8: Verify the toolchain**
 
@@ -197,8 +231,10 @@ git commit -m "chore: scaffold Next.js 16 app with test and db tooling"
 ### Task 2: Root redirect and the boards placeholder
 
 **Files:**
-- Create: `app/page.tsx`, `app/(app)/boards/page.tsx`, `e2e/routing.spec.ts`, `playwright.config.ts`
-- Modify: `app/layout.tsx`
+- Create: `app/(app)/boards/page.tsx`, `e2e/routing.spec.ts`, `playwright.config.ts`
+- Replace: `app/page.tsx` (currently the create-next-app template)
+
+`app/layout.tsx` is deliberately not touched here; it is rewritten in Task 6.
 
 **Interfaces:**
 - Consumes: the `pnpm build` / `pnpm start` scripts from Task 1.
