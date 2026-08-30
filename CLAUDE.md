@@ -20,7 +20,7 @@ Repository: `https://github.com/JimBimCZ/work-planner`
 
 | Layer | Choice | Notes |
 |---|---|---|
-| Framework | Next.js 15, App Router, TypeScript strict | Server Components by default |
+| Framework | Next.js 16, App Router, TypeScript strict | Server Components by default. Was pinned to 15; moved to 16 at project start because 16 was already stable and `next-auth@5` declares `^16.0.0` as a supported peer |
 | Styling | Tailwind CSS v4 + shadcn/ui | Radix primitives under the hood |
 | Drag and drop | `@dnd-kit/core` + `@dnd-kit/sortable` | Not react-beautiful-dnd (unmaintained, no React 19 support) |
 | Auth | Auth.js v5 (`next-auth@5`) | Google + GitHub providers, database sessions |
