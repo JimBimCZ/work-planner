@@ -560,9 +560,13 @@ git commit -m "feat: read a board's cards and the caller's role"
 - [ ] `\d cards` against the dev branch confirms the table, both indexes and the three foreign keys.
 - [ ] Task 2's two tests were observed passing — or the fallback was taken and the spec updated to say so.
 - [ ] CI is green on the PR. That is what proves the migration applies to an empty database.
-- [ ] **Production is migrated by hand when this merges:**
-      `MIGRATE_URL="$(npx neonctl@4 connection-string main --project-id <id>)" pnpm db:migrate`,
-      then `\dt` against production to confirm `cards` exists. Vercel deploys from the push to `main`, so CI cannot gate this.
+- [ ] **Production is migrated by hand *before* merging, not after:** `getBoardWithColumns` already
+      joins `cards`, so the usual order would leave a window between Vercel's deploy and the hand-run
+      migration where `/boards/[boardId]` throws `relation "cards" does not exist` for every user.
+      Migration `0002` is purely additive and no code deployed today references `cards`, so there is
+      nothing to lose by running it first: `MIGRATE_URL="$(npx neonctl@4 connection-string main
+      --project-id <id>)" pnpm db:migrate`, then `\dt` against production to confirm `cards` exists —
+      before merging the PR, not after.
 - [ ] Open the PR, saying plainly that nothing user-visible changed. Stop. Start Section B in a fresh session.
 
 ---
