@@ -79,10 +79,13 @@ Before declaring any task done, run `pnpm typecheck && pnpm lint && pnpm test`. 
 ```
 app/
   (auth)/signin/            # OAuth entry, no credentials form
-  (app)/
-    boards/                 # board list
-    boards/[boardId]/       # board view
-      @card/(.)cards/[cardId]/    # intercepted — renders as modal over the board
+  (app)/                    # session check only; each group below renders its
+                            # own TopBar, because the board needs a title in it
+    (chrome)/               # normal page scroll, SiteFooter below the content
+      boards/               # board list
+    (board)/                # fixed viewport height, no footer
+      boards/[boardId]/     # board view — its layout resolves the board title
+        @card/(.)cards/[cardId]/  # intercepted — renders as modal over the board
     cards/[cardId]/         # canonical card page — the intercept target, and what
                             # a shared link opens on a cold load
   (legal)/
@@ -94,7 +97,8 @@ app/
     health/                 # container healthcheck
 components/
   board/                    # Board, Column, Card, CardModal, dnd wiring
-  site-footer.tsx           # see "Footer and legal pages" for where it renders
+  site-footer.tsx           # rendered by each route-group layout, not the root
+                            # one; see "Footer and legal pages"
   ui/                       # shadcn primitives
 lib/
   auth.ts                   # Auth.js config, exports auth/signIn/signOut
@@ -383,6 +387,8 @@ NEXT_PUBLIC_SITE_URL          # canonical URL, used in the policy and metadata
 ## Footer and legal pages
 
 A `SiteFooter` with a link to `/privacy` renders on every route **except the board view**, signed in or not. Keep it low-weight: a server component, no client JS.
+
+It is rendered by each route-group layout — `(app)/(chrome)`, `(auth)`, `(legal)` and `app/design` — rather than by the root layout. A child layout cannot remove a parent's footer, so the board view can only opt out if the root layout never adds one. The cost is that a **new top-level route group has no footer until you give it a layout**; `e2e/board-view.spec.ts` names every route that must keep it, so add to that list rather than discovering the gap in review.
 
 The board is the exception because it locks body scroll to a fixed viewport height, so a footer below it would be unreachable. There, the privacy link lives in the account menu instead. The link must be reachable from every route one way or the other — that is the requirement, not the footer specifically.
 

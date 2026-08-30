@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { Roboto, Roboto_Mono } from 'next/font/google';
-import { SiteFooter } from '@/components/site-footer';
 import './globals.css';
 
 const roboto = Roboto({
@@ -32,12 +31,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body
-        className={`${roboto.variable} ${robotoMono.variable} flex min-h-screen flex-col antialiased`}
-      >
-        <div className="flex-1">{children}</div>
-        <SiteFooter />
-      </body>
+      <body className={`${roboto.variable} ${robotoMono.variable} antialiased`}>{children}</body>
     </html>
   );
 }

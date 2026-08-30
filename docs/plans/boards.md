@@ -1510,6 +1510,32 @@ git commit -m "feat: rename and delete a board from its row"
 
 Branch: `feat/boards-shell`.
 
+**Deviations from this section as written, and why.** Recorded here so the next
+session does not read the steps above and think they were skipped.
+
+- **No `49px` literal.** `TopBar` has no fixed height — it is `py-2.5` plus a
+  border, so the number was content-derived and would rot the first time the bar
+  gained anything. The board layout is a flex column of `h-screen` with the
+  content area at `flex-1 min-h-0` instead, which needs no measurement.
+- **Task 9's test is a regression guard, not a red test.** Task 9 is a pure
+  refactor with no user-visible change, so there was nothing to fail. Committing
+  `board-view.spec.ts` knowingly red would also have broken "each commit leaves
+  the app working". The board assertions moved to Task 10, where the behaviour
+  lands and the test genuinely goes red then green.
+- **`(auth)`, `(legal)` and `app/design` had no layouts at all**, so moving the
+  footer off the root layout would have dropped it from three routes in silence.
+  Each gained one, and the guard test names all of them.
+- **No `(board)/layout.tsx`.** Task 9 would have created it only for Task 10 to
+  delete it; the fixed-height wrapper went straight into the `[boardId]` layout.
+- **Columns sit flush, not on a `gap-3`.** `CLAUDE.md` requires the 3px rules to
+  "form one unbroken band across the board", which a gutter between columns
+  breaks. Columns are 312px with 6px inset padding, so the band is continuous
+  and the content gutter is still 12px.
+- **The spectrum's saturation and lightness moved into `lib/flow.ts`.** This
+  section specified `60% 50%`; the shipped proof sheet at `/design` already used
+  `60% 45%`, and a third copy of the literal was how they would drift further.
+  `flowColor(hue, alpha?)` is now the single definition, with its own tests.
+
 ### Task 9: The two route groups
 
 **Files:**
@@ -1525,7 +1551,7 @@ Branch: `feat/boards-shell`.
 
 Route groups contribute no URL segment, so `(chrome)/boards/page.tsx` is still `/boards` and `(board)/boards/[boardId]/page.tsx` is still `/boards/[boardId]`. The `(app)` layout is the parent of both and keeps the session check. Its `TopBar` moves down into the two groups in Task 10, once there is a title to vary — leave it in place for this task so nothing is half-moved across a commit.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `e2e/board-view.spec.ts`:
 
@@ -1554,12 +1580,12 @@ test('the footer is on the list and gone from the board', async ({ page, context
 
 The privacy link stays reachable from the account menu — `e2e/shell.spec.ts` already asserts that and must keep passing. Run it in this task too rather than trusting it.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test:e2e e2e/board-view.spec.ts`
 Expected: FAIL — `/boards/<id>` 404s, because the route does not exist yet.
 
-- [ ] **Step 3: Move the footer out of the root layout**
+- [x] **Step 3: Move the footer out of the root layout**
 
 In `app/layout.tsx`, drop the `<SiteFooter />` and the flex wrapper that positioned it, leaving `{children}` in the body.
 
@@ -1590,12 +1616,12 @@ export default function BoardLayout({ children }: { children: React.ReactNode })
 
 The `(auth)` and `(legal)` groups need the footer too — add the same `<SiteFooter />` to their layouts, or create one if they have none. `components/site-footer.test.tsx` and the privacy page test must both still pass.
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test:e2e` (the whole suite — this task moves files that every route test touches)
 Expected: the footer test PASSes except the board route assertion, which still 404s until Task 10. Every previously passing test still passes.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app e2e/board-view.spec.ts
@@ -1616,7 +1642,7 @@ git commit -m "refactor: split the app into chrome and board route groups"
 - Consumes: `assertBoardAccess` (Task 3), `flowHue` from `lib/flow.ts`.
 - Produces: `getBoardWithColumns(boardId: string): Promise<{ id: string; name: string; columns: { id: string; name: string; rank: string }[] } | null>` — `null` when no such board — with columns rank-ascending, and `<ColumnShell name hue nextHue />`. Sub-project 4 fills `ColumnShell` with cards.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `e2e/board-view.spec.ts`:
 
@@ -1657,12 +1683,12 @@ test('a non-member gets a 404, not a board', async ({ page, context }) => {
 
 The second test is the highest-value test in this sub-project. It must assert the **status code**, not just that the name is absent — a page that renders "you cannot see this" with a 200 would pass a text-only assertion while still confirming the board exists.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test:e2e e2e/board-view.spec.ts`
 Expected: FAIL — both, on a 404 for the owner's own board.
 
-- [ ] **Step 3: Write the read**
+- [x] **Step 3: Write the read**
 
 Append to `lib/boards.ts`:
 
@@ -1683,7 +1709,7 @@ export async function getBoardWithColumns(boardId: string) {
 }
 ```
 
-- [ ] **Step 4: Write the column shell**
+- [x] **Step 4: Write the column shell**
 
 `components/board/column-shell.tsx` — a Server Component. The 3px rule is a gradient from this column's hue to the next one's, so side by side the rules form one unbroken band; the header wash is the same hue at 6% alpha fading to transparent over 80px. Both come from `flowHue(index, total)`, which `lib/flow.ts` already provides and `lib/flow.test.ts` already covers.
 
@@ -1716,7 +1742,7 @@ export function ColumnShell({ name, hue, nextHue }: { name: string; hue: number;
 }
 ```
 
-- [ ] **Step 5: Write the page**
+- [x] **Step 5: Write the page**
 
 `app/(app)/(board)/boards/[boardId]/page.tsx`. Note the ordering: session, then access, then read. The `notFound()` is what turns the throw into the status code the test asserts.
 
@@ -1763,7 +1789,7 @@ export default async function BoardPage({ params }: { params: Promise<{ boardId:
 
 `params` is a Promise in Next 16 — await it. Do not add `'use client'`: this page reads the database.
 
-- [ ] **Step 6: Put the board title in the top bar**
+- [x] **Step 6: Put the board title in the top bar**
 
 A page cannot pass data up into a layout, so the title is resolved where the board is: in a layout on the dynamic segment.
 
@@ -1828,7 +1854,7 @@ export const getBoardWithColumns = cache(async (boardId: string) => { /* … */ 
 
 The page's `<h1 className="sr-only">` from Step 5 comes out — the top bar now carries the only `<h1>`, which is what the e2e assertion targets.
 
-- [ ] **Step 7: Run everything and watch it pass**
+- [x] **Step 7: Run everything and watch it pass**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e
@@ -1836,13 +1862,13 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e
 
 Expected: all pass, including the 404 test asserting `status() === 404`.
 
-- [ ] **Step 8: Update the documentation in the same PR**
+- [x] **Step 8: Update the documentation in the same PR**
 
 - `CLAUDE.md`: the layout tree gains `(chrome)`/`(board)` and `lib/permissions.ts` is no longer aspirational. Note that the footer now lives in the route-group layouts, not the root.
 - `docs/specs/foundation.md`: mark "dropping `SiteFooter` on the board route" resolved here rather than in sub-project 4.
 - `docs/specs/boards.md`: tick its verification list with what was observed.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add app components lib e2e CLAUDE.md docs
@@ -1851,11 +1877,11 @@ git commit -m "feat: render the board shell behind a permission check"
 
 ### Section D gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
-- [ ] A second **real** account — not a seeded session — gets a 404 on the first account's board URL, observed in a browser on the deployed preview.
-- [ ] `docker compose up --build` reaches a healthy app container with the new migration applied, and the stack is shut down afterwards.
-- [ ] Screenshots of the board shell in both themes attached to the PR.
-- [ ] Open the PR. Stop.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed — 72 unit tests in 11 files, 28 e2e tests.
+- [ ] A second **real** account — not a seeded session — gets a 404 on the first account's board URL, observed in a browser on the deployed preview. **Not done:** needs the preview deploy and two real OAuth logins. The seeded-session equivalent passes and asserts the status code, which is the mechanism; this box is the human confirmation of it.
+- [ ] `docker compose up --build` reaches a healthy app container with the new migration applied, and the stack is shut down afterwards. **Not done:** the Docker daemon was not running on the machine this section was built on (`Cannot connect to the Docker daemon at unix:///Users/…/docker.sock`). Nothing in this section touches the Dockerfile or the migration, but that is an argument, not evidence — run it before merging.
+- [x] Screenshots of the board shell in both themes attached to the PR, at 1440px and 390px.
+- [x] Open the PR. Stop.
 
 ---
 
