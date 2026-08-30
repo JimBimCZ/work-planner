@@ -1,4 +1,19 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
+
+// The seeded-session harness opens its own pool from the runner process, which
+// Playwright does not give the .env files Next reads for itself. Precedence
+// matches Next: a real environment variable beats .env.local, which beats .env
+// — so CI's job-level DATABASE_URL still wins and local runs reach the Neon dev
+// branch instead of a docker Postgres that may not be running.
+const fromEnvironment = new Set(Object.keys(process.env));
+for (const file of ['.env', '.env.local']) {
+  if (!existsSync(file)) continue;
+  for (const line of readFileSync(file, 'utf8').split('\n')) {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*"?(.*?)"?\s*$/);
+    if (match && !fromEnvironment.has(match[1])) process.env[match[1]] = match[2];
+  }
+}
 
 const isCI = Boolean(process.env.CI);
 
