@@ -324,8 +324,8 @@ git commit -m "feat: add boards, board_members and columns"
 
 ### Section A gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed.
-- [ ] The generated SQL was read, not just generated.
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed.
+- [x] The generated SQL was read, not just generated.
 - [ ] CI is green on the PR — that is what proves the migration applies to an empty database, since the workflow runs `pnpm db:migrate` against a throwaway Postgres before the test steps.
 - [ ] **Production is migrated by hand when this merges:** `DATABASE_URL_UNPOOLED=<production> pnpm db:migrate`, then confirm the three tables exist against production. Vercel deploys from the push to `main`, so CI cannot gate this.
 - [ ] Open the PR. Stop. Start Section B in a fresh session.
