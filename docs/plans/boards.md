@@ -353,7 +353,7 @@ Branch: `feat/boards-permissions`. No UI in this section; nothing a user can see
   - `boardAccessResult(error: unknown): { ok: false; error: 'FORBIDDEN' | 'NOT_FOUND' }` — rethrows anything else
 - Every action in Tasks 4 and 5, and both routes in Sections C and D, call these.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `lib/permissions.test.ts`. Note what is being mocked: `db.query.boardMembers.findFirst`, a plain function on a plain object. This is why Task 2 gave the client its schema.
 
@@ -430,12 +430,12 @@ describe('boardAccessResult', () => {
 
 The fourth test is the one that pins the spec's 404 decision: one query, and it is about membership, not existence. If someone later adds an existence check to distinguish 403 from 404, this test fails and the review question gets asked.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/permissions.test.ts`
 Expected: FAIL — `Failed to resolve import "./permissions"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `lib/permissions.ts`:
 
@@ -484,12 +484,12 @@ export function boardAccessResult(error: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test lib/permissions.test.ts`
-Expected: PASS, 8 tests.
+Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/permissions.ts lib/permissions.test.ts
@@ -510,13 +510,13 @@ git commit -m "feat: add the board permission ladder"
 - Consumes: `seedRanks` (Task 1), the tables (Task 2), `auth` from `lib/auth.ts`.
 - Produces: `createBoard(input: unknown): Promise<{ ok: true; data: { id: string } } | { ok: false; error: 'UNAUTHENTICATED' | 'INVALID' }>`, and `DEFAULT_COLUMN_NAMES: readonly string[]` from `lib/board-defaults.ts`. Task 7's dialog calls the action; Task 6's seed helper and Section D's e2e use the names.
 
-- [ ] **Step 1: Add the dependency**
+- [x] **Step 1: Add the dependency**
 
 ```bash
 pnpm add zod@4.5.4
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 `lib/actions/boards.test.ts`. The transaction is mocked by handing the callback a `tx` that records what it was asked to insert — that is what makes the seeded-columns and one-owner-row claims testable without a database.
 
@@ -617,12 +617,12 @@ describe('createBoard', () => {
 });
 ```
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 Run: `pnpm test lib/actions/boards.test.ts`
 Expected: FAIL — `Failed to resolve import "./boards"`.
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 `lib/board-defaults.ts`:
 
@@ -686,12 +686,12 @@ export async function createBoard(input: unknown) {
 }
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm test lib/actions/boards.test.ts`
 Expected: PASS, 5 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add package.json pnpm-lock.yaml lib/board-defaults.ts lib/actions/boards.ts lib/actions/boards.test.ts
@@ -711,7 +711,7 @@ git commit -m "feat: create a board with its owner and seeded columns"
   - `deleteBoard(input: unknown): Promise<{ ok: true } | { ok: false; error: 'UNAUTHENTICATED' | 'INVALID' | 'FORBIDDEN' | 'NOT_FOUND' | 'NAME_MISMATCH' }>`
 - Task 8's menu calls both.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `lib/actions/boards.test.ts`. Extend the file's existing imports with `deleteBoard, renameBoard` from `./boards` and `BoardAccessError` from `@/lib/permissions`, and extend the `@/lib/db` mock with the query and mutation surfaces these two need:
 
@@ -804,12 +804,12 @@ vi.mock('@/lib/db', () => ({
 
 Reset `boardRow`, `updated` and `deleted` in the existing `beforeEach`.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/actions/boards.test.ts`
 Expected: FAIL — `renameBoard is not a function`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Append to `lib/actions/boards.ts`:
 
@@ -867,12 +867,12 @@ export async function deleteBoard(input: unknown) {
 
 Add `eq` to the `drizzle-orm` imports and `assertBoardAccess, boardAccessResult` to the `@/lib/permissions` import.
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test lib/actions/boards.test.ts`
 Expected: PASS, 10 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/boards.ts lib/actions/boards.test.ts
@@ -881,10 +881,10 @@ git commit -m "feat: rename and delete a board"
 
 ### Section B gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed.
-- [ ] No action inlines a membership query; every access question goes through `assertBoardAccess`.
-- [ ] Nothing user-visible changed — `/boards` is still the placeholder. Say so in the PR rather than implying a feature landed.
-- [ ] Open the PR. Stop. Start Section C in a fresh session.
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed.
+- [x] No action inlines a membership query; every access question goes through `assertBoardAccess`.
+- [x] Nothing user-visible changed — `/boards` is still the placeholder. Say so in the PR rather than implying a feature landed.
+- [x] Open the PR. Stop. Start Section C in a fresh session. — PR #35.
 
 ---
 
