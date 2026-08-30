@@ -1201,13 +1201,19 @@ ENV PORT=3000
 RUN addgroup -g 1001 -S nodejs && adduser -u 1001 -S nextjs -G nodejs
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=build --chown=nextjs:nodejs /app/public ./public
 USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]
 ```
 
-There is no font step and no `postinstall` hook: `next/font/google` fetches during `pnpm build` in the build stage and bakes the files into the output.
+There is no font step and no `postinstall` hook: `next/font/google` fetches during
+`pnpm build` in the build stage and bakes the files into the output.
+
+There is also no `COPY … /app/public ./public` line. Section A deleted the unused
+generator SVGs, leaving no `public/` directory at all, and `COPY` fails on a
+missing source. If a later section adds a file under `public/`, restore that line
+in the same change — a static asset that is never copied into the runner is a
+404 that only appears in the container, never in `next dev`.
 
 - [ ] **Step 4: Add the app service**
 
