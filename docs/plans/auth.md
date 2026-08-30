@@ -1370,10 +1370,10 @@ fixed it — the refusal redirect carries the attempted provider, and the retry
 re-runs that provider with `prompt=select_account`, which both Google and GitHub
 document. The spec's open decision is marked resolved.
 
-**One check remains, and it is the author's.** That the account picker actually
-appears has not been observed: showing it needs a browser already signed in to
-the provider and real credentials, so #26 could only prove the parameter reaches
-both providers' authorize endpoints. Confirm it on the deployed site, then this
-plan is done.
+**Auth is done.** The last check was the author's, and they made it: the account
+picker does appear on the retry, confirmed 2026-08-30 on the deployed site. That
+is their observation, not mine — #26 could only prove the parameter reaches both
+providers' authorize endpoints, because showing the chooser needs a browser
+already signed in to the provider.
 
 Carried forward to sub-project 3, and not to be decided while executing this plan: whether `assigneeId` and `wipLimit` are real requirements, and how `board_members` keys off `users.id` — which is `text`, not `uuid`.
