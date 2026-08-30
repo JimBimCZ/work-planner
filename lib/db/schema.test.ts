@@ -1,7 +1,7 @@
 import { getTableName } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, test } from 'vitest';
-import { accounts, boardMembers, boardRole, boards, columns, sessions, users } from './schema';
+import { accounts, boardMembers, boardRole, boards, cards, columns, sessions, users } from './schema';
 
 // DrizzleAdapter is called with no schema argument, so it queries its own
 // default table definitions. These names are a contract with the adapter, and
@@ -46,5 +46,55 @@ describe('board tables', () => {
 
   test('constrain the role to the three roles CLAUDE.md defines', () => {
     expect(boardRole.enumValues).toEqual(['owner', 'member', 'viewer']);
+  });
+});
+
+describe('the cards table', () => {
+  test('is named cards and carries the columns CLAUDE.md documents', () => {
+    expect(getTableName(cards)).toBe('cards');
+    expect(getTableConfig(cards).columns.map((column) => column.name).sort()).toEqual([
+      'board_id',
+      'column_id',
+      'created_at',
+      'created_by_id',
+      'description',
+      'due_date',
+      'id',
+      'rank',
+      'title',
+      'updated_at',
+    ]);
+  });
+
+  test('makes title and rank required, and leaves SP5 fields nullable', () => {
+    const byName = Object.fromEntries(
+      getTableConfig(cards).columns.map((column) => [column.name, column.notNull]),
+    );
+    expect(byName.title).toBe(true);
+    expect(byName.rank).toBe(true);
+    expect(byName.description).toBe(false);
+    expect(byName.due_date).toBe(false);
+  });
+
+  // The whole no-orphan design rests on this pair. board_id cascades so
+  // deleting a board takes its cards; column_id declares no action at all, so
+  // Postgres refuses a column delete that would orphan them. Changing either
+  // silently changes what deleteColumn is allowed to do.
+  test('cascades from its board but declares no action on its column', () => {
+    const actions = getTableConfig(cards).foreignKeys.map((key) => ({
+      column: key.reference().columns[0].name,
+      onDelete: key.onDelete,
+    }));
+
+    expect(actions).toContainEqual({ column: 'board_id', onDelete: 'cascade' });
+    expect(actions).toContainEqual({ column: 'created_by_id', onDelete: 'cascade' });
+    expect(actions).toContainEqual({ column: 'column_id', onDelete: 'no action' });
+  });
+
+  test('indexes the read path and the permission path', () => {
+    const indexes = getTableConfig(cards)
+      .indexes.map((index) => index.config.name)
+      .sort();
+    expect(indexes).toEqual(['cards_board_id_idx', 'cards_column_id_rank_idx']);
   });
 });
