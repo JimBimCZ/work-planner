@@ -223,6 +223,15 @@ Done when, with output observed rather than assumed:
 
 ## Open decisions carried forward
 
+- **No way to choose a different provider account at the refusal.** Found by the
+  author while verifying Section D, 2026-08-30. Signing in with Google, signing
+  out, then choosing GitHub on the *same* address produces the refusal exactly
+  as designed — but the provider has already auto-authenticated the remembered
+  session, so there is no point at which a different GitHub account can be
+  offered. The refusal is correct and the dead end is real at the same time.
+  Not yet specified: this needs its own brainstorm before any code, not least
+  because the two providers differ in what they permit here.
+
 - **`assigneeId` and `wipLimit`.** ~~Due in sub-project 3.~~ **Resolved during
   Section A: both dropped.** See the data-model rules in `CLAUDE.md`.
 - **Dropping `SiteFooter` on the board route.** Due in sub-project 4, when body

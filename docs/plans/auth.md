@@ -1229,7 +1229,7 @@ Branch: none. This section is a handoff, and the only part of this plan that can
 - Consumes: everything merged from Sections A through C.
 - Produces: a working sign-in, and the `users`/`accounts`/`sessions` tables in production.
 
-- [ ] **Step 1: Create the OAuth clients (author)**
+- [x] **Step 1: Create the OAuth clients (author)** — **done 2026-08-30.**
 
 Google Cloud Console and GitHub Developer Settings. Authorised redirect URIs for each:
 
@@ -1241,9 +1241,23 @@ https://<stable-preview-alias>/api/auth/callback/google
 
 and the same three with `/github`. Preview deployments get a fresh URL per commit, so sign-in only works on previews through a stable alias — `CLAUDE.md` already records this.
 
-- [ ] **Step 2: Set the environment variables**
+- [x] **Step 2: Set the environment variables** — **done 2026-08-30, with one gap recorded below.**
 
 `AUTH_SECRET` (generate with `openssl rand -base64 32`), `AUTH_TRUST_HOST=true`, and the four provider variables, in all three Vercel environments. Then `pnpm env:pull development` to refresh `.env.local`.
+
+Observed by `vercel env ls`, names only: Production and Preview each hold all six
+of `AUTH_SECRET`, `AUTH_TRUST_HOST`, `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`,
+`AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET`. **Development holds only four** —
+`AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET` are absent, so "all three
+environments" is not yet true.
+
+Nothing is broken by this today: both GitHub values are in the author's local
+`.env`, which Next falls back to when `.env.local` lacks them. It is a trap
+rather than a fault — `pnpm env:pull development` overwrites `.env.local` from
+Vercel, after which Development's Google credentials would outrank `.env`'s
+while GitHub silently fell through to the older file. Two values that disagree
+and no error is the same failure shape as the drift #23 fixed. Add the pair to
+Development.
 
 - [x] **Step 3: Migrate production, by hand** — **done 2026-08-30.**
 
@@ -1264,7 +1278,7 @@ public.user
 
 Three tables and no others, which is the gate's third item. Note the command needs the shell-precedence fix from PR #23 — before it, the same line migrated the `.env.local` database and still printed `migrations applied successfully!`. The `neon_auth` schema is excluded from the query deliberately; it is the inert leftover recorded in `CLAUDE.md`.
 
-- [ ] **Step 4: Sign in for real, both providers**
+- [x] **Step 4: Sign in for real, both providers** — **done 2026-08-30, except the row counts.**
 
 In a browser against the deployed site: sign in with Google, confirm the landing on `/boards` and the account menu showing the right email; sign out; sign in with GitHub using a *different* address; then attempt GitHub with the *Google* address and confirm the refusal names Google.
 
@@ -1275,14 +1289,35 @@ select "userId", provider from "account";
 
 Expected: one row per person, one account row per provider, and no second user created by the refused attempt.
 
-- [ ] **Step 5: Record the outcome**
+Observed by the author against production, 2026-08-30. I observed none of it
+myself: production database access is blocked in this session, and the OAuth
+round-trip needs a browser and real credentials. This records their report.
+
+- Google and GitHub sign-ins each reach `/boards`, on two different addresses.
+- The cross-provider refusal renders the wording in
+  `app/(auth)/signin/page.tsx:17` — "That email already signs in with Google.
+  Continue with Google instead." — naming the provider that owns the address.
+  This is the first time the database lookup in `lib/auth.ts:24-34` has run
+  against a real OAuth callback; `signin.spec.ts:9` reaches the same screen by
+  loading the error URL directly, which exercises the page and not the decision.
+- Signed out, `/boards` redirects to `/signin`; the account menu carries the
+  right email and signs out cleanly. These three are also covered by
+  `routing.spec.ts` and `shell.spec.ts`, against a seeded session.
+
+**Not verified: the two queries above.** The author deferred them to the
+database logs. So the refusal is known to *render*, but that it wrote nothing —
+no second `user` row from the refused attempt, one `account` row per provider —
+is still unchecked. That is the assertion this step's SQL exists to make, and it
+remains open.
+
+- [x] **Step 5: Record the outcome** — **done 2026-08-30.**
 
 Tick this plan's boxes and the spec's verification list, and report what was observed rather than what was expected.
 
 ### Section D gate
 
-- [ ] A real Google sign-in and a real GitHub sign-in both reach `/boards`, observed in a browser.
-- [ ] The cross-provider refusal names the other provider, observed rather than inferred.
+- [x] A real Google sign-in and a real GitHub sign-in both reach `/boards`, observed in a browser.
+- [x] The cross-provider refusal names the other provider, observed rather than inferred.
 - [x] Production holds the three tables and no others.
 
 ---
@@ -1294,5 +1329,25 @@ Auth is complete when every checkbox above is ticked and:
 - `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` pass on `main`.
 - `docker compose up --build` reaches a healthy app container.
 - Both providers sign in on the deployed site, and the refusal names the provider that owns the address.
+
+Observed 2026-08-30, on `docs/auth-section-d-close` at parity with `main`:
+
+```
+$ pnpm typecheck   next typegen && tsc --noEmit      exit 0
+$ pnpm lint        eslint                            exit 0
+$ pnpm test        Test Files 8 passed (8)  Tests 44 passed (44)
+$ pnpm test:e2e    13 passed (18.1s)                 exit 0
+$ docker compose up --build
+  work-planner-app-1        Up (healthy)     GET /api/health -> 200
+  work-planner-postgres-1   Up (healthy)
+```
+
+The third bullet is the author's observation, not mine — see Step 4.
+
+**Auth is not yet done.** Section D's verification turned up a dead end in the
+refusal itself: a person refused on one provider has no way to retry with a
+different account on the other, because the provider has already
+auto-authenticated the remembered session. Recorded under the spec's open
+decisions; it needs its own brainstorm.
 
 Carried forward to sub-project 3, and not to be decided while executing this plan: whether `assigneeId` and `wipLimit` are real requirements, and how `board_members` keys off `users.id` — which is `text`, not `uuid`.
