@@ -1,21 +1,27 @@
 import { AccountMenu } from '@/components/app/account-menu';
 
-// Deliberately thin: sub-project 4 adds the board title and "New card" here
-// rather than introducing a second header.
+// A page cannot pass data up into a layout, so the board title is resolved in
+// the layout on the dynamic segment and handed down here.
 export function TopBar({
   userId,
   name,
   email,
   image,
+  title,
 }: {
   userId: string;
   name: string | null;
   email: string;
   image: string | null;
+  title?: string;
 }) {
   return (
-    <header className="flex items-center justify-between border-b border-line bg-surface px-4 py-2.5">
-      <span className="text-[15px] font-medium">Work Planner</span>
+    <header className="flex shrink-0 items-center justify-between border-b border-line bg-surface px-4 py-2.5">
+      {title ? (
+        <h1 className="text-[15px] font-medium tracking-[-0.01em]">{title}</h1>
+      ) : (
+        <span className="text-[15px] font-medium">Work Planner</span>
+      )}
       <AccountMenu userId={userId} name={name} email={email} image={image} />
     </header>
   );

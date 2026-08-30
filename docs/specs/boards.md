@@ -257,15 +257,19 @@ final whole-branch review on Opus.
 
 Done when, with output observed rather than assumed:
 
-- `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass locally.
-- A board created in a browser shows its five columns in the order
-  `Ready to Work, In Progress, In Testing, In Review, Done`.
-- A second account, signed in for real, gets a 404 on the first account's board
-  URL — observed in a browser, not only in the Playwright run.
-- Deleting a board removes its `board_members` and `columns` rows; a `select`
-  against production or the dev branch confirms no orphans.
-- `docker compose up --build` still reaches a healthy app container with the new
-  migration applied.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass
+  locally — 72 unit tests, 28 e2e tests, observed on Section D's branch.
+- [x] A board created in a browser shows its five columns in the order
+  `Ready to Work, In Progress, In Testing, In Review, Done` — asserted on the
+  rendered order of `column-name`, and visible in Section D's screenshots.
+- [ ] A second account, signed in for real, gets a 404 on the first account's board
+  URL — observed in a browser, not only in the Playwright run. **The Playwright
+  half is done and asserts `response.status() === 404`; the real-account half is
+  outstanding and needs the preview deploy.**
+- [ ] Deleting a board removes its `board_members` and `columns` rows; a `select`
+  against production or the dev branch confirms no orphans. **Not yet run.**
+- [ ] `docker compose up --build` still reaches a healthy app container with the new
+  migration applied. **Not yet run — no Docker daemon on the build machine.**
 
 ## Open decisions carried forward
 

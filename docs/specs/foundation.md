@@ -20,7 +20,7 @@ sub-projects, each with its own spec, plan, branch and PR:
 | 4 | Board canvas | columns CRUD and reorder, cards CRUD, `lib/rank.ts`, dnd-kit with optimistic moves, responsive collapse |
 | 5 | Card modal | intercepting parallel route plus canonical `/cards/[cardId]`, description, due date, comments |
 | 6 | Realtime | Pusher, `/api/pusher/auth`, `lib/events.ts`, mutationId echo, teammate ring |
-| 7 | Legal | `/privacy`, `SiteFooter`, board-route account-menu link |
+| 7 | Legal | `/privacy`, `SiteFooter`, board-route account-menu link — **done**; the board route drops the footer via the `(chrome)`/`(board)` split in boards Section D, and keeps the privacy link in the account menu |
 
 1 through 6 are sequential. 7 may land any time after 1.
 

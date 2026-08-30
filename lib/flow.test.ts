@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { flowHue } from './flow';
+import { flowColor, flowHue } from './flow';
 
 describe('flowHue', () => {
   test('a single column sits at the start of the spectrum', () => {
@@ -26,5 +26,15 @@ describe('flowHue', () => {
       const sorted = [...hues].sort((a, b) => b - a);
       expect(hues).toEqual(sorted);
     }
+  });
+});
+
+describe('flowColor', () => {
+  test('renders a column hue at the spectrum saturation and lightness', () => {
+    expect(flowColor(225)).toBe('hsl(225 60% 45%)');
+  });
+
+  test('carries an alpha through for the header wash', () => {
+    expect(flowColor(145, 0.06)).toBe('hsl(145 60% 45% / 0.06)');
   });
 });
