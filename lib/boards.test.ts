@@ -1,11 +1,22 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { cards } from '@/lib/db/schema';
 
 let boardRow: unknown;
-const findFirst = vi.fn(async () => boardRow);
+const findFirst = vi.fn(async (config: unknown) => {
+  void config;
+  return boardRow;
+});
 
-vi.mock('@/lib/db', () => ({ db: { query: { boards: { findFirst: () => findFirst() } } } }));
+vi.mock('@/lib/db', () => ({ db: { query: { boards: { findFirst: (config: unknown) => findFirst(config) } } } }));
 
 const { getBoardWithColumns } = await import('./boards');
+
+type CardsRelationConfig = {
+  columns: Record<string, boolean>;
+  orderBy: (card: typeof cards, helpers: { asc: (column: unknown) => unknown }) => unknown[];
+};
+
+type FindFirstConfig = { with: { columns: { with: { cards: CardsRelationConfig } } } };
 
 beforeEach(() => {
   boardRow = undefined;
@@ -46,5 +57,32 @@ describe('getBoardWithColumns', () => {
     const board = await getBoardWithColumns('b1');
 
     expect(board?.columns[0].cards).toEqual([]);
+  });
+
+  test("requests each column's cards, selecting the fields the row needs", async () => {
+    await getBoardWithColumns('shape-check');
+
+    const config = findFirst.mock.calls[0][0] as FindFirstConfig;
+
+    expect(config.with.columns.with.cards.columns).toEqual({
+      id: true,
+      columnId: true,
+      title: true,
+      rank: true,
+      createdAt: true,
+    });
+  });
+
+  test('orders cards by rank, then createdAt, then id', async () => {
+    await getBoardWithColumns('order-check');
+
+    const config = findFirst.mock.calls[0][0] as FindFirstConfig;
+    const asc = vi.fn((column: unknown) => column);
+
+    expect(config.with.columns.with.cards.orderBy(cards, { asc })).toEqual([
+      cards.rank,
+      cards.createdAt,
+      cards.id,
+    ]);
   });
 });
