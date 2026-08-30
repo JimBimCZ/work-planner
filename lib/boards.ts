@@ -21,10 +21,21 @@ export async function listBoardsForUser(userId: string): Promise<BoardSummary[]>
     .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 }
 
+export type BoardCardRow = {
+  id: string;
+  columnId: string;
+  title: string;
+  rank: string;
+  createdAt: Date;
+};
+
+export type BoardColumnRow = { id: string; name: string; rank: string; cards: BoardCardRow[] };
+export type BoardWithCards = { id: string; name: string; columns: BoardColumnRow[] };
+
 // The board layout and the board page both re-check access and both read the
 // board, because CLAUDE.md requires every entry point to verify rather than
 // trust a parent. React's cache collapses the duplicate call within a request.
-export const getBoardWithColumns = cache(async (boardId: string) => {
+export const getBoardWithColumns = cache(async (boardId: string): Promise<BoardWithCards | null> => {
   const board = await db.query.boards.findFirst({
     where: (b, { eq }) => eq(b.id, boardId),
     columns: { id: true, name: true },
@@ -32,6 +43,12 @@ export const getBoardWithColumns = cache(async (boardId: string) => {
       columns: {
         columns: { id: true, name: true, rank: true },
         orderBy: (column, { asc }) => [asc(column.rank)],
+        with: {
+          cards: {
+            columns: { id: true, columnId: true, title: true, rank: true, createdAt: true },
+            orderBy: (card, { asc }) => [asc(card.rank), asc(card.createdAt), asc(card.id)],
+          },
+        },
       },
     },
   });
