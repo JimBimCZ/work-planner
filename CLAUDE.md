@@ -60,7 +60,7 @@ docker compose up --build          # app + postgres locally
 docker build -t kanban .           # app image only, self-host
 ```
 
-`db:migrate` uses `DATABASE_URL_UNPOOLED` and is run from CI or by hand — never at application startup.
+`db:migrate` uses `DATABASE_URL_UNPOOLED` and never runs at application startup. CI runs it against its own throwaway Postgres on every pull request, which proves the migration applies to an empty database. **Production is migrated by hand.** Vercel deploys straight from a push to `main`, so CI can race that promotion but cannot gate it; rather than describe a gate that does not exist, run `pnpm db:migrate` against production yourself when a migration lands. The window in which the deployed app expects tables that are not there yet is minutes, and costs nothing until the service has users.
 
 `drizzle.config.ts` loads `.env.local` itself and lets it override `.env`. drizzle-kit only auto-loads
 `.env`, so without that the app talks to Neon while migrations silently hit the docker Postgres in
@@ -119,10 +119,9 @@ verificationTokens                                             (Auth.js adapter 
 
 boards             id, name, ownerId, createdAt, updatedAt
 board_members      boardId, userId, role ('owner'|'member'|'viewer')   PK (boardId, userId)
-columns            id, boardId, name, rank, wipLimit?, createdAt
+columns            id, boardId, name, rank, createdAt
 cards              id, boardId, columnId, title, description,
-                   dueDate, rank, createdById, assigneeId?,
-                   createdAt, updatedAt
+                   dueDate, rank, createdById, createdAt, updatedAt
 comments           id, cardId, authorId, body, createdAt, updatedAt
 ```
 
@@ -132,6 +131,7 @@ Rules:
 - Deleting a column requires a target column to move its cards into. Never cascade-delete cards with the column.
 - Comments and cards are soft-delete free for now: hard delete, but only via an action that checks role.
 - Index `cards(columnId, rank)`, `cards(boardId)`, `comments(cardId, createdAt)`, `board_members(userId)`.
+- `cards.assigneeId` and `columns.wipLimit` were **dropped, not deferred.** Both were speculative — no requirement, no UI, no enforcement rule — and YAGNI says an unused column is a liability, not a head start. Adding either later is one migration; carrying a column nothing writes to costs a permanent explanation. Do not reintroduce them without a requirement that needs them.
 
 ## Ordering: fractional ranks
 
@@ -328,7 +328,7 @@ Empty states are invitations, not apologies: an empty column reads "Nothing here
 What that constrains:
 
 - No in-memory state between requests — no module-level caches, no per-process job queues, no open sockets held across invocations. The pooled db client in `lib/db/index.ts` is the single deliberate exception: it's a connection pool reused within a warm instance, not state, and it must hold no request-scoped data.
-- Migrations do **not** run at boot. `pnpm db:migrate` runs from CI on the production branch before the deploy promotes, or manually. Never call it from `instrumentation.ts` or a route handler.
+- Migrations do **not** run at boot, and never from `instrumentation.ts` or a route handler. CI runs `pnpm db:migrate` against its own throwaway Postgres on every pull request, which proves the migration applies to an empty database — it does not gate production. **Production is migrated by hand:** Vercel deploys straight from a push to `main`, so CI can race that promotion but cannot block it. Run `pnpm db:migrate` against production yourself when a migration lands.
 - Use Neon's pooled connection string in `DATABASE_URL`; drizzle-kit uses the direct (unpooled) URL via `DATABASE_URL_UNPOOLED`.
 - Preview deployments get their own Neon branch. OAuth callback URLs must include the preview domain pattern or sign-in will fail on previews — expect to test auth on a stable preview alias.
 - Local development uses the Neon `dev` branch, never production `main`. The integration scopes its variables to Production and Preview only, so a bare `vercel env pull` finds nothing; `pnpm db:dev-branch` creates the branch and registers it as Development-scoped, and `pnpm env:pull development` refreshes `.env.local` from it.
@@ -488,9 +488,6 @@ One section of the plan, one branch, one PR. Ship the PR as soon as the section 
 
 Not settled yet — raise these rather than deciding unilaterally:
 
-- Assignees and avatars on cards (schema has `assigneeId` reserved; no UI yet).
-- WIP limits per column (schema has `wipLimit` reserved; not in the requirements, no UI, no enforcement rule).
-- `assigneeId` and `wipLimit` are both speculative and sit awkwardly against the YAGNI rule. Either confirm them as requirements or drop them from the schema before the first migration — don't ship unused columns.
 - Labels/tags, attachments, activity log.
 - Whether comments need editing/deletion beyond the author's own.
 - Board archive vs hard delete.

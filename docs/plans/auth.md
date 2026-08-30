@@ -59,7 +59,7 @@ Branch: `feat/auth-schema`
 - Consumes: `db` from `lib/db/index.ts`.
 - Produces: `users`, `accounts`, `sessions` Drizzle tables. `users.id` is `text`, not `uuid` — sub-project 3's `boards.ownerId` and `board_members.userId` must match that type.
 
-- [ ] **Step 1: Install the dependencies, pinned exactly**
+- [x] **Step 1: Install the dependencies, pinned exactly**
 
 ```bash
 pnpm add next-auth@5.0.0-beta.32 @auth/drizzle-adapter@1.11.3
@@ -67,7 +67,7 @@ pnpm add next-auth@5.0.0-beta.32 @auth/drizzle-adapter@1.11.3
 
 Exact versions, no `^`. `next-auth` has no stable v5 — `latest` is 4.24.15 and v5 ships only on the `beta` tag, so a caret range would drift onto a new beta without warning.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 ```ts
 // lib/db/schema.test.ts
@@ -105,12 +105,12 @@ describe('the adapter tables', () => {
 });
 ```
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 Run: `pnpm vitest run lib/db/schema.test.ts`
 Expected: FAIL — `schema.ts` exports nothing, so `users`, `accounts` and `sessions` do not resolve.
 
-- [ ] **Step 4: Write the minimal implementation**
+- [x] **Step 4: Write the minimal implementation**
 
 ```ts
 // lib/db/schema.ts
@@ -166,12 +166,12 @@ export const sessions = pgTable(
 );
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm vitest run lib/db/schema.test.ts`
 Expected: PASS, 4 tests.
 
-- [ ] **Step 6: Generate the migration and read it**
+- [x] **Step 6: Generate the migration and read it**
 
 ```bash
 pnpm db:generate
@@ -180,7 +180,7 @@ cat lib/db/migrations/0000_*.sql
 
 Expected: `CREATE TABLE "user"`, `"account"`, `"session"`, two foreign keys with `ON DELETE cascade`, the composite primary key on `account`, and both indexes. No `verificationToken`, no `authenticator`. Do not hand-edit the file — if it is wrong, fix `schema.ts` and regenerate.
 
-- [ ] **Step 7: Apply it and confirm the tables exist**
+- [x] **Step 7: Apply it and confirm the tables exist**
 
 ```bash
 pnpm db:migrate
@@ -189,7 +189,7 @@ psql "$DATABASE_URL_UNPOOLED" -c '\dt'
 
 Expected: `user`, `account`, `session`, and drizzle's own `__drizzle_migrations`. `.env.local` points at the Neon `dev` branch, which is the correct target for local work; production is migrated by hand at Section D.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add package.json pnpm-lock.yaml lib/db/schema.ts lib/db/schema.test.ts lib/db/migrations
@@ -206,7 +206,7 @@ git commit -m "feat: add the Auth.js adapter tables and the first migration"
 - Consumes: the migration from Task 1.
 - Produces: a CI job where the database has a schema, which every end-to-end test from Section B onward depends on.
 
-- [ ] **Step 1: Add the migrate step and the auth environment**
+- [x] **Step 1: Add the migrate step and the auth environment**
 
 In `.github/workflows/ci.yml`, extend the existing `env:` block:
 
@@ -231,7 +231,7 @@ Then add the migrate step immediately after `pnpm install --frozen-lockfile`:
       - run: pnpm db:migrate
 ```
 
-- [ ] **Step 2: Correct CLAUDE.md's migration claim**
+- [x] **Step 2: Correct CLAUDE.md's migration claim**
 
 In the Commands section, replace:
 
@@ -243,7 +243,7 @@ with:
 
 Make the same correction in the Deployment section, which repeats the claim.
 
-- [ ] **Step 3: Verify on the pull request, watched rather than assumed**
+- [x] **Step 3: Verify on the pull request, watched rather than assumed**
 
 Push the branch, open the PR, and watch the run:
 
@@ -253,7 +253,7 @@ gh pr checks --watch
 
 Expected: `verify` passes, and its log shows `pnpm db:migrate` applying `0000_*.sql` before the test steps.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add .github/workflows/ci.yml CLAUDE.md
@@ -262,10 +262,10 @@ git commit -m "ci: migrate before testing, and correct the production migration 
 
 ### Section A gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed.
-- [ ] The generated migration creates three tables and no others.
-- [ ] The CI run on the PR passed, watched rather than assumed.
-- [ ] Open the PR. Stop. Start Section B in a fresh session.
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed.
+- [x] The generated migration creates three tables and no others.
+- [x] The CI run on the PR passed, watched rather than assumed.
+- [x] Open the PR. Stop. Start Section B in a fresh session.
 
 ---
 

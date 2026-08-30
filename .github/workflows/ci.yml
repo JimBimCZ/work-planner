@@ -33,6 +33,12 @@ jobs:
       DATABASE_URL: postgres://kanban:kanban@localhost:5432/kanban
       DATABASE_URL_UNPOOLED: postgres://kanban:kanban@localhost:5432/kanban
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      AUTH_SECRET: ci-not-a-real-secret
+      AUTH_TRUST_HOST: 'true'
+      AUTH_GOOGLE_ID: ci
+      AUTH_GOOGLE_SECRET: ci
+      AUTH_GITHUB_ID: ci
+      AUTH_GITHUB_SECRET: ci
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -41,6 +47,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
