@@ -1148,7 +1148,7 @@ Branch: `feat/foundation-container-ci`
 - Consumes: `GET /api/health` from Task 4.
 - Produces: a `kanban` image and an `app` compose service.
 
-- [ ] **Step 1: Enable standalone output**
+- [x] **Step 1: Enable standalone output**
 
 Modify `next.config.ts`:
 
@@ -1162,7 +1162,7 @@ const nextConfig: NextConfig = {
 export default nextConfig;
 ```
 
-- [ ] **Step 2: Write `.dockerignore`**
+- [x] **Step 2: Write `.dockerignore`**
 
 ```
 node_modules
@@ -1177,7 +1177,7 @@ playwright-report
 docs
 ```
 
-- [ ] **Step 3: Write the Dockerfile**
+- [x] **Step 3: Write the Dockerfile**
 
 ```dockerfile
 FROM node:22-alpine AS deps
@@ -1215,7 +1215,7 @@ missing source. If a later section adds a file under `public/`, restore that lin
 in the same change — a static asset that is never copied into the runner is a
 404 that only appears in the container, never in `next dev`.
 
-- [ ] **Step 4: Add the app service**
+- [x] **Step 4: Add the app service**
 
 Add to `docker-compose.yml`, alongside the existing `postgres` service:
 
@@ -1240,7 +1240,7 @@ Add to `docker-compose.yml`, alongside the existing `postgres` service:
 
 The healthcheck uses node's built-in `fetch` rather than curl, which `node:22-alpine` does not ship.
 
-- [ ] **Step 5: Verify the container actually becomes healthy**
+- [x] **Step 5: Verify the container actually becomes healthy**
 
 ```bash
 docker compose up --build -d
@@ -1262,7 +1262,7 @@ curl -s -o /dev/null -w '%{http_code}\n' localhost:3000/design
 
 Expected: `{"ok":true}` and `200`.
 
-- [ ] **Step 6: Shut it down**
+- [x] **Step 6: Shut it down**
 
 ```bash
 docker compose down
@@ -1270,7 +1270,7 @@ docker compose down
 
 Leave nothing running.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add Dockerfile .dockerignore next.config.ts docker-compose.yml
@@ -1286,7 +1286,7 @@ git commit -m "feat: add the standalone container image and compose app service"
 - Consumes: every `pnpm` script from Task 1.
 - Produces: the required status check on every PR.
 
-- [ ] **Step 1: Write the workflow**
+- [x] **Step 1: Write the workflow**
 
 ```yaml
 name: CI
@@ -1350,7 +1350,7 @@ gh pr checks --watch
 
 Expected: the `verify` job succeeds. Do not report this section complete on an unwatched run.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -1359,9 +1359,18 @@ git commit -m "ci: verify typecheck, lint, unit and e2e on every pull request"
 
 ### Section D gate
 
-- [ ] The container reached `healthy` and was then shut down, output observed.
+- [x] The container reached `healthy` and was then shut down, output observed.
 - [ ] The CI run on the PR passed, watched rather than assumed.
 - [ ] Open the PR. Stop. Start Section E in a fresh session.
+
+Two deviations from this section's literal text, both verified before they were made:
+
+- Task 8's `deps` stage copies `pnpm-workspace.yaml` alongside `package.json` and `pnpm-lock.yaml`.
+  Without it `pnpm install --frozen-lockfile` fails with `ERR_PNPM_IGNORED_BUILDS`, because pnpm 11
+  reads build-script approvals from that file rather than from `package.json`.
+- Task 9 uploads `test-results/`, not `playwright-report/`. `playwright.config.ts` sets
+  `reporter: 'list'`, and only the `html` reporter writes `playwright-report/`, so the step as
+  written would have silently uploaded nothing on every failed run.
 
 ---
 
