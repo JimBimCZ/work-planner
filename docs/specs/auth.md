@@ -241,6 +241,11 @@ Done when, with output observed rather than assumed:
   This lets someone reach the account they meant to use; it does not join two
   identities.
 
+  Outstanding, and the author's to observe: that the picker itself appears.
+  Verification reached both providers' authorize endpoints carrying the
+  parameter, but showing the chooser needs a browser already signed in to the
+  provider.
+
 - **`assigneeId` and `wipLimit`.** ~~Due in sub-project 3.~~ **Resolved during
   Section A: both dropped.** See the data-model rules in `CLAUDE.md`.
 - **Dropping `SiteFooter` on the board route.** Due in sub-project 4, when body
