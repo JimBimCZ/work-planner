@@ -1388,7 +1388,19 @@ Branch: none. This section is a handoff, not a code change.
 
 - [ ] **Step 1: Create the Vercel project**
 
-Create a project on the `JimBimCZ's projects` team linked to the `JimBimCZ/work-planner` GitHub repository. Do not deploy yet — it will fail without `DATABASE_URL`.
+Create a project on the `JimBimCZ's projects` team linked to the `JimBimCZ/work-planner` GitHub
+repository. Do not deploy yet — set the environment variables first.
+
+The build itself does **not** need `DATABASE_URL`: `new Pool()` in `lib/db/index.ts` does not connect
+eagerly and `/api/health` is `force-dynamic`, so nothing touches the database at build time. This was
+verified twice in Section D — a clean clone built with no `.env` present, exit 0, and the Docker image
+builds with no database at all. Deploying early therefore succeeds and leaves `/api/health` returning
+503 at runtime: a preview that fails the exact check Step 4 exists to make.
+
+Prerequisite, discovered the hard way: the Vercel GitHub App must have access to this repository, or
+project creation fails with `bad_request` — "To link a GitHub repository, you need to install the
+GitHub integration first." The app being installed for other repositories is not enough when its
+access is scoped to selected ones. Add `work-planner` at https://github.com/apps/vercel first.
 
 - [ ] **Step 2: Hand off to the author**
 
