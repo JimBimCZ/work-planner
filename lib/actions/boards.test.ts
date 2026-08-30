@@ -4,8 +4,18 @@ const authMock = vi.fn();
 vi.mock('@/lib/auth', () => ({ auth: () => authMock() }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
+const assertBoardAccess = vi.fn();
+vi.mock('@/lib/permissions', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/permissions')>('@/lib/permissions');
+  return { ...actual, assertBoardAccess: (...args: unknown[]) => assertBoardAccess(...args) };
+});
+
 type Insert = { table: string; values: unknown };
 const inserts: Insert[] = [];
+
+let boardRow: { name: string } | undefined;
+let updated: { id: string; name: string } | null = null;
+let deleted: string | null = null;
 
 function tableName(table: unknown): string {
   const symbol = Object.getOwnPropertySymbols(table).find((s) => s.description === 'drizzle:Name');
@@ -28,14 +38,34 @@ const tx = {
 };
 
 vi.mock('@/lib/db', () => ({
-  db: { transaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) },
+  db: {
+    transaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
+    query: { boards: { findFirst: async () => boardRow } },
+    update: () => ({
+      set: (values: { name: string }) => ({
+        where: async () => {
+          updated = { id: 'b1', name: values.name };
+        },
+      }),
+    }),
+    delete: () => ({
+      where: async () => {
+        deleted = 'b1';
+      },
+    }),
+  },
 }));
 
-const { createBoard } = await import('./boards');
+const { createBoard, deleteBoard, renameBoard } = await import('./boards');
 const { DEFAULT_COLUMN_NAMES } = await import('@/lib/board-defaults');
+const { BoardAccessError } = await import('@/lib/permissions');
 
 beforeEach(() => {
   inserts.length = 0;
+  boardRow = undefined;
+  updated = null;
+  deleted = null;
+  assertBoardAccess.mockReset();
   authMock.mockReset();
   authMock.mockResolvedValue({ user: { id: 'user-1' } });
 });
@@ -88,5 +118,57 @@ describe('createBoard', () => {
       'In Review',
       'Done',
     ]);
+  });
+});
+
+describe('renameBoard', () => {
+  test('requires member, not viewer', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+
+    await expect(renameBoard({ boardId: 'b1', name: 'New name' })).resolves.toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+    expect(assertBoardAccess).toHaveBeenCalledWith('user-1', 'b1', 'member');
+  });
+
+  test('trims and writes the new name', async () => {
+    assertBoardAccess.mockResolvedValue('member');
+
+    await expect(renameBoard({ boardId: 'b1', name: '  Renamed  ' })).resolves.toEqual({ ok: true });
+    expect(updated).toEqual({ id: 'b1', name: 'Renamed' });
+  });
+});
+
+describe('deleteBoard', () => {
+  test('requires owner', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+
+    await expect(deleteBoard({ boardId: 'b1', confirmName: 'Roadmap' })).resolves.toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+    expect(assertBoardAccess).toHaveBeenCalledWith('user-1', 'b1', 'owner');
+  });
+
+  test('refuses when the typed name does not match, so the dialog is not the only guard', async () => {
+    assertBoardAccess.mockResolvedValue('owner');
+    boardRow = { name: 'Roadmap' };
+
+    await expect(deleteBoard({ boardId: 'b1', confirmName: 'roadmap' })).resolves.toEqual({
+      ok: false,
+      error: 'NAME_MISMATCH',
+    });
+    expect(deleted).toBeNull();
+  });
+
+  test('deletes when the typed name matches exactly', async () => {
+    assertBoardAccess.mockResolvedValue('owner');
+    boardRow = { name: 'Roadmap' };
+
+    await expect(deleteBoard({ boardId: 'b1', confirmName: 'Roadmap' })).resolves.toEqual({
+      ok: true,
+    });
+    expect(deleted).toBe('b1');
   });
 });

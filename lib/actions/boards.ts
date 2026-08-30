@@ -1,5 +1,6 @@
 'use server';
 
+import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -7,11 +8,14 @@ import { auth } from '@/lib/auth';
 import { DEFAULT_COLUMN_NAMES } from '@/lib/board-defaults';
 import { db } from '@/lib/db';
 import { boardMembers, boards, columns } from '@/lib/db/schema';
+import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 import { seedRanks } from '@/lib/rank';
 
 const boardName = z.string().trim().min(1).max(80);
 
 const createSchema = z.object({ name: boardName });
+const renameSchema = z.object({ boardId: z.string().min(1), name: boardName });
+const deleteSchema = z.object({ boardId: z.string().min(1), confirmName: z.string() });
 
 export async function createBoard(input: unknown) {
   const session = await auth();
@@ -43,4 +47,51 @@ export async function createBoard(input: unknown) {
 
   revalidatePath('/boards');
   return { ok: true, data: { id: board.id } } as const;
+}
+
+export async function renameBoard(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = renameSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  try {
+    await assertBoardAccess(session.user.id, parsed.data.boardId, 'member');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  await db.update(boards).set({ name: parsed.data.name }).where(eq(boards.id, parsed.data.boardId));
+
+  revalidatePath('/boards');
+  return { ok: true } as const;
+}
+
+export async function deleteBoard(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = deleteSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  try {
+    await assertBoardAccess(session.user.id, parsed.data.boardId, 'owner');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  // Re-checked here because a client can skip the dialog that asked for it.
+  const board = await db.query.boards.findFirst({
+    where: (b, { eq: equals }) => equals(b.id, parsed.data.boardId),
+    columns: { name: true },
+  });
+  if (!board || board.name !== parsed.data.confirmName.trim()) {
+    return { ok: false, error: 'NAME_MISMATCH' } as const;
+  }
+
+  await db.delete(boards).where(eq(boards.id, parsed.data.boardId));
+
+  revalidatePath('/boards');
+  return { ok: true } as const;
 }
