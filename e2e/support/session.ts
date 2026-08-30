@@ -90,3 +90,32 @@ export async function closeSeedPool(): Promise<void> {
   pool = null;
   await open?.end();
 }
+
+export async function boardColumns(
+  boardId: string,
+): Promise<{ id: string; name: string; rank: string }[]> {
+  const { rows } = await seedPool().query(
+    'select id, name, rank from columns where board_id = $1 order by rank',
+    [boardId],
+  );
+  return rows;
+}
+
+export async function seedCard(
+  columnId: string,
+  opts: { boardId: string; createdById: string; title?: string; rank?: string },
+): Promise<string> {
+  const cardId = crypto.randomUUID();
+  await seedPool().query(
+    'insert into cards (id, board_id, column_id, title, rank, created_by_id) values ($1, $2, $3, $4, $5, $6)',
+    [
+      cardId,
+      opts.boardId,
+      columnId,
+      opts.title ?? 'Seeded card',
+      opts.rank ?? generateNKeysBetween(null, null, 1)[0],
+      opts.createdById,
+    ],
+  );
+  return cardId;
+}
