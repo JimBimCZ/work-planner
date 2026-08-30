@@ -31,7 +31,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         account.provider,
       );
 
-      return owner ? `/signin?error=account-exists&provider=${owner}` : true;
+      return owner
+        ? `/signin?error=account-exists&provider=${owner}&attempted=${account.provider}`
+        : true;
     },
   },
 });

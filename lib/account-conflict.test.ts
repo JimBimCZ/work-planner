@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { conflictingProvider } from './account-conflict';
+import { conflictingProvider, supportedProvider } from './account-conflict';
 
 describe('conflictingProvider', () => {
   test('a brand new address has no conflict', () => {
@@ -17,5 +17,19 @@ describe('conflictingProvider', () => {
   test('an address that somehow holds both is not a conflict for either', () => {
     expect(conflictingProvider(['google', 'github'], 'github')).toBeNull();
     expect(conflictingProvider(['github', 'google'], 'google')).toBeNull();
+  });
+});
+
+describe('supportedProvider', () => {
+  test('resolves the providers this app supports to a label', () => {
+    expect(supportedProvider('google')).toEqual({ id: 'google', label: 'Google' });
+    expect(supportedProvider('github')).toEqual({ id: 'github', label: 'GitHub' });
+  });
+
+  test('refuses anything else, so a URL cannot name its own provider', () => {
+    expect(supportedProvider('gitlab')).toBeNull();
+    expect(supportedProvider('')).toBeNull();
+    expect(supportedProvider('__proto__')).toBeNull();
+    expect(supportedProvider(undefined)).toBeNull();
   });
 });
