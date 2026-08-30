@@ -1,26 +1,73 @@
 @import "tailwindcss";
 
+@custom-variant dark ([data-theme="dark"] &);
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --canvas: #EDF0F5;
+  --surface: #FFFFFF;
+  --ink: #0E1319;
+  --muted: #8A94A6;
+  --line: #DCE1E9;
+
+  --flow-1: #4468D8;
+  --flow-mid: #12A594;
+  --flow-last: #2E9E5B;
+
+  --time-soon: #C98A17;
+  --time-over: #C8492F;
+
+  --radius-control: 8px;
+  --radius-card: 10px;
+  --radius-modal: 16px;
+
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--flow-mid);
+  --primary-foreground: #FFFFFF;
+  --muted-foreground: var(--muted);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--flow-mid);
+  --destructive: var(--time-over);
+  --radius: var(--radius-control);
+}
+
+[data-theme="dark"] {
+  --canvas: #10141A;
+  --surface: #19202A;
+  --ink: #E7EBF2;
+  --line: #262E3A;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-flow-1: var(--flow-1);
+  --color-flow-mid: var(--flow-mid);
+  --color-flow-last: var(--flow-last);
+  --color-time-soon: var(--time-soon);
+  --color-time-over: var(--time-over);
+
+  --font-sans: var(--font-roboto);
+  --font-mono: var(--font-roboto-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    background-color: var(--canvas);
+    color: var(--ink);
+    font-family: var(--font-roboto), system-ui, sans-serif;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  :focus-visible {
+    outline: 2px solid var(--flow-mid);
+    outline-offset: 2px;
+  }
 }
