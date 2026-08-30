@@ -195,8 +195,28 @@ adopting it. Two reasons, both structural:
   `board_members.userId`, `cards.createdById` and `comments.authorId` all point at users; that is not
   a table to hand to a vendor.
 
-To remove it: `neon neon-auth disable --project-id <id> --branch <branch>`, then delete the
-`NEON_AUTH_BASE_URL` and `VITE_NEON_AUTH_URL` variables it adds to the Vercel project.
+**Current state, verified 2026-08-30 on project `withered-glade-54206401`:** Neon Auth is *not*
+enabled. `neonctl neon-auth status` reports "not configured" on both the `main` and `dev` branches,
+and no `NEON_AUTH_BASE_URL` or `VITE_NEON_AUTH_URL` exists in any Vercel environment. Nothing needs
+disabling today.
+
+What *does* exist is a leftover `neon_auth` schema — nine tables (`user`, `session`, `account`,
+`organization`, `member`, `invitation`, `jwks`, `verification`, `project_config`) — on the `main`
+branch, which `dev` inherited when it was branched. It is inert: it lives in its own namespace, our
+tables are in `public`, and nothing in this repository references it. It is deliberately left in
+place rather than dropped, because dropping it is permanent and buys nothing.
+
+To check, and to remove it if it ever comes back:
+
+```bash
+npx neonctl@4 neon-auth status  --project-id <id> --branch <branch>
+npx neonctl@4 neon-auth disable --project-id <id> --branch <branch>
+```
+
+`disable` turns the service off but leaves the schema behind. Removing the schema as well is
+`--delete-data`, or `DROP SCHEMA neon_auth CASCADE` — both permanent, so neither runs without a
+deliberate decision. Check the Vercel project for `NEON_AUTH_BASE_URL` and `VITE_NEON_AUTH_URL`
+too; the integration adds them when it provisions the service, and they are absent today.
 
 ## Server action conventions
 
