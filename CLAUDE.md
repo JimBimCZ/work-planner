@@ -249,11 +249,22 @@ Hue is never the only signal — column names are always visible, and overdue ca
 
 ### Type
 
-- **Display** — Clash Grotesk 500, used only for board titles, empty states, and the sign-in screen. Restraint is the point; it never appears on a card.
-- **UI and body** — General Sans, 400/500/600.
-- **Data** — JetBrains Mono, for dates, card ids, counts, WIP limits. A dev tool should signal what's data and what's prose, and the subject's own world already reads monospace.
+Three roles, two families. The roles are functional and stay; the families are
+deliberately boring so that no time is spent on font licensing.
 
-Self-host via `next/font/local` (Fontshare is not on Google Fonts). Do not substitute Inter — it's the default that makes every product look like every other product.
+- **Display** — Roboto 500, used only for board titles, empty states, and the sign-in screen. It shares a family with body text, so the role is carried by size and tighter tracking rather than a different face. Restraint is the point; it never appears on a card.
+- **UI and body** — Roboto, 400/500/600. Roboto ships as a variable font (100–900), so every weight in the scale below is real, not synthesised.
+- **Data** — Roboto Mono, for dates, card ids, counts, WIP limits. A dev tool should signal what's data and what's prose, and the subject's own world already reads monospace. This is the one distinction worth a second family.
+
+Both are OFL-1.1 and load through `next/font/google`, which self-hosts them at
+build time — no runtime request to Google, and nothing to commit.
+
+This replaces an earlier brief that specified Clash Grotesk and General Sans from
+Fontshare. That licence forbids redistributing the files through a public
+repository, and this repo is public. Roboto was chosen to make the question go
+away rather than to win a typography argument — so do not re-litigate it, and do
+not add a third family. If display ever needs to look genuinely distinct again,
+Roboto Serif and Roboto Condensed are OFL and stay inside this decision.
 
 Scale: card title 14/20 500 · card meta 12 mono · column header 12 600 uppercase, 0.08em tracking · body 15/24 · board title 22 display.
 

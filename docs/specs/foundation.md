@@ -51,9 +51,9 @@ with sub-projects 2 and 7 rather than sitting empty.
 
 `/design` is scaffolding with a defined end: it is deleted at the close of
 sub-project 4, once a real board demonstrates the same tokens. It renders the
-full token table in both themes, the flow spectrum at 3, 5 and 8 columns, all
-three typefaces at the scale defined in `CLAUDE.md`, card/control/modal radii and
-shadows, the focus ring, and the overdue strip.
+full token table in both themes, the flow spectrum at 3, 5 and 8 columns,
+both type families across the three roles at the scale defined in `CLAUDE.md`,
+card/control/modal radii and shadows, the focus ring, and the overdue strip.
 
 ### Theme mechanism
 
@@ -95,22 +95,20 @@ client JavaScript, and any column count re-interpolates without extra work.
 
 ### Fonts
 
-`scripts/fetch-fonts.ts` downloads Clash Grotesk and General Sans from the
-Fontshare API into a gitignored `app/fonts/`, run from `postinstall` and from the
-Docker deps stage. JetBrains Mono is OFL and is committed to the repo. All three
-are wired through `next/font/local`.
+Roboto and Roboto Mono, loaded through `next/font/google`. Both are OFL-1.1.
+`next/font/google` self-hosts the files at build time, so there is no runtime
+request to Google, nothing to commit, and no font step in the Dockerfile or CI.
 
-Rationale, and this is a licence constraint rather than a preference: the ITF
-Free Font License section 02 forbids redistributing the font files through a
-"repository" or "publicly accessible servers", and this repository is public.
-Section 01 explicitly permits self-hosting on your own infrastructure for your
-own site, so serving them from the deployed app is fine; committing the `.woff2`
-files is not. Section 02 also forbids subsetting and format conversion, which is
-why `next/font/local` is correct here and `next/font/google` would not be.
+Roboto is a variable font spanning weights 100-900, verified against the Google
+Fonts CSS API, so the 400/500/600 in the type scale are real weights rather than
+synthesised ones.
 
-CI asserts the font files are present and fails loudly if they are missing, so a
-Fontshare outage produces a red build rather than a silent fallback to system
-metrics.
+This supersedes an earlier decision to self-host Clash Grotesk and General Sans
+from Fontshare. The ITF Free Font License section 02 forbids redistributing those
+files through a "repository" or "publicly accessible servers", and this
+repository is public; rather than carry a build-time fetch script to stay
+compliant, the brief moved to fonts with no such constraint. `CLAUDE.md` records
+the same decision in its Type section.
 
 ### Data layer
 
@@ -157,7 +155,6 @@ Foundation is done when, with output observed rather than assumed:
 - `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass locally.
 - `docker compose up --build` serves the app and its healthcheck reports healthy.
 - The Vercel preview serves `/design` in both themes and `/api/health` returns `ok`.
-- A fresh `pnpm install` on a clean checkout produces the font files.
 
 ## Open decisions carried forward
 
@@ -172,8 +169,14 @@ Not settled here, and not to be settled unilaterally later:
 - **Pusher account.** Does not exist yet. Needed for sub-project 6, and
   `.env.example` carries the variable names in the meantime.
 
-## Prerequisites the author must supply
+## Sequencing with the author
 
-- Neon pooled and unpooled connection strings for `DATABASE_URL` and
-  `DATABASE_URL_UNPOOLED`.
-- Confirmation to create the Vercel project against the existing team.
+Foundation is buildable and locally verifiable without any external account: the
+Docker Compose Postgres covers the data layer, and everything else is local.
+
+The deploy step is a handoff. The agent creates the Vercel project against the
+existing `JimBimCZ's projects` team and links it to the repository. The author
+then creates the Neon project and supplies `DATABASE_URL` (pooled) and
+`DATABASE_URL_UNPOOLED`, which are set as Vercel environment variables. Only the
+final verification item — a working preview URL — depends on that exchange, so
+implementation should not block waiting for it.
