@@ -15,7 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         email={session.user.email ?? ''}
         image={session.user.image ?? null}
       />
-      <div className="flex-1">{children}</div>
+      <div className="flex flex-1 flex-col">{children}</div>
     </div>
   );
 }
