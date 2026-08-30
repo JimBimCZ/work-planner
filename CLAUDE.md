@@ -311,7 +311,7 @@ What that constrains:
 - Preview deployments get their own Neon branch. OAuth callback URLs must include the preview domain pattern or sign-in will fail on previews — expect to test auth on a stable preview alias.
 - `AUTH_URL`/`AUTH_TRUST_HOST` need care on previews. Set `AUTH_TRUST_HOST=true` and let Auth.js infer the host rather than hardcoding.
 
-Docker (local/self-host): multi-stage deps → build → runner on `node:22-alpine`, `output: 'standalone'`, non-root `nextjs` user, `HOSTNAME=0.0.0.0`. `docker-compose.yml` runs app + local Postgres. Add `/api/health` for the container healthcheck. Keep secrets out of `NEXT_PUBLIC_*` — those are inlined at build time.
+Docker (local/self-host): multi-stage deps → build → runner on `node:22-alpine`, `output: 'standalone'` enabled by `DOCKER_BUILD=1` in the build stage (Vercel builds must use Next's default output), non-root `nextjs` user, `HOSTNAME=0.0.0.0`. `docker-compose.yml` runs app + local Postgres. Add `/api/health` for the container healthcheck. Keep secrets out of `NEXT_PUBLIC_*` — those are inlined at build time.
 
 Env vars:
 
