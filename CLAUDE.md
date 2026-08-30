@@ -64,7 +64,12 @@ docker build -t kanban .           # app image only, self-host
 
 `drizzle.config.ts` loads `.env.local` itself and lets it override `.env`. drizzle-kit only auto-loads
 `.env`, so without that the app talks to Neon while migrations silently hit the docker Postgres in
-`.env` — the two drift with no error. Also note `drizzle-kit migrate` exits 1 with an empty stderr
+`.env` — the two drift with no error. A variable set in the shell outranks both, so
+`DATABASE_URL_UNPOOLED=<production> pnpm db:migrate` migrates what it names — **this is how production
+is migrated.** That override is not cosmetic: the config used to replace `process.env` unconditionally,
+so the same command migrated the `.env.local` database and still printed `migrations applied
+successfully!`. Because drizzle-kit has already loaded `.env` before the config evaluates, "set in the
+shell" is decided by comparing against `.env`'s own value, not by presence in `process.env`. Also note `drizzle-kit migrate` exits 1 with an empty stderr
 when `lib/db/migrations/` does not exist; the first `db:generate` creates it.
 
 Before declaring any task done, run `pnpm typecheck && pnpm lint && pnpm test`. Do not report success on output you have not seen.
