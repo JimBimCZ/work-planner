@@ -8,6 +8,14 @@ FROM node:22-alpine AS build
 WORKDIR /app
 RUN corepack enable
 ENV DOCKER_BUILD=1
+# next build imports lib/auth.ts, and Auth.js constructs its providers on
+# import — it will not build one without an id and secret. Build-stage only:
+# these never reach the runner, and a build must not depend on real secrets.
+ENV AUTH_SECRET=build-only \
+    AUTH_GOOGLE_ID=build-only \
+    AUTH_GOOGLE_SECRET=build-only \
+    AUTH_GITHUB_ID=build-only \
+    AUTH_GITHUB_SECRET=build-only
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build
