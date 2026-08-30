@@ -384,6 +384,34 @@ Consequences to accept, not work around:
 - If a feature turns out to be several independent subsystems, say so and decompose it into sub-projects, each with its own spec → plan → implementation cycle. Don't spec a whole platform in one pass.
 - No skipping stages because something looks trivial. The deceptively simple requests are the ones that turn into scope creep.
 
+### Model selection
+
+Fixed, and not a per-task judgement call:
+
+| Work | Model |
+|---|---|
+| Brainstorming, planning, writing specs | Opus |
+| **All review** — per-task review, scoped re-review, final whole-branch review | Opus |
+| Implementation | Sonnet |
+
+This applies to the main session and to every subagent. Always pass the model
+explicitly when dispatching a subagent: an omitted model silently inherits the
+caller's, which defeats the whole table.
+
+The reasoning is evidence from this repository, not a preference. During Section A
+the per-task reviews ran on Sonnet and passed the scaffold as compliant. The
+final review ran on Opus and found that `pnpm typecheck` succeeded locally but
+would fail on every clean checkout and in CI, because `app/layout.tsx` used
+`LayoutProps`, a Next 16 typegen global emitted into gitignored `.next/types/`.
+That defect would have been inherited by every later section, since `pnpm
+typecheck` is the mandatory pre-push gate. Review is where the cheap model costs
+the most.
+
+Implementation is the opposite case: when a plan carries the exact code to write,
+implementation is transcription plus verification, and Sonnet does it at a
+fraction of the cost with no observed quality loss across the four
+implementation dispatches in Section A.
+
 ### Increments
 
 - Work in small increments. One coherent change at a time, verified, committed, then the next.
