@@ -245,8 +245,8 @@ One section, one branch, one PR, in order:
 
 | | Scope | Ends with |
 |---|---|---|
-| **A** | `zod` and `fractional-indexing`, the three tables, the generated migration, `lib/rank.ts` | The migration applied to production by hand, and verified |
-| **B** | `lib/permissions.ts`, `lib/boards.ts`, the three actions. No UI | The ladder proven in unit tests |
+| **A** | `fractional-indexing`, the three tables, the generated migration, `lib/rank.ts` | The migration applied to production by hand, and verified |
+| **B** | `zod`, `lib/permissions.ts`, `lib/boards.ts`, the three actions. No UI | The ladder proven in unit tests |
 | **C** | `/boards`: list, create, rename, delete, empty state | E2E: create, rename, delete |
 | **D** | `/boards/[boardId]`: the shell, the title in the top bar, footer drop and scroll lock | E2E: the 404, and the five columns |
 
