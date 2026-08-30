@@ -603,7 +603,7 @@ git commit -m "feat: add the health route backed by a real query"
 
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass with Postgres running, output observed.
 - [x] Confirm `/api/health` returns 503 with Postgres stopped, then restart it.
-- [ ] Open the PR. Stop. Start Section C in a fresh session.
+- [x] Open the PR. Stop. Start Section C in a fresh session.
 
 ---
 
