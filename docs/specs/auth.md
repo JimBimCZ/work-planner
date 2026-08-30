@@ -223,8 +223,8 @@ Done when, with output observed rather than assumed:
 
 ## Open decisions carried forward
 
-- **`assigneeId` and `wipLimit`.** Untouched here. Due in sub-project 3, before
-  its migration.
+- **`assigneeId` and `wipLimit`.** ~~Due in sub-project 3.~~ **Resolved during
+  Section A: both dropped.** See the data-model rules in `CLAUDE.md`.
 - **Dropping `SiteFooter` on the board route.** Due in sub-project 4, when body
   scroll is locked and the footer becomes unreachable.
 - **A real migration gate.** Revisit when the service has users and a few

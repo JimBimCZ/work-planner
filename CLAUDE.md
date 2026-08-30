@@ -119,10 +119,9 @@ verificationTokens                                             (Auth.js adapter 
 
 boards             id, name, ownerId, createdAt, updatedAt
 board_members      boardId, userId, role ('owner'|'member'|'viewer')   PK (boardId, userId)
-columns            id, boardId, name, rank, wipLimit?, createdAt
+columns            id, boardId, name, rank, createdAt
 cards              id, boardId, columnId, title, description,
-                   dueDate, rank, createdById, assigneeId?,
-                   createdAt, updatedAt
+                   dueDate, rank, createdById, createdAt, updatedAt
 comments           id, cardId, authorId, body, createdAt, updatedAt
 ```
 
@@ -132,6 +131,7 @@ Rules:
 - Deleting a column requires a target column to move its cards into. Never cascade-delete cards with the column.
 - Comments and cards are soft-delete free for now: hard delete, but only via an action that checks role.
 - Index `cards(columnId, rank)`, `cards(boardId)`, `comments(cardId, createdAt)`, `board_members(userId)`.
+- `cards.assigneeId` and `columns.wipLimit` were **dropped, not deferred.** Both were speculative — no requirement, no UI, no enforcement rule — and YAGNI says an unused column is a liability, not a head start. Adding either later is one migration; carrying a column nothing writes to costs a permanent explanation. Do not reintroduce them without a requirement that needs them.
 
 ## Ordering: fractional ranks
 
@@ -488,9 +488,6 @@ One section of the plan, one branch, one PR. Ship the PR as soon as the section 
 
 Not settled yet — raise these rather than deciding unilaterally:
 
-- Assignees and avatars on cards (schema has `assigneeId` reserved; no UI yet).
-- WIP limits per column (schema has `wipLimit` reserved; not in the requirements, no UI, no enforcement rule).
-- `assigneeId` and `wipLimit` are both speculative and sit awkwardly against the YAGNI rule. Either confirm them as requirements or drop them from the schema before the first migration — don't ship unused columns.
 - Labels/tags, attachments, activity log.
 - Whether comments need editing/deletion beyond the author's own.
 - Board archive vs hard delete.
