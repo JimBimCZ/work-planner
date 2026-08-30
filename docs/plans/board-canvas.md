@@ -1664,6 +1664,8 @@ This is the only action in the sub-project that writes more than one card row, a
 
 Both columns' cards are fetched in **one** query and split in JS. Two queries would work equally well; one keeps the transaction short and makes the mock in the test order-independent.
 
+Nothing in the schema ties `cards.board_id` to `columns.board_id` — the denormalisation, and the permission check that keys off it, are both enforced only by this code. The tests below must therefore assert both halves: `'refuses a target on another board'` already proves the target must be one of `boardId`'s own `siblingColumns`, and the moved-card test asserts the update never touches `board_id` (it only sets `columnId` and `rank`).
+
 - [ ] **Step 1: Write the failing test**
 
 In `lib/actions/columns.test.ts`, replace the `cards` entry of the `query` mock so a row carries its column:
@@ -1728,6 +1730,7 @@ describe('deleteColumn', () => {
     expect(cardWrites.every((op) => op.kind === 'update')).toBe(true);
     for (const write of cardWrites) {
       expect(write.values).toMatchObject({ columnId: 'col-1' });
+      expect(write.values).not.toHaveProperty('boardId');
       expect((write.values as { rank: string }).rank > 'b0').toBe(true);
     }
 
