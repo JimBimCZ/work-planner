@@ -883,7 +883,7 @@ git commit -m "feat: rename and delete a board"
 - [x] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed.
 - [x] No action inlines a membership query; every access question goes through `assertBoardAccess`.
 - [x] Nothing user-visible changed — `/boards` is still the placeholder. Say so in the PR rather than implying a feature landed.
-- [ ] Open the PR. Stop. Start Section C in a fresh session.
+- [x] Open the PR. Stop. Start Section C in a fresh session. — PR #35.
 
 ---
 
