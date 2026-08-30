@@ -335,8 +335,9 @@ matter are Playwright tests against the Neon dev branch:
 - a board renders its columns and cards in rank order;
 - at 360px one column fills the viewport and the switcher reaches the others.
 
-`e2e/support/session.ts` gains `seedCard()` alongside the existing `seedBoard()`
-and `seedMember()`. Cleanup needs nothing new: `cards.boardId` cascades from
+`e2e/support/session.ts` gains `seedCard()` and `boardColumns()` alongside the
+existing `seedBoard()` and `seedMember()` — a seeded card needs the id of the
+column it goes in, and only the database knows it. Cleanup needs nothing new: `cards.boardId` cascades from
 `boards`, which cascades from `user`, so `removeSeededUser` already takes them.
 
 ## Sections and pull requests
