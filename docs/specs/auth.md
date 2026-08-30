@@ -241,10 +241,10 @@ Done when, with output observed rather than assumed:
   This lets someone reach the account they meant to use; it does not join two
   identities.
 
-  Outstanding, and the author's to observe: that the picker itself appears.
-  Verification reached both providers' authorize endpoints carrying the
-  parameter, but showing the chooser needs a browser already signed in to the
-  provider.
+  The picker itself was the one thing verification could not reach — showing the
+  chooser needs a browser already signed in to the provider. The author
+  confirmed it on the deployed site, 2026-08-30: the retry lands on the account
+  chooser rather than re-authenticating the remembered session.
 
 - **`assigneeId` and `wipLimit`.** ~~Due in sub-project 3.~~ **Resolved during
   Section A: both dropped.** See the data-model rules in `CLAUDE.md`.
