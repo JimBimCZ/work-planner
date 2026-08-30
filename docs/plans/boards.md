@@ -89,13 +89,13 @@ Branch: `feat/boards-schema`.
 
 `fractional-indexing@4.0.0` is ESM-only (`"type": "module"`) and exports `generateKeyBetween(a, b, digits?, intDigits?)` and `generateNKeysBetween(a, b, n, digits?, intDigits?)`. With the alphabet omitted, keys take the `a0`, `a1`, `a2` form. Both facts are read from the published `src/index.d.ts`, not assumed.
 
-- [ ] **Step 1: Add the dependency**
+- [x] **Step 1: Add the dependency**
 
 ```bash
 pnpm add fractional-indexing@4.0.0
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 `lib/rank.test.ts`:
 
@@ -136,12 +136,12 @@ describe('rankBetween', () => {
 });
 ```
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 Run: `pnpm test lib/rank.test.ts`
 Expected: FAIL — `Failed to resolve import "./rank"`.
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 `lib/rank.ts`:
 
@@ -153,12 +153,12 @@ export const rankBetween = (a: string | null, b: string | null) => generateKeyBe
 export const seedRanks = (count: number) => generateNKeysBetween(null, null, count);
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm test lib/rank.test.ts`
 Expected: PASS, 4 tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add package.json pnpm-lock.yaml lib/rank.ts lib/rank.test.ts
@@ -177,7 +177,7 @@ git commit -m "feat: add the fractional rank helper"
 - Consumes: `users` from the existing schema.
 - Produces: `boardRole`, `boards`, `boardMembers`, `columns`, and a `db` whose `db.query.boards` / `db.query.boardMembers` / `db.query.columns` exist. Tasks 3–8 depend on all of it.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `lib/db/schema.test.ts`. The existing file pins the adapter's names because a rename breaks its queries silently; these pins exist for a different reason — the migration is generated from them, so a rename is a schema change nobody reviewed.
 
@@ -204,12 +204,12 @@ describe('board tables', () => {
 
 `getTableName` comes from `drizzle-orm`; add it to the file's existing imports.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/db/schema.test.ts`
 Expected: FAIL — `boards` is not exported from `./schema`.
 
-- [ ] **Step 3: Write the schema**
+- [x] **Step 3: Write the schema**
 
 Append to `lib/db/schema.ts`, and add `pgEnum` to the `drizzle-orm/pg-core` import and `relations` from `drizzle-orm`:
 
@@ -278,7 +278,7 @@ export const columnsRelations = relations(columns, ({ one }) => ({
 }));
 ```
 
-- [ ] **Step 4: Give the client its schema**
+- [x] **Step 4: Give the client its schema**
 
 `lib/db/index.ts` — the relational query API needs it, and Task 3's test mocks the shape it exposes:
 
@@ -288,20 +288,20 @@ import * as schema from './schema';
 export const db = drizzle({ client: pool, schema });
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm test lib/db/schema.test.ts`
 Expected: PASS. Then `pnpm typecheck` — expected exit 0.
 
-- [ ] **Step 6: Generate the migration**
+- [x] **Step 6: Generate the migration**
 
 ```bash
 pnpm db:generate
 ```
 
-Read the generated SQL before going on. Expected: one `CREATE TYPE "public"."board_role"`, three `CREATE TABLE`s, the two indexes, and five foreign keys. Never hand-edit it. If it contains anything else, stop — the schema is wrong, not the migration.
+Read the generated SQL before going on. Expected: one `CREATE TYPE "public"."board_role"`, three `CREATE TABLE`s, the two indexes, and four foreign keys — `boards.owner_id → user`, `board_members.board_id → boards`, `board_members.user_id → user`, `columns.board_id → boards`. The `relations()` helpers emit no SQL. Never hand-edit it. If it contains anything else, stop — the schema is wrong, not the migration.
 
-- [ ] **Step 7: Apply it to the dev branch and prove it**
+- [x] **Step 7: Apply it to the dev branch and prove it**
 
 ```bash
 pnpm db:migrate
@@ -315,7 +315,7 @@ pnpm db:studio   # or psql "$DATABASE_URL_UNPOOLED" -c '\dt'
 
 Expected: `boards`, `board_members`, `columns` alongside the three auth tables. Shut `db:studio` down afterwards.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add lib/db/schema.ts lib/db/schema.test.ts lib/db/index.ts lib/db/migrations
