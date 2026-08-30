@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Roboto, Roboto_Mono } from 'next/font/google';
 import { SiteFooter } from '@/components/site-footer';
+import { siteUrl } from '@/lib/site-url';
 import './globals.css';
 
 const roboto = Roboto({
@@ -16,6 +17,7 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: siteUrl(),
   title: 'Work Planner',
   description: 'A collaborative kanban board.',
 };
