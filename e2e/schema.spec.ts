@@ -27,9 +27,10 @@ test('deleting a board takes its columns and cards with it', async ({ context })
     await pool.query('delete from boards where id = $1', [boardId]);
 
     for (const table of ['cards', 'columns', 'board_members']) {
-      const { rows } = await pool.query(`select count(*)::int as n from ${table} where board_id = $1`, [
-        boardId,
-      ]);
+      const { rows } = await pool.query<{ n: number }>(
+        `select count(*)::int as n from ${table} where board_id = $1`,
+        [boardId],
+      );
       expect(rows[0].n, `${table} should be empty`).toBe(0);
     }
   } finally {
