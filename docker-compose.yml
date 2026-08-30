@@ -21,6 +21,8 @@ services:
       - '3000:3000'
     environment:
       DATABASE_URL: postgres://kanban:kanban@postgres:5432/kanban
+      AUTH_SECRET: local-development-only
+      AUTH_TRUST_HOST: 'true'
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
     depends_on:
       postgres:

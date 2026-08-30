@@ -709,7 +709,7 @@ Branch: `feat/auth-shell`
 **Interfaces:**
 - Produces: `avatarHue(userId: string): number` and `initials(name: string | null, email: string): string`. Consumed by the account menu in Task 9.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // lib/avatar.test.ts
@@ -750,12 +750,12 @@ describe('initials', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm vitest run lib/avatar.test.ts`
 Expected: FAIL — `Failed to resolve import './avatar'`.
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 ```ts
 // lib/avatar.ts
@@ -781,12 +781,12 @@ export function initials(name: string | null, email: string): string {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm vitest run lib/avatar.test.ts`
 Expected: PASS, 6 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/avatar.ts lib/avatar.test.ts
@@ -805,7 +805,7 @@ git commit -m "feat: derive a cool-half avatar colour from the user id"
 - Consumes: `auth` from `lib/auth.ts`.
 - Produces: `seedSession(context)` and `removeSeededUser(userId)` for every later sub-project's end-to-end tests. `TopBar` takes `{ name, email, image, userId }`.
 
-- [ ] **Step 1: Write the seeded-session helper**
+- [x] **Step 1: Write the seeded-session helper**
 
 Not a test itself — the harness the tests need. Real OAuth cannot run in CI, and a database session is a row plus a cookie, so a signed-in browser can be constructed directly.
 
@@ -854,7 +854,7 @@ export async function closeSeedPool(): Promise<void> {
 }
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 ```ts
 // e2e/shell.spec.ts
@@ -879,12 +879,12 @@ test('a signed-in session sees the board list and the top bar', async ({ page, c
 
 This restores the "Nothing here yet" assertion that Section B moved out of `routing.spec.ts`, now in the only state where a signed-in board list can be asserted.
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/shell.spec.ts`
 Expected: FAIL — there is no `banner` landmark, because no layout renders one.
 
-- [ ] **Step 4: Write the layout and the top bar**
+- [x] **Step 4: Write the layout and the top bar**
 
 ```tsx
 // app/(app)/layout.tsx
@@ -946,12 +946,12 @@ export function AccountMenu({ email }: { userId: string; name: string | null; em
 }
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm test:e2e`
 Expected: PASS, every spec. The seeded-session test needs a migrated database — locally that is the Neon `dev` branch from Section A Step 7.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add "app/(app)/layout.tsx" components/app e2e/support e2e/shell.spec.ts
@@ -972,7 +972,7 @@ git commit -m "feat: gate the app routes behind a session and add the top bar"
 - Consumes: `avatarHue`, `initials` from Task 7; `signOut` from `lib/auth.ts`.
 - Produces: `signOutAction()` in `lib/actions/session.ts`, the first module in the `lib/actions/` directory the layout section of `CLAUDE.md` describes.
 
-- [ ] **Step 1: Add the dropdown primitive**
+- [x] **Step 1: Add the dropdown primitive**
 
 ```bash
 pnpm dlx shadcn@latest add dropdown-menu
@@ -980,7 +980,7 @@ pnpm dlx shadcn@latest add dropdown-menu
 
 This writes `components/ui/dropdown-menu.tsx`. Re-tokenise it in the same pass, per the standing rule that untouched shadcn is recognisable: the content surface uses `bg-surface`, `border-line` and `rounded-[var(--radius-control)]`, and the focus ring uses the accent.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Add to `e2e/shell.spec.ts`:
 
@@ -1014,12 +1014,12 @@ test('signing out returns you to sign in', async ({ page, context }) => {
 });
 ```
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/shell.spec.ts`
 Expected: FAIL — there is no button named "Account"; the stub renders plain text.
 
-- [ ] **Step 4: Write the sign-out action**
+- [x] **Step 4: Write the sign-out action**
 
 ```ts
 // lib/actions/session.ts
@@ -1032,7 +1032,7 @@ export async function signOutAction() {
 }
 ```
 
-- [ ] **Step 5: Write the account menu**
+- [x] **Step 5: Write the account menu**
 
 ```tsx
 // components/app/account-menu.tsx
@@ -1151,7 +1151,7 @@ export function AccountMenu({
 
 Choosing "System" resolves the theme once, at the moment of the click. Changing the operating system's theme while the page is open takes effect on the next load, which is exactly how the pre-paint script already behaves — one behaviour, not two.
 
-- [ ] **Step 6: Allow the two avatar hosts**
+- [x] **Step 6: Allow the two avatar hosts**
 
 ```ts
 // next.config.ts — inside the existing config object
@@ -1165,7 +1165,7 @@ Choosing "System" resolves the theme once, at the moment of the click. Changing 
 
 Next 16 removed `images.domains`; `remotePatterns` is the supported form. A plain `img` would trip `@next/next/no-img-element` in a lint run that has to stay clean.
 
-- [ ] **Step 7: Keep the container building and running**
+- [x] **Step 7: Keep the container building and running**
 
 `next build` must never depend on secrets, and Auth.js constructs its providers when `lib/auth.ts` is imported. Add to the **build stage only** of the `Dockerfile`, beside the existing `DOCKER_BUILD=1`:
 
@@ -1186,7 +1186,7 @@ And to the `app` service's `environment:` in `docker-compose.yml`:
 
 Signing in against the container needs real OAuth credentials with a `localhost:3000` callback; without them the container still builds, still serves, and still reports healthy, which is what the healthcheck asserts.
 
-- [ ] **Step 8: Run the tests and watch them pass**
+- [x] **Step 8: Run the tests and watch them pass**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e
@@ -1197,11 +1197,11 @@ docker compose down
 
 Expected: all suites pass; the container reports `healthy`; the stack is then shut down, per the rule that anything opened gets closed.
 
-- [ ] **Step 9: Record the resolved decision**
+- [x] **Step 9: Record the resolved decision**
 
 In `CLAUDE.md`'s "Open decisions", remove the theme-toggle entry and note in the Design section that the account menu offers System / Light / Dark, with "System" clearing the stored preference. Make the same correction to the "Open decisions carried forward" list in `docs/specs/foundation.md`, which named sub-project 2 as where this falls due.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add components lib/actions next.config.ts docker-compose.yml Dockerfile e2e/shell.spec.ts CLAUDE.md docs/specs/foundation.md
@@ -1210,10 +1210,10 @@ git commit -m "feat: add the account menu with a System/Light/Dark control"
 
 ### Section C gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
-- [ ] `docker compose up --build` reaches `healthy`, and the stack is shut down afterwards.
-- [ ] Screenshots of the top bar and the open account menu, in both themes, attached to the PR. Section C of the Foundation plan shipped without its screenshots and the gate has stayed unticked ever since — do not repeat it.
-- [ ] Open the PR. Stop. Start Section D in a fresh session.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
+- [x] `docker compose up --build` reaches `healthy`, and the stack is shut down afterwards.
+- [x] Screenshots of the top bar and the open account menu, in both themes, attached to the PR. Section C of the Foundation plan shipped without its screenshots and the gate has stayed unticked ever since — do not repeat it.
+- [x] Open the PR. Stop. Start Section D in a fresh session.
 
 ---
 

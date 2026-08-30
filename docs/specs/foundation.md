@@ -169,9 +169,10 @@ Not settled here, and not to be settled unilaterally later:
 - **`assigneeId` and `wipLimit`.** `CLAUDE.md` requires these confirmed as
   requirements or dropped before the first migration. Foundation ships no
   migration, so they fall due in sub-project 3.
-- **A user-facing theme toggle.** `/design` has one because it must show both
-  themes. Whether the product exposes one belongs to sub-project 2, when there is
-  an account menu to hold it.
+- **A user-facing theme toggle.** ~~Belongs to sub-project 2.~~ **Resolved in
+  sub-project 2, Section C: yes.** The account menu offers System / Light / Dark,
+  where "System" clears the stored preference. See the Design constraints in
+  `CLAUDE.md`.
 - **Pusher account.** Does not exist yet. Needed for sub-project 6, and
   `.env.example` carries the variable names in the meantime.
 

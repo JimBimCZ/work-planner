@@ -324,6 +324,7 @@ Scale: card title 14/20 500 · card meta 12 mono · column header 12 600 upperca
 ### Constraints
 
 - Dark and light both ship. Default to system preference. Every token above has both values; nothing is hardcoded.
+- The account menu carries the theme control: System / Light / Dark. "System" **clears** the stored preference rather than storing a resolved value, which is what lets the pre-paint script's `matchMedia` fallback apply again — storing "light" would pin the choice forever. Choosing "System" resolves the theme once, at the click; a later OS change lands on the next load, matching what the pre-paint script already does. One behaviour, not two.
 - Re-tokenise shadcn/ui rather than using its defaults. Untouched shadcn is instantly recognisable and undoes everything above.
 - Quality floor, unannounced: keyboard focus visible everywhere (2px accent ring, 2px offset), 4.5:1 on body text, board usable at 360px by collapsing to one column with a column switcher.
 
