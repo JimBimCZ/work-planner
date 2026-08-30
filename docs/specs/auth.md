@@ -39,16 +39,29 @@ sub-project 4 and is not worth a session check in the meantime.
 
 ### Schema and the first migration
 
-`lib/db/schema.ts` stops being a placeholder and gains the four Auth.js adapter
-tables: `users`, `accounts`, `sessions`, `verificationTokens`. Indexes on
-`accounts(userId)` and `sessions(userId)`.
+`lib/db/schema.ts` stops being a placeholder and gains three tables: `users`,
+`accounts`, `sessions`. Indexes on `accounts(userId)` and `sessions(userId)`.
 
-Two columns exist because the adapter's contract requires them, not because this
-project wants them: `users.emailVerified`, which `CLAUDE.md`'s data model does
-not list, and the whole of `verificationTokens`, which stays empty unless an
-email provider is ever added. That is a different case from `assigneeId` and
-`wipLimit` — those are our own speculation and remain due for a decision in
-sub-project 3. Adapter-mandated columns are the price of the adapter.
+Three, not four. `DrizzleAdapter` is called with **no schema argument**, and its
+`defineTables` helper then builds every table it needs from its own defaults —
+so the tables we never touch, `verificationToken` (magic links) and
+`authenticator` (WebAuthn), simply never have to exist in the database. Passing a
+partial schema is not the way to get this: the exported `DrizzleAdapter(db,
+schema)` types its second parameter as the complete `DefaultPostgresSchema`, and
+only the internal `defineTables` accepts a `Partial`. Omitting the argument is
+both the typed path and the smaller migration.
+
+The cost of that choice is a naming contract: our table and column names must
+match the adapter's defaults exactly — tables `user`, `account`, `session`, with
+`userId`, `sessionToken`, `providerAccountId` and the rest spelled as the
+adapter spells them — because the adapter builds its queries against its own
+definitions, not ours. A rename here breaks every adapter query with no type
+error to catch it, so a unit test pins the names.
+
+One column still exists only because the adapter reads it: `users.emailVerified`,
+which `CLAUDE.md`'s data model does not list. That is a different case from
+`assigneeId` and `wipLimit` — those are our own speculation and remain due for a
+decision in sub-project 3.
 
 This migration adds auth tables only. It does not force the
 `assigneeId`/`wipLimit` question early.
@@ -217,17 +230,28 @@ Done when, with output observed rather than assumed:
 - **A real migration gate.** Revisit when the service has users and a few
   minutes of schema lag stops being free.
 
-## To verify before the plan is written
+## Settled while writing the plan
 
-Recorded as unknown rather than assumed, and settled in the plan:
+These three were recorded as unknown when the spec was approved, and were then
+checked against the packages themselves rather than guessed:
 
-- The published versions of `next-auth@5` and `@auth/drizzle-adapter`, and
-  whether the adapter genuinely requires `verificationTokens` or accepts a
-  subset of tables.
-- The exact session cookie names over HTTP and over HTTPS, which the proxy has
-  to match.
-- Whether provider avatar images need `next/image` remote patterns, or are
-  better served by a plain `img`.
+- **Versions.** `next-auth` has no stable v5: `latest` is 4.24.15 and v5 lives on
+  the `beta` tag, currently `5.0.0-beta.32`. Its peer range is
+  `next: ^14 || ^15 || ^16`, which is what `CLAUDE.md` relied on when it moved
+  the project to Next 16. `@auth/drizzle-adapter` is `1.11.3` and stable. Shipping
+  authentication on a beta dependency is a real risk, accepted knowingly and
+  pinned to an exact version rather than a range.
+- **Table count.** The adapter does not require `verificationTokens`. See the
+  schema section above.
+- **Cookie names.** `authjs.session-token` over HTTP and
+  `__Secure-authjs.session-token` over HTTPS — `defaultCookies()` in
+  `@auth/core` adds the `__Secure-` prefix whenever the site URL is HTTPS. The
+  proxy checks for both, since local development is HTTP and every deployment is
+  not.
+- **Avatars.** `next/image` with `images.remotePatterns` for
+  `lh3.googleusercontent.com` and `avatars.githubusercontent.com`. Next 16
+  removed `images.domains`, and a plain `img` would trip
+  `@next/next/no-img-element` in a lint run that has to stay clean.
 
 ## Sequencing with the author
 
