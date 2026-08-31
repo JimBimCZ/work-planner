@@ -57,18 +57,25 @@ export function BoardCard({
         data-testid="card-title"
         className={`text-sm font-medium leading-5 text-ink ${canWrite ? 'pr-6' : ''}`}
       >
-        <Link
-          href={`/boards/${boardId}/cards/${card.id}`}
-          className="after:absolute after:inset-0"
-          // The browser's default mousedown action focuses this link before
-          // the click even fires, blurring whatever had focus — including an
-          // open, empty "Add card" composer elsewhere on the board, which
-          // closes itself on blur. Opening a card must not have that side
-          // effect on state that lives underneath the modal.
-          onMouseDown={(event) => event.preventDefault()}
-        >
-          {card.title}
-        </Link>
+        {card.pending ? (
+          // A temp id is not a card the server knows about yet — the same
+          // reason useSortable disables dragging above. Not a link until it
+          // settles.
+          card.title
+        ) : (
+          <Link
+            href={`/boards/${boardId}/cards/${card.id}`}
+            className="after:absolute after:inset-0"
+            // The browser's default mousedown action focuses this link before
+            // the click even fires, blurring whatever had focus — including an
+            // open, empty "Add card" composer elsewhere on the board, which
+            // closes itself on blur. Opening a card must not have that side
+            // effect on state that lives underneath the modal.
+            onMouseDown={(event) => event.preventDefault()}
+          >
+            {card.title}
+          </Link>
+        )}
       </h3>
 
       {canWrite ? (

@@ -201,3 +201,39 @@ test('a description survives a reload', async ({ page, context }) => {
     await removeSeededUser(userId);
   }
 });
+
+// A card's temp id is not addressable until the create round trip settles —
+// clicking it navigates to a card that does not exist yet. useSortable already
+// disables dragging on `card.pending`; the title must not stay an active link
+// either, the same way that guard already treats a pending card as not there.
+test('a pending card is not a link', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+
+    let releaseCreate: () => void = () => {};
+    const createGate = new Promise<void>((resolve) => {
+      releaseCreate = resolve;
+    });
+    await page.route(`**/boards/${boardId}`, async (route) => {
+      if (route.request().method() === 'POST') await createGate;
+      await route.continue();
+    });
+
+    await page.getByRole('button', { name: 'Add card to Ready to Work' }).click();
+    await page.getByLabel('Card title').fill('Ship it');
+    await page.getByLabel('Card title').press('Enter');
+
+    const pendingCard = page.locator('article[aria-disabled="true"]').filter({ hasText: 'Ship it' });
+    await expect(pendingCard).toBeVisible();
+    await expect(pendingCard.locator('a')).toHaveCount(0);
+
+    const saved = written(page);
+    releaseCreate();
+    await saved;
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
