@@ -2137,7 +2137,7 @@ git commit -m "feat: set a due date, and paint it on the card"
 - [x] Clearing the date empties it rather than erroring. **This was false when first claimed** — the control was fully parent-controlled and dropped the empty `change`, so React 19's controlled-date restore snapped the old value back and blur never saw `''`. Fixed in `79c1089`. Observed by the controller in a real browser afterwards: clearing leaves the field empty with no write, blur fires exactly one POST, and the field is still empty after a reload. The new e2e was watched failing against the pre-fix code before the fix landed.
 - [x] Nothing warm appears anywhere except a due date. Observed by the controller by eye in both themes, and the final whole-branch review confirmed the warm hues in this branch's diff are confined to `components/board/board-card.tsx`.
 - [ ] Screenshots of a board with overdue, soon and plain cards, both themes, in the PR body. `gh` cannot upload images into a PR body — Section 3 hit this same wall (see 8610647). Screenshots exist at `.superpowers/sdd/card-modal/shots/`.
-- [ ] Open the PR. Stop. Start Section 5 in a fresh session.
+- [x] Open the PR. Stop. Start Section 5 in a fresh session. — PR #55.
 
 ---
 
