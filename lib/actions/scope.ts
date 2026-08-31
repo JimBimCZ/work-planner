@@ -27,3 +27,18 @@ export async function boardIdForColumn(columnId: string): Promise<string | null>
 export async function touchBoard(tx: Tx, boardId: string): Promise<void> {
   await tx.update(boards).set({ updatedAt: new Date() }).where(eq(boards.id, boardId));
 }
+
+// One query for both facts an author-only check needs. The board answers "may
+// you be here", the author answers "is it yours", and they are asked in that
+// order.
+export async function commentScope(
+  commentId: string,
+): Promise<{ boardId: string; authorId: string | null } | null> {
+  const comment = await db.query.comments.findFirst({
+    where: (c, { eq: is }) => is(c.id, commentId),
+    columns: { authorId: true },
+    with: { card: { columns: { boardId: true } } },
+  });
+
+  return comment ? { boardId: comment.card.boardId, authorId: comment.authorId } : null;
+}
