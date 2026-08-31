@@ -54,6 +54,7 @@ lib/
   cards.ts                            CREATE  getCardForView, cached per request
   due.ts                              CREATE  pure calendar-date rules; no I/O
   due.test.ts                         CREATE
+  use-mounted.ts                      CREATE  hydration-safe mounted flag, no effect
   board-state.ts                      MODIFY  StateCard.dueDate, card.setDueDate, inverse
   actions/
     cards.ts                          MODIFY  setCardDescription, setCardDueDate
@@ -1578,7 +1579,7 @@ The app's first warm colour. Due dates come after the modal because a card face 
   - `fromDateInputValue(value: string): Date | null` — midnight UTC
   - `formatDue(due: Date, locale?: string): string`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/due.test.ts`. Every `now` is built with the **local** `Date` constructor and every `due` with `Date.UTC`, which is what makes these assertions hold in any timezone the suite happens to run in:
 
@@ -1667,7 +1668,7 @@ describe('formatDue', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/due.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/unit.log
@@ -1675,7 +1676,7 @@ pnpm exec vitest run lib/due.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail 
 
 Expected: FAIL — cannot resolve `./due`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/due.ts`:
 
@@ -1730,13 +1731,13 @@ export function formatDue(due: Date, locale?: string): string {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 ```bash
 pnpm exec vitest run lib/due.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/due.ts lib/due.test.ts
@@ -1766,7 +1767,7 @@ git commit -m "feat: add the calendar-date rules for due dates"
   - `BoardCardRow` gains `dueDate: Date | null`.
   - `CardDueDate({ value, canWrite, onCommit }: { value: string | null; canWrite: boolean; onCommit: (value: string | null) => void })`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append to `lib/actions/cards.test.ts`:
 
@@ -1827,7 +1828,7 @@ describe('card.setDueDate', () => {
 });
 ```
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 ```bash
 pnpm exec vitest run lib/actions/cards.test.ts lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/unit.log
@@ -1835,7 +1836,7 @@ pnpm exec vitest run lib/actions/cards.test.ts lib/board-state.test.ts > /tmp/un
 
 Expected: FAIL — `setCardDueDate` is not exported, and `card.setDueDate` is not a `BoardAction`.
 
-- [ ] **Step 3: Write the action**
+- [x] **Step 3: Write the action**
 
 In `lib/actions/cards.ts`, import the helper and add the schema and action:
 
@@ -1881,7 +1882,7 @@ export async function setCardDueDate(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Extend the reducer**
+- [x] **Step 4: Extend the reducer**
 
 In `lib/board-state.ts`: add `dueDate: string | null` to `StateCard`; add to `BoardAction`:
 
@@ -1905,7 +1906,7 @@ and to `inverse`:
     }
 ```
 
-- [ ] **Step 5: Carry the date into the board read and the seed**
+- [x] **Step 5: Carry the date into the board read and the seed**
 
 In `lib/boards.ts`, add `dueDate: Date | null` to `BoardCardRow` and `dueDate: true` to the cards `columns` selection in `getBoardWithColumns`.
 
@@ -1917,7 +1918,7 @@ In `components/board/board-canvas.tsx`, `seed()` maps it to the input form:
 
 and every place that builds a `StateCard` optimistically — the create path — sets `dueDate: null`.
 
-- [ ] **Step 6: Paint it on the card face**
+- [x] **Step 6: Paint it on the card face**
 
 In `components/board/board-card.tsx`, render the date under the title.
 
@@ -1962,7 +1963,7 @@ and inside the card, after the title:
       {card.dueDate ? <DueDate value={card.dueDate} /> : null}
 ```
 
-- [ ] **Step 7: Write the control**
+- [x] **Step 7: Write the control**
 
 Create `components/board/card-due-date.tsx`:
 
@@ -2022,7 +2023,7 @@ export function CardDueDate({
 
 A date input does have meaningful blur semantics, unlike the note this replaces once claimed: `change` fires on every segment edit and is unreliable mid-edit, but blur fires once, when the person is done with the field either way — including clearing it. Committing there, and on `change` only once a full date is present, is what keeps a partial edit from writing a stray `null` and keeps a picked date from waiting on a blur.
 
-- [ ] **Step 8: Wire it into the card body**
+- [x] **Step 8: Wire it into the card body**
 
 In `components/board/card-body.tsx`, add the state and handler beside the title and description:
 
@@ -2055,7 +2056,7 @@ Then extend the canvas's `registerPatchCard` handler from Section 3:
       }
 ```
 
-- [ ] **Step 9: Write the e2e, including the timezone proof**
+- [x] **Step 9: Write the e2e, including the timezone proof**
 
 Append to `e2e/card-modal.spec.ts`:
 
@@ -2111,7 +2112,7 @@ test.describe('west of Greenwich', () => {
 });
 ```
 
-- [ ] **Step 10: Run everything**
+- [x] **Step 10: Run everything**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "EXIT=$?"
@@ -2120,7 +2121,7 @@ pnpm test > /tmp/unit.log 2>&1; echo "EXIT=$?"
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e.log
 ```
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add lib components/board e2e/card-modal.spec.ts
@@ -2129,13 +2130,13 @@ git commit -m "feat: set a due date, and paint it on the card"
 
 ### Section 4 gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test && pnpm build` all pass, exit codes read from redirected logs.
-- [ ] An overdue card is rust and carries a mono `Nd over` label; a card due today or tomorrow is amber; one due later is `--muted`. Confirmed **by eye in a browser**, both themes, not only asserted.
-- [ ] **No hydration warning in the console on a board with due dates.** Open one and read the console — the warm state is decided after mount precisely to avoid this, and it is the exact failure sub-project 4 shipped for three commits.
-- [ ] A due date set as today still reads as today in a browser set to `America/Los_Angeles`.
-- [ ] Clearing the date empties it rather than erroring.
-- [ ] Nothing warm appears anywhere except a due date.
-- [ ] Screenshots of a board with overdue, soon and plain cards, both themes, in the PR body.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test && pnpm build` all pass, exit codes read from redirected logs.
+- [x] An overdue card is rust and carries a mono `Nd over` label; a card due today or tomorrow is amber; one due later is `--muted`. Confirmed **by eye in a browser**, both themes, not only asserted.
+- [x] **No hydration warning in the console on a board with due dates.** Open one and read the console — the warm state is decided after mount precisely to avoid this, and it is the exact failure sub-project 4 shipped for three commits.
+- [x] A due date set as today still reads as today in a browser set to `America/Los_Angeles`.
+- [x] Clearing the date empties it rather than erroring.
+- [x] Nothing warm appears anywhere except a due date.
+- [ ] Screenshots of a board with overdue, soon and plain cards, both themes, in the PR body. `gh` cannot upload images into a PR body — Section 3 hit this same wall (see 8610647). Screenshots exist at `.superpowers/sdd/card-modal/shots/`.
 - [ ] Open the PR. Stop. Start Section 5 in a fresh session.
 
 ---
