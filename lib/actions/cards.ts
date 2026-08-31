@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { cards } from '@/lib/db/schema';
+import { fromDateInputValue } from '@/lib/due';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 import { ranksAfter, rankBetween } from '@/lib/rank';
 
@@ -22,6 +23,7 @@ const descriptionSchema = z.object({
   cardId: id,
   description: z.string().trim().max(10_000),
 });
+const dueDateSchema = z.object({ cardId: id, dueDate: z.string().nullable() });
 const moveSchema = z.object({
   cardId: id,
   toColumnId: id,
@@ -121,6 +123,38 @@ export async function setCardDescription(input: unknown) {
 
   await db.transaction(async (tx) => {
     await tx.update(cards).set({ description }).where(eq(cards.id, parsed.data.cardId));
+    await touchBoard(tx, boardId);
+  });
+
+  revalidatePath('/boards');
+  return { ok: true } as const;
+}
+
+export async function setCardDueDate(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = dueDateSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  // A calendar date, not an instant: the client sends yyyy-mm-dd and the row
+  // holds midnight UTC of that day.
+  const dueDate = parsed.data.dueDate === null ? null : fromDateInputValue(parsed.data.dueDate);
+  if (parsed.data.dueDate !== null && dueDate === null) {
+    return { ok: false, error: 'INVALID' } as const;
+  }
+
+  const boardId = await boardIdForCard(parsed.data.cardId);
+  if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
+
+  try {
+    await assertBoardAccess(session.user.id, boardId, 'member');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.update(cards).set({ dueDate }).where(eq(cards.id, parsed.data.cardId));
     await touchBoard(tx, boardId);
   });
 

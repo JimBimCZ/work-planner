@@ -318,3 +318,53 @@ test('Escape on a clean title closes the modal', async ({ page, context }) => {
     await removeSeededUser(userId);
   }
 });
+
+test('a due date set in the modal appears on the card face', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  await seedCard(ready.id, { boardId, createdById: userId, title: 'Ship it' });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await page.getByTestId('card-title').filter({ hasText: 'Ship it' }).click();
+    const saved = written(page);
+    await page.getByLabel('Due date').fill('2026-09-01');
+    await saved;
+
+    await page.goBack();
+    // The month only: formatDue follows the viewer's locale, and Playwright
+    // defaults to en-US ("Sep 1") rather than en-GB ("1 Sep"). The exact date
+    // is pinned by the west-of-Greenwich test below, through the input value.
+    await expect(page.locator('[data-card-id]').filter({ hasText: 'Ship it' })).toContainText(
+      'Sep',
+    );
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+// The one-day drift this module exists to prevent, proved in a browser that is
+// actually west of Greenwich rather than in a unit test that reasons about it.
+test.describe('west of Greenwich', () => {
+  test.use({ timezoneId: 'America/Los_Angeles', locale: 'en-GB' });
+
+  test('a due date reads as the day it was set to', async ({ page, context }) => {
+    const { userId } = await seedSession(context);
+    const boardId = await seedBoard(userId, 'Roadmap');
+    const [ready] = await boardColumns(boardId);
+    const cardId = await seedCard(ready.id, { boardId, createdById: userId, title: 'Ship it' });
+
+    try {
+      await page.goto(`/boards/${boardId}/cards/${cardId}`);
+      const saved = written(page);
+      await page.getByLabel('Due date').fill('2026-09-01');
+      await saved;
+      await page.reload();
+
+      await expect(page.getByLabel('Due date')).toHaveValue('2026-09-01');
+    } finally {
+      await removeSeededUser(userId);
+    }
+  });
+});

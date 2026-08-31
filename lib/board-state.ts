@@ -4,6 +4,7 @@ export type StateCard = {
   title: string;
   rank: string;
   createdAt: string;
+  dueDate: string | null;
   pending?: boolean;
 };
 
@@ -16,6 +17,7 @@ export type BoardAction =
   | { type: 'card.rename'; cardId: string; title: string }
   | { type: 'card.delete'; cardId: string }
   | { type: 'card.move'; cardId: string; toColumnId: string; rank: string }
+  | { type: 'card.setDueDate'; cardId: string; dueDate: string | null }
   | { type: 'card.settle'; tempId: string; id: string; rank: string }
   | { type: 'column.create'; column: StateColumn }
   | { type: 'column.rename'; columnId: string; name: string }
@@ -66,6 +68,9 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
         columnId: action.toColumnId,
         rank: action.rank,
       }));
+
+    case 'card.setDueDate':
+      return mapCard(state, action.cardId, (card) => ({ ...card, dueDate: action.dueDate }));
 
     case 'card.settle':
       return mapCard(state, action.tempId, ({ pending: _pending, ...card }) => ({
@@ -146,6 +151,11 @@ export function inverse(state: BoardState, action: BoardAction): BoardAction[] {
       return card
         ? [{ type: 'card.move', cardId: card.id, toColumnId: card.columnId, rank: card.rank }]
         : [];
+    }
+
+    case 'card.setDueDate': {
+      const card = state.cards.find((c) => c.id === action.cardId);
+      return card ? [{ type: 'card.setDueDate', cardId: card.id, dueDate: card.dueDate }] : [];
     }
 
     case 'column.create':

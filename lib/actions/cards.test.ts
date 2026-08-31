@@ -59,7 +59,8 @@ vi.mock('@/lib/db', () => ({
   db: { query, transaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) },
 }));
 
-const { createCard, deleteCard, moveCard, renameCard, setCardDescription } = await import('./cards');
+const { createCard, deleteCard, moveCard, renameCard, setCardDescription, setCardDueDate } =
+  await import('./cards');
 const { BoardAccessError } = await import('@/lib/permissions');
 
 beforeEach(() => {
@@ -245,6 +246,36 @@ describe('setCardDescription', () => {
     await expect(
       setCardDescription({ cardId: 'card-1', description: 'x'.repeat(10_001) }),
     ).resolves.toEqual({ ok: false, error: 'INVALID' });
+  });
+});
+
+describe('setCardDueDate', () => {
+  test('refuses a viewer', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await expect(setCardDueDate({ cardId: 'card-1', dueDate: '2026-09-01' })).resolves.toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+  });
+
+  test('stores midnight UTC of the chosen day', async () => {
+    await setCardDueDate({ cardId: 'card-1', dueDate: '2026-09-01' });
+    const write = ops.find((op) => op.kind === 'update' && op.table === 'cards');
+    expect((write?.values as { dueDate: Date }).dueDate.toISOString()).toBe(
+      '2026-09-01T00:00:00.000Z',
+    );
+  });
+
+  test('null clears the date', async () => {
+    await setCardDueDate({ cardId: 'card-1', dueDate: null });
+    expect(ops).toContainEqual({ kind: 'update', table: 'cards', values: { dueDate: null } });
+  });
+
+  test('refuses anything that is not a plain calendar date', async () => {
+    await expect(setCardDueDate({ cardId: 'card-1', dueDate: '01/09/2026' })).resolves.toEqual({
+      ok: false,
+      error: 'INVALID',
+    });
   });
 });
 

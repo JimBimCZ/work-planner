@@ -17,8 +17,8 @@ const base = (): BoardState => ({
     { id: 'col-2', name: 'In Progress', rank: 'a1' },
   ],
   cards: [
-    { id: 'card-a', columnId: 'col-1', title: 'First', rank: 'b0', createdAt: '2026-01-01' },
-    { id: 'card-b', columnId: 'col-1', title: 'Second', rank: 'b1', createdAt: '2026-01-02' },
+    { id: 'card-a', columnId: 'col-1', title: 'First', rank: 'b0', createdAt: '2026-01-01', dueDate: null },
+    { id: 'card-b', columnId: 'col-1', title: 'Second', rank: 'b1', createdAt: '2026-01-02', dueDate: null },
   ],
 });
 
@@ -38,9 +38,9 @@ describe('selectors', () => {
     const state: BoardState = {
       columns: base().columns,
       cards: [
-        { id: 'z', columnId: 'col-1', title: 'z', rank: 'b0', createdAt: '2026-01-02' },
-        { id: 'a', columnId: 'col-1', title: 'a', rank: 'b0', createdAt: '2026-01-01' },
-        { id: 'b', columnId: 'col-1', title: 'b', rank: 'b0', createdAt: '2026-01-01' },
+        { id: 'z', columnId: 'col-1', title: 'z', rank: 'b0', createdAt: '2026-01-02', dueDate: null },
+        { id: 'a', columnId: 'col-1', title: 'a', rank: 'b0', createdAt: '2026-01-01', dueDate: null },
+        { id: 'b', columnId: 'col-1', title: 'b', rank: 'b0', createdAt: '2026-01-01', dueDate: null },
       ],
     };
     expect(cardsIn(state, 'col-1').map((c) => c.id)).toEqual(['a', 'b', 'z']);
@@ -51,7 +51,7 @@ describe('card actions', () => {
   test('create adds a card', () => {
     const card = {
       id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: '2026-02-01',
-      pending: true,
+      dueDate: null, pending: true,
     };
     const next = boardReducer(base(), { type: 'card.create', card });
     expect(cardsIn(next, 'col-2')).toEqual([card]);
@@ -83,14 +83,35 @@ describe('card actions', () => {
   test('settle swaps the temp id for the real one and clears pending', () => {
     const withTemp = boardReducer(base(), {
       type: 'card.create',
-      card: { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x', pending: true },
+      card: { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x', dueDate: null, pending: true },
     });
 
     const next = boardReducer(withTemp, { type: 'card.settle', tempId: 'tmp-1', id: 'card-c', rank: 'c9' });
 
     expect(cardsIn(next, 'col-2')).toEqual([
-      { id: 'card-c', columnId: 'col-2', title: 'New', rank: 'c9', createdAt: 'x' },
+      { id: 'card-c', columnId: 'col-2', title: 'New', rank: 'c9', createdAt: 'x', dueDate: null },
     ]);
+  });
+});
+
+describe('card.setDueDate', () => {
+  const seeded = {
+    columns: [{ id: 'c1', name: 'Ready to Work', rank: 'a0' }],
+    cards: [{ id: 'k1', columnId: 'c1', title: 'Ship it', rank: 'a0', createdAt: '', dueDate: null }],
+  };
+
+  test('sets the date on the named card', () => {
+    const next = boardReducer(seeded, {
+      type: 'card.setDueDate',
+      cardId: 'k1',
+      dueDate: '2026-09-01',
+    });
+    expect(next.cards[0].dueDate).toBe('2026-09-01');
+  });
+
+  test('inverts back to what was there before, including null', () => {
+    const undo = inverse(seeded, { type: 'card.setDueDate', cardId: 'k1', dueDate: '2026-09-01' });
+    expect(undo).toEqual([{ type: 'card.setDueDate', cardId: 'k1', dueDate: null }]);
   });
 });
 
@@ -144,7 +165,7 @@ describe('inverses', () => {
   };
 
   test('undo a create by deleting it', () => {
-    const card = { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x' };
+    const card = { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x', dueDate: null };
     const action = { type: 'card.create', card } as const;
 
     restoresTheBoard(action);
@@ -224,9 +245,9 @@ describe('dropTarget', () => {
     const state: BoardState = {
       columns: base().columns,
       cards: [
-        { id: 'k1', columnId: 'col-1', title: '1', rank: 'b0', createdAt: '1' },
-        { id: 'k2', columnId: 'col-1', title: '2', rank: 'b1', createdAt: '2' },
-        { id: 'k3', columnId: 'col-1', title: '3', rank: 'b2', createdAt: '3' },
+        { id: 'k1', columnId: 'col-1', title: '1', rank: 'b0', createdAt: '1', dueDate: null },
+        { id: 'k2', columnId: 'col-1', title: '2', rank: 'b1', createdAt: '2', dueDate: null },
+        { id: 'k3', columnId: 'col-1', title: '3', rank: 'b2', createdAt: '3', dueDate: null },
       ],
     };
 
