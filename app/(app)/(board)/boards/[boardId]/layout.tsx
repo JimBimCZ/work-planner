@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { TopBar } from '@/components/app/top-bar';
 import { BoardActionsProvider } from '@/components/board/board-actions';
 import { NewCardButton } from '@/components/board/new-card-button';
+import { RealtimeProvider } from '@/components/board/realtime';
 import { auth } from '@/lib/auth';
 import { getBoardWithColumns } from '@/lib/boards';
 import { assertBoardAccess, atLeast, BoardAccessError } from '@/lib/permissions';
@@ -36,19 +37,21 @@ export default async function BoardTitleLayout({
   if (!board) notFound();
 
   return (
-    <BoardActionsProvider>
-      <div className="flex h-screen flex-col overflow-hidden">
-        <TopBar
-          title={board.name}
-          actions={atLeast(role, 'member') ? <NewCardButton /> : null}
-          userId={session.user.id}
-          name={session.user.name ?? null}
-          email={session.user.email ?? ''}
-          image={session.user.image ?? null}
-        />
-        <div className="min-h-0 flex-1">{children}</div>
-        {card}
-      </div>
-    </BoardActionsProvider>
+    <RealtimeProvider boardId={boardId}>
+      <BoardActionsProvider>
+        <div className="flex h-screen flex-col overflow-hidden">
+          <TopBar
+            title={board.name}
+            actions={atLeast(role, 'member') ? <NewCardButton /> : null}
+            userId={session.user.id}
+            name={session.user.name ?? null}
+            email={session.user.email ?? ''}
+            image={session.user.image ?? null}
+          />
+          <div className="min-h-0 flex-1">{children}</div>
+          {card}
+        </div>
+      </BoardActionsProvider>
+    </RealtimeProvider>
   );
 }

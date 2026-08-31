@@ -24,6 +24,14 @@ services:
       AUTH_SECRET: local-development-only
       AUTH_TRUST_HOST: 'true'
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      # Optional. Without them the app runs correctly with no realtime, which is
+      # the supported self-hosting configuration. NEXT_PUBLIC_PUSHER_KEY is
+      # inlined at build time, so realtime needs it as a build argument, not
+      # only here.
+      PUSHER_APP_ID: ${PUSHER_APP_ID:-}
+      PUSHER_SECRET: ${PUSHER_SECRET:-}
+      NEXT_PUBLIC_PUSHER_KEY: ${NEXT_PUBLIC_PUSHER_KEY:-}
+      NEXT_PUBLIC_PUSHER_CLUSTER: ${NEXT_PUBLIC_PUSHER_CLUSTER:-}
     depends_on:
       postgres:
         condition: service_healthy
