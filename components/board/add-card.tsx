@@ -62,8 +62,15 @@ export function AddCard({
         onKeyDown={(event) => {
           if (event.key === 'Escape') onClose();
         }}
-        onBlur={() => {
-          if (title.trim().length === 0) onClose();
+        onBlur={(event) => {
+          if (title.trim().length > 0) return;
+          // A card opening as a modal moves focus into the dialog, for
+          // accessibility — that isn't the user abandoning this composer,
+          // and the intercepted route's whole point is that everything
+          // underneath, including this, stays exactly as it was.
+          const next = event.relatedTarget;
+          if (next instanceof Element && next.closest('[role="dialog"]')) return;
+          onClose();
         }}
         className="w-full rounded-[var(--radius-card)] border border-line bg-surface px-3 py-2.5 text-sm text-ink"
       />
