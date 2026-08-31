@@ -10,6 +10,19 @@ vi.mock('@/lib/db', () => ({
   db: { query: { cards: { findFirst: (config: unknown) => findFirst(config) } } },
 }));
 
+// next-auth's own import of `next/server` doesn't resolve under Vitest, so
+// anything that imports `@/lib/auth` at module scope needs it mocked before
+// that import runs — this file needs the mock even though these tests never
+// call `auth()` themselves.
+const authMock = vi.fn();
+vi.mock('@/lib/auth', () => ({ auth: () => authMock() }));
+
+const assertBoardAccess = vi.fn();
+vi.mock('@/lib/permissions', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/permissions')>('@/lib/permissions');
+  return { ...actual, assertBoardAccess: (...args: unknown[]) => assertBoardAccess(...args) };
+});
+
 const { getCardForView } = await import('./cards');
 
 type CommentsConfig = {
