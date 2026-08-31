@@ -2,12 +2,14 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import Link from 'next/link';
 
 import { CardMenu } from '@/components/board/card-menu';
 import type { StateCard } from '@/lib/board-state';
 
 export function BoardCard({
   card,
+  boardId,
   canWrite,
   columns,
   onRename,
@@ -15,6 +17,7 @@ export function BoardCard({
   onMoveTo,
 }: {
   card: StateCard;
+  boardId: string;
   canWrite: boolean;
   columns: { id: string; name: string }[];
   onRename: (title: string) => void;
@@ -54,7 +57,18 @@ export function BoardCard({
         data-testid="card-title"
         className={`text-sm font-medium leading-5 text-ink ${canWrite ? 'pr-6' : ''}`}
       >
-        {card.title}
+        <Link
+          href={`/boards/${boardId}/cards/${card.id}`}
+          className="after:absolute after:inset-0"
+          // The browser's default mousedown action focuses this link before
+          // the click even fires, blurring whatever had focus — including an
+          // open, empty "Add card" composer elsewhere on the board, which
+          // closes itself on blur. Opening a card must not have that side
+          // effect on state that lives underneath the modal.
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          {card.title}
+        </Link>
       </h3>
 
       {canWrite ? (

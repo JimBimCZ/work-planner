@@ -18,6 +18,7 @@ export function BoardColumn({
   ref,
   column,
   cards,
+  boardId,
   hue,
   nextHue,
   canWrite,
@@ -39,6 +40,7 @@ export function BoardColumn({
   ref?: Ref<HTMLElement>;
   column: StateColumn;
   cards: StateCard[];
+  boardId: string;
   hue: number;
   nextHue: number;
   canWrite: boolean;
@@ -115,6 +117,7 @@ export function BoardColumn({
                 <li key={card.id}>
                   <BoardCard
                     card={card}
+                    boardId={boardId}
                     canWrite={canWrite}
                     columns={columns}
                     onRename={(title) => onRenameCard(card, title)}

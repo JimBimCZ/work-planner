@@ -345,6 +345,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 }}
                 column={column}
                 cards={cardsIn(state, column.id)}
+                boardId={board.id}
                 hue={flowHue(index, total)}
                 nextHue={flowHue(Math.min(index + 1, total - 1), total)}
                 canWrite={canWrite}
