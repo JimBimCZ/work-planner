@@ -3968,7 +3968,7 @@ git commit -m "feat: delete a column into a target that keeps its cards"
 - [ ] Screenshots of a six-column board, both themes, attached to the PR. Captured in both themes and
       described in the PR body, but **not attached** — images cannot be uploaded to GitHub from the
       CLI, so this stays a manual step.
-- [ ] Open the PR. Stop. Start Section E in a fresh session.
+- [x] Open the PR. Stop. Start Section E in a fresh session. — PR #46.
 
 ---
 
