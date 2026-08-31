@@ -12,9 +12,18 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { useCallback, useEffect, useReducer, useState, useSyncExternalStore, useTransition } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from 'react';
 
 import { BoardColumn } from '@/components/board/board-column';
+import { ColumnSwitcher } from '@/components/board/column-switcher';
 import { useBoardActions } from '@/components/board/board-actions';
 import { createCard, deleteCard, moveCard, renameCard } from '@/lib/actions/cards';
 import { addColumn, deleteColumn, moveColumn, renameColumn } from '@/lib/actions/columns';
@@ -64,6 +73,8 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
+  const columnRefs = useRef(new Map<string, HTMLElement>());
   const { register } = useBoardActions();
 
   const reducedMotion = useSyncExternalStore(
@@ -83,6 +94,37 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     register(canWrite && firstColumnId ? () => setComposerIn(firstColumnId) : null);
     return () => register(null);
   }, [register, canWrite, firstColumnId]);
+
+  // Below 700px one column fills the screen, so the tab has to follow a swipe
+  // as well as a click. A callback only carries the columns whose visibility
+  // changed, so the ratios are kept across calls and the largest one wins:
+  // crossing the breakpoint back down reports only the columns that left, and
+  // reading those alone would leave the tab on a column nobody can see.
+  useEffect(() => {
+    const ratios = new Map<string, number>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const id = entry.target.getAttribute('data-column-id');
+          if (id) ratios.set(id, entry.intersectionRatio);
+        }
+
+        const [onScreen] = [...ratios].sort(([, a], [, b]) => b - a);
+        if (onScreen && onScreen[1] > 0) setActiveColumnId(onScreen[0]);
+      },
+      { threshold: [0.6, 1] },
+    );
+
+    for (const element of columnRefs.current.values()) observer.observe(element);
+    return () => observer.disconnect();
+  }, [total]);
+
+  const showColumn = (columnId: string) =>
+    columnRefs.current.get(columnId)?.scrollIntoView({
+      behavior: reducedMotion ? 'auto' : 'smooth',
+      inline: 'start',
+      block: 'nearest',
+    });
 
   // Not memoised: the optimistic rank is read from `state` in the render
   // closure, so a run of cards appended without waiting for the server still
@@ -276,7 +318,8 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   }
 
   return (
-    <main className="h-full overflow-x-auto">
+    <main className="flex h-full flex-col">
+      <ColumnSwitcher columns={columns} activeId={activeColumnId} onSelect={showColumn} />
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -284,31 +327,39 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
         onDragEnd={onDragEnd}
         onDragCancel={() => setDraggingId(null)}
       >
-        <div className="flex h-full min-w-max">
-          {columns.map((column, index) => (
-            <BoardColumn
-              key={column.id}
-              column={column}
-              cards={cardsIn(state, column.id)}
-              hue={flowHue(index, total)}
-              nextHue={flowHue(Math.min(index + 1, total - 1), total)}
-              canWrite={canWrite}
-              composerOpen={composerIn === column.id}
-              onOpenComposer={() => setComposerIn(column.id)}
-              onCloseComposer={() => setComposerIn(null)}
-              onAddCard={(title) => addCard(column.id, title)}
-              columns={columns}
-              onRenameCard={renameCardTo}
-              onDeleteCard={removeCard}
-              onMoveCardTo={moveCardTo}
-              isFirst={index === 0}
-              isLast={index === total - 1}
-              onRenameColumn={renameColumnTo}
-              onAddColumnAfter={addColumnAfter}
-              onMoveColumn={moveColumnBy}
-              onDeleteColumn={total > 1 ? removeColumn : null}
-            />
-          ))}
+        {/* Snapping belongs on the element that scrolls, so the switcher sits
+            outside it rather than scrolling away with the columns. */}
+        <div className="min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto min-[700px]:snap-none">
+          <div className="flex h-full min-w-max">
+            {columns.map((column, index) => (
+              <BoardColumn
+                key={column.id}
+                ref={(element) => {
+                  if (element) columnRefs.current.set(column.id, element);
+                  else columnRefs.current.delete(column.id);
+                }}
+                column={column}
+                cards={cardsIn(state, column.id)}
+                hue={flowHue(index, total)}
+                nextHue={flowHue(Math.min(index + 1, total - 1), total)}
+                canWrite={canWrite}
+                composerOpen={composerIn === column.id}
+                onOpenComposer={() => setComposerIn(column.id)}
+                onCloseComposer={() => setComposerIn(null)}
+                onAddCard={(title) => addCard(column.id, title)}
+                columns={columns}
+                onRenameCard={renameCardTo}
+                onDeleteCard={removeCard}
+                onMoveCardTo={moveCardTo}
+                isFirst={index === 0}
+                isLast={index === total - 1}
+                onRenameColumn={renameColumnTo}
+                onAddColumnAfter={addColumnAfter}
+                onMoveColumn={moveColumnBy}
+                onDeleteColumn={total > 1 ? removeColumn : null}
+              />
+            ))}
+          </div>
         </div>
 
         {/* useSortable only translates a card within its own SortableContext, so
