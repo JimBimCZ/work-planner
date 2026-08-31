@@ -1,6 +1,6 @@
 # Spec: Realtime
 
-Status: drafted, awaiting review
+Status: approved, not implemented
 Date: 2026-08-31
 Sub-project: 6 of 7
 
