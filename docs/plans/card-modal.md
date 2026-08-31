@@ -749,7 +749,10 @@ test('a cold load of the card URL renders a page, not a modal', async ({ page, c
   try {
     await page.goto(`/boards/${boardId}/cards/${cardId}`);
 
-    await expect(page.getByRole('heading', { name: 'Ship it' })).toBeVisible();
+    // Attached, not visible: Task 6 makes the writer's heading sr-only, and
+    // whether Playwright calls a clipped 1px element visible should not decide
+    // this test. The Section 3 gate's screenshots cover what is on screen.
+    await expect(page.getByRole('heading', { name: 'Ship it' })).toBeAttached();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.locator('[data-column-id]')).toHaveCount(0);
   } finally {
@@ -787,6 +790,7 @@ test('a viewer opens a card and cannot edit its fields', async ({ page, context 
   try {
     await page.goto(`/boards/${boardId}/cards/${cardId}`);
     await expect(page.getByRole('heading', { name: 'Ship it' })).toBeVisible();
+    // A viewer's body has no inputs at all, so this heading is a real one.
     await expect(page.getByRole('textbox', { name: 'Card title' })).toHaveCount(0);
     await expect(page.getByRole('textbox', { name: 'Description' })).toHaveCount(0);
   } finally {
@@ -1355,8 +1359,11 @@ test('a description survives a reload', async ({ page, context }) => {
     await page.goto(`/boards/${boardId}/cards/${cardId}`);
     const description = page.getByRole('textbox', { name: 'Description' });
     await description.fill('Because the board is the product');
+    // The promise is created before the action that fires the POST. Created
+    // after, it can miss the response and hang to timeout.
+    const saved = written(page);
     await description.blur();
-    await written(page);
+    await saved;
 
     await page.reload();
     await expect(page.getByRole('textbox', { name: 'Description' })).toHaveValue(
@@ -1886,12 +1893,16 @@ test('a due date set in the modal appears on the card face', async ({ page, cont
   try {
     await page.goto(`/boards/${boardId}`);
     await page.getByTestId('card-title').filter({ hasText: 'Ship it' }).click();
+    const saved = written(page);
     await page.getByLabel('Due date').fill('2026-09-01');
-    await written(page);
+    await saved;
 
     await page.goBack();
+    // The month only: formatDue follows the viewer's locale, and Playwright
+    // defaults to en-US ("Sep 1") rather than en-GB ("1 Sep"). The exact date
+    // is pinned by the west-of-Greenwich test below, through the input value.
     await expect(page.locator('[data-card-id]').filter({ hasText: 'Ship it' })).toContainText(
-      '1 Sep',
+      'Sep',
     );
   } finally {
     await removeSeededUser(userId);
@@ -1911,8 +1922,9 @@ test.describe('west of Greenwich', () => {
 
     try {
       await page.goto(`/boards/${boardId}/cards/${cardId}`);
+      const saved = written(page);
       await page.getByLabel('Due date').fill('2026-09-01');
-      await written(page);
+      await saved;
       await page.reload();
 
       await expect(page.getByLabel('Due date')).toHaveValue('2026-09-01');
@@ -2276,11 +2288,12 @@ test('a comment appears immediately and survives a reload', async ({ page, conte
   try {
     await page.goto(`/boards/${boardId}/cards/${cardId}`);
     await page.getByRole('textbox', { name: 'Add a comment' }).fill('This needs a test');
+    const posted = written(page);
     await page.getByRole('button', { name: 'Comment' }).click();
 
     await expect(page.getByTestId('comment-body')).toHaveText(['This needs a test']);
 
-    await written(page);
+    await posted;
     await page.reload();
     await expect(page.getByTestId('comment-body')).toHaveText(['This needs a test']);
   } finally {
@@ -2317,8 +2330,9 @@ test('a viewer can comment', async ({ page, context }) => {
   try {
     await page.goto(`/boards/${boardId}/cards/${cardId}`);
     await page.getByRole('textbox', { name: 'Add a comment' }).fill('Reads fine to me');
+    const posted = written(page);
     await page.getByRole('button', { name: 'Comment' }).click();
-    await written(page);
+    await posted;
     await page.reload();
 
     await expect(page.getByTestId('comment-body')).toHaveText(['Reads fine to me']);
@@ -2516,13 +2530,15 @@ test("the author edits and deletes their own comment", async ({ page, context })
 
     await page.getByRole('button', { name: 'Edit comment' }).click();
     await page.getByRole('textbox', { name: 'Edit comment' }).fill('Fixed now');
+    const edited = written(page);
     await page.getByRole('button', { name: 'Save changes' }).click();
-    await written(page);
+    await edited;
     await page.reload();
     await expect(page.getByTestId('comment-body')).toHaveText(['Fixed now']);
 
+    const removed = written(page);
     await page.getByRole('button', { name: 'Delete comment' }).click();
-    await written(page);
+    await removed;
     await page.reload();
     await expect(page.getByTestId('comment-body')).toHaveCount(0);
   } finally {
