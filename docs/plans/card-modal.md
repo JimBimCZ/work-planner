@@ -1550,8 +1550,8 @@ git commit -m "feat: edit a card's title and description from the modal"
 - [x] A dragged card still does not open the modal — the 5px activation distance is intact, and `e2e/board-dnd.spec.ts` still passes unchanged. Observed: `board-dnd.spec.ts` is untouched by this branch and passes inside the 67/67 run. The card title became a `Link`, and its `onMouseDown` preventDefault does not interfere, because dnd-kit's sensors listen on pointerdown.
 - [x] A card carrying a description at or near the 10,000-character cap scrolls on both surfaces — the modal and the canonical page — checked at 1280×800 and at 360px, and the page itself never scrolls sideways. Observed: a 10,000-character description written through the real action. **It is the `<textarea>` that scrolls, not the dialog** — the dialog stays inside the viewport (`height <= window.innerHeight`) and the field scrolls internally. `document.documentElement.scrollWidth > clientWidth` is false on both surfaces at 1280×800 and at 360px.
 - [x] `CLAUDE.md`'s Layout section is corrected in this PR, not a later one. Observed: corrected in Task 5's commit `7690fe1` — the tree now nests `cards/[cardId]` under `boards/[boardId]/` beside `@card`, and a note explains that `(.)` counts segments while ignoring route groups and slots.
-- [x] Screenshots of the modal and the canonical page, both themes, in the PR body.
-- [x] Open the PR. Stop. Start Section 4 in a fresh session.
+- [ ] Screenshots of the modal and the canonical page, both themes, in the PR body.
+- [ ] Open the PR. Stop. Start Section 4 in a fresh session.
 
 ---
 
