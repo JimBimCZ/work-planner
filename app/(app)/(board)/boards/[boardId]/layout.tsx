@@ -1,9 +1,11 @@
 import { notFound, redirect } from 'next/navigation';
 
 import { TopBar } from '@/components/app/top-bar';
+import { BoardActionsProvider } from '@/components/board/board-actions';
+import { NewCardButton } from '@/components/board/new-card-button';
 import { auth } from '@/lib/auth';
 import { getBoardWithColumns } from '@/lib/boards';
-import { assertBoardAccess, BoardAccessError } from '@/lib/permissions';
+import { assertBoardAccess, atLeast, BoardAccessError } from '@/lib/permissions';
 
 // This layout and the page it wraps both check access and both read the board.
 // That is deliberate: CLAUDE.md requires every entry point to re-check rather
@@ -20,8 +22,9 @@ export default async function BoardTitleLayout({
   const session = await auth();
   if (!session?.user?.id) redirect('/signin');
 
+  let role;
   try {
-    await assertBoardAccess(session.user.id, boardId, 'viewer');
+    role = await assertBoardAccess(session.user.id, boardId, 'viewer');
   } catch (error) {
     if (error instanceof BoardAccessError) notFound();
     throw error;
@@ -31,15 +34,18 @@ export default async function BoardTitleLayout({
   if (!board) notFound();
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden">
-      <TopBar
-        title={board.name}
-        userId={session.user.id}
-        name={session.user.name ?? null}
-        email={session.user.email ?? ''}
-        image={session.user.image ?? null}
-      />
-      <div className="min-h-0 flex-1">{children}</div>
-    </div>
+    <BoardActionsProvider>
+      <div className="flex h-screen flex-col overflow-hidden">
+        <TopBar
+          title={board.name}
+          actions={atLeast(role, 'member') ? <NewCardButton /> : null}
+          userId={session.user.id}
+          name={session.user.name ?? null}
+          email={session.user.email ?? ''}
+          image={session.user.image ?? null}
+        />
+        <div className="min-h-0 flex-1">{children}</div>
+      </div>
+    </BoardActionsProvider>
   );
 }

@@ -1952,7 +1952,17 @@ Pure. No React, no database, no server actions. It is the only place the canvas'
 
 **Why inverse operations rather than a snapshot:** restoring a snapshot also undoes anything that landed while the failed request was in flight. `card.settle` has no inverse — settling a temp id is a reconciliation with the server, not an optimistic guess, so it returns `[]`.
 
-- [ ] **Step 1: Write the failing test**
+**Round-trip assertions compare rendered output, not raw state.** `BoardState`'s arrays carry no
+ordering: `orderedColumns` and `cardsIn` both sort by rank, and every consumer from Task 10 onward
+reads through them. An inverse therefore restores an entity's *identity*, not its array slot —
+`card.create` appends, so undoing a delete puts the card back at the end of the array. Asserting
+`toEqual(base())` on the state fails on that alone while every selector agrees, which is what it did
+when this plan was first executed. Comparing `orderedColumns` plus `cardsIn` per column is
+insensitive to the slot and stricter about what matters: it also pins the restored rank, which a
+whole-state `toEqual` would let through if the reducer put the card back in the right position with
+the wrong rank.
+
+- [x] **Step 1: Write the failing test**
 
 Create `lib/board-state.test.ts`:
 
@@ -1965,6 +1975,7 @@ import {
   cardsIn,
   inverse,
   orderedColumns,
+  type BoardAction,
   type BoardState,
 } from './board-state';
 
@@ -2089,38 +2100,49 @@ describe('column actions', () => {
 });
 
 describe('inverses', () => {
+  // Compared through the selectors, not with toEqual on the state: raw array
+  // position carries no meaning here — orderedColumns and cardsIn both sort by
+  // rank, and an inverse restores an entity's identity, not its array slot.
+  const rendered = (state: BoardState) =>
+    orderedColumns(state).map((column) => [column, cardsIn(state, column.id)] as const);
+
+  const restoresTheBoard = (action: BoardAction) => {
+    const next = boardReducer(base(), action);
+    expect(rendered(applyAll(next, inverse(base(), action)))).toEqual(rendered(base()));
+  };
+
   test('undo a create by deleting it', () => {
     const card = { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x' };
     const action = { type: 'card.create', card } as const;
 
-    const next = boardReducer(base(), action);
-    expect(applyAll(next, inverse(base(), action))).toEqual(base());
+    restoresTheBoard(action);
   });
 
   test('undo a rename by restoring the old title', () => {
     const action = { type: 'card.rename', cardId: 'card-a', title: 'Renamed' } as const;
-    const next = boardReducer(base(), action);
-    expect(applyAll(next, inverse(base(), action))).toEqual(base());
+    restoresTheBoard(action);
   });
 
   test('undo a delete by putting the card back', () => {
     const action = { type: 'card.delete', cardId: 'card-a' } as const;
-    const next = boardReducer(base(), action);
-    expect(applyAll(next, inverse(base(), action))).toEqual(base());
+    restoresTheBoard(action);
   });
 
   test('undo a move by moving it back', () => {
     const action = { type: 'card.move', cardId: 'card-a', toColumnId: 'col-2', rank: 'z0' } as const;
-    const next = boardReducer(base(), action);
-    expect(applyAll(next, inverse(base(), action))).toEqual(base());
+    restoresTheBoard(action);
   });
 
   test('undo a column delete by restoring it and every card in it', () => {
-    const action = {
-      type: 'column.delete', columnId: 'col-1', targetColumnId: 'col-2', ranks: ['e0', 'e1'],
-    } as const;
-    const next = boardReducer(base(), action);
-    expect(applyAll(next, inverse(base(), action))).toEqual(base());
+    // Annotated rather than `as const`: `as const` makes `ranks` a readonly
+    // tuple, which BoardAction's mutable string[] does not accept.
+    const action: BoardAction = {
+      type: 'column.delete',
+      columnId: 'col-1',
+      targetColumnId: 'col-2',
+      ranks: ['e0', 'e1'],
+    };
+    restoresTheBoard(action);
   });
 
   test('settling is a reconciliation, so it has no inverse', () => {
@@ -2148,12 +2170,12 @@ describe('inverses', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/board-state.test.ts`
 Expected: FAIL — `./board-state` does not exist.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/board-state.ts`:
 
@@ -2346,12 +2368,12 @@ export function inverse(state: BoardState, action: BoardAction): BoardAction[] {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test lib/board-state.test.ts`
 Expected: PASS, all of them. If the `toEqual(base())` inverse tests fail on a `pending` key, the `card.settle` and `column.settle` cases are not stripping it — fix there, not in the test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -2373,10 +2395,10 @@ Replaces `ColumnShell` with a client tree. `e2e/board-view.spec.ts` must keep pa
 - Modify: `app/(app)/(board)/boards/[boardId]/page.tsx`
 
 **Interfaces:**
-- Consumes: `BoardWithCards` from `@/lib/boards`; `BoardRole`, `atLeast` from `@/lib/permissions`; `boardReducer`, `orderedColumns`, `cardsIn`, `type BoardState` from `@/lib/board-state`; `flowHue`, `flowColor` from `@/lib/flow`.
+- Consumes: `BoardWithCards` from `@/lib/boards` (**type-only**); `boardReducer`, `orderedColumns`, `cardsIn`, `type BoardState` from `@/lib/board-state`; `flowHue`, `flowColor` from `@/lib/flow`. **Nothing from `@/lib/permissions`** — see below.
 - Produces:
   ```ts
-  export function BoardCanvas(props: { board: BoardWithCards; role: BoardRole }): JSX.Element;
+  export function BoardCanvas(props: { board: BoardWithCards; canWrite: boolean }): JSX.Element;
   export function BoardColumn(props: {
     column: StateColumn; cards: StateCard[]; hue: number; nextHue: number; canWrite: boolean;
   }): JSX.Element;
@@ -2384,11 +2406,11 @@ Replaces `ColumnShell` with a client tree. `e2e/board-view.spec.ts` must keep pa
   ```
   Tasks 11 through 18 add props to these three; none of them ever import a server action — only `BoardCanvas` does.
 
-- [ ] **Step 1: Invoke the `frontend-design` skill**
+- [x] **Step 1: Invoke the `frontend-design` skill**
 
 Per `CLAUDE.md`, before writing any of this UI. The brief is already fixed by the "Design" section: card radius `--radius-card`, `--surface` with a 1px `--line` border and a shadow felt rather than seen; card title 14/20 weight 500; column header 12/600 uppercase at 0.08em tracking; the 3px flow rule and the 6% wash fading over 80px, both of which `column-shell.tsx` already implements correctly and which must survive the rewrite. **No warm colour anywhere in this sub-project** — there is no due date to signal yet.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Extend `e2e/board-view.spec.ts` with a card assertion, so the rewrite is proven to still render both columns and their contents. This is card rank ordering's only proof against a real database in the whole sub-project, so the two cards below are seeded with explicit ranks whose insertion order contradicts their rank order — 'Second' is inserted first but ranks after 'First'. Seeding them in rank order instead would let the assertion pass on insertion order alone and prove nothing about rank ordering; do not "simplify" it to that:
 
@@ -2411,12 +2433,12 @@ test("the board shows each column's cards in rank order", async ({ page, context
 
 Add `boardColumns` and `seedCard` to that file's import from `./support/session`.
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/board-view.spec.ts`
 Expected: FAIL — no element with the `card-title` test id; the shell renders "Nothing here yet".
 
-- [ ] **Step 4: Write the card**
+- [x] **Step 4: Write the card**
 
 Create `components/board/board-card.tsx`:
 
@@ -2441,7 +2463,7 @@ export function BoardCard({ card }: { card: StateCard; canWrite: boolean }) {
 
 `canWrite` is accepted but unused until Task 12. Destructure it there rather than now, so this task adds no unused binding.
 
-- [ ] **Step 5: Write the column**
+- [x] **Step 5: Write the column**
 
 Create `components/board/board-column.tsx`, carrying over the gradient and wash from `column-shell.tsx` unchanged:
 
@@ -2502,7 +2524,7 @@ export function BoardColumn({
 }
 ```
 
-- [ ] **Step 6: Write the canvas**
+- [x] **Step 6: Write the canvas**
 
 Create `components/board/board-canvas.tsx`:
 
@@ -2515,7 +2537,6 @@ import { BoardColumn } from '@/components/board/board-column';
 import { boardReducer, cardsIn, orderedColumns, type BoardState } from '@/lib/board-state';
 import type { BoardWithCards } from '@/lib/boards';
 import { flowHue } from '@/lib/flow';
-import { atLeast, type BoardRole } from '@/lib/permissions';
 
 // Seeded once, on mount. There is no realtime in this sub-project, so the
 // reducer is the truth for the session and a reload is what re-reads the server.
@@ -2534,9 +2555,8 @@ function seed(board: BoardWithCards): BoardState {
   };
 }
 
-export function BoardCanvas({ board, role }: { board: BoardWithCards; role: BoardRole }) {
+export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWrite: boolean }) {
   const [state] = useReducer(boardReducer, board, seed);
-  const canWrite = atLeast(role, 'member');
 
   const columns = orderedColumns(state);
   const total = columns.length;
@@ -2562,22 +2582,40 @@ export function BoardCanvas({ board, role }: { board: BoardWithCards; role: Boar
 
 `useReducer`'s dispatch is deliberately not destructured yet — Task 11 is the first task that dispatches. ESLint will not complain about an unused array slot.
 
-- [ ] **Step 7: Point the page at it and delete the shell**
+- [x] **Step 7: Point the page at it and delete the shell**
 
 Replace the render in `app/(app)/(board)/boards/[boardId]/page.tsx`:
 
 ```tsx
-return <BoardCanvas board={board} role={role} />;
+return <BoardCanvas board={board} canWrite={atLeast(role, 'member')} />;
 ```
 
-Remove the `ColumnShell` and `flowHue` imports from the page, add `BoardCanvas`, and delete `components/board/column-shell.tsx`.
+Remove the `ColumnShell` and `flowHue` imports from the page, add `BoardCanvas` and `atLeast`, and delete `components/board/column-shell.tsx`.
 
-- [ ] **Step 8: Run the tests and watch them pass**
+**The canvas takes the capability, not the role, and that is not a style preference.** `atLeast` lives
+in `lib/permissions.ts`, which imports `lib/db`, which constructs a `pg` `Pool` at module scope. A
+`'use client'` file that imports *anything* from `lib/permissions.ts` therefore pulls the driver into
+the browser bundle, and the build fails with seven `Module not found` errors for `dns`, `fs`, `net`,
+`tls` and `util/types`. This was written as `atLeast(role, 'member')` inside the canvas and failed
+exactly that way on first execution. Deriving `canWrite` on the server costs nothing: it is the only
+thing the canvas ever wanted, and Tasks 11, 12 and Section E all thread `canWrite` down rather than
+the role. The one surviving `atLeast` call in Task 11 is in the board **layout**, a Server Component,
+where it is fine.
+
+`import type { BoardWithCards } from '@/lib/boards'` is safe for the same reason it looks unsafe:
+`import type` is erased before bundling, so it pulls nothing. The distinction is the value import.
+
+**`pnpm typecheck && pnpm lint && pnpm test` do not catch this** — all three pass on a client
+component that imports the database. CI catches it only because Playwright's `webServer` runs
+`next dev`, which fails to compile. If a task changes what a client component imports, run
+`pnpm build`.
+
+- [x] **Step 8: Run the tests and watch them pass**
 
 Run: `pnpm exec playwright test e2e/board-view.spec.ts`
 Expected: PASS — including the pre-existing five-column and footer tests, which must not have changed.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -2617,7 +2655,24 @@ git commit -m "feat: render a board's cards on a client canvas"
 
 **Why a context:** a page cannot pass data up into its layout, and the top bar lives in the layout while the reducer lives in the page's tree. The layout wraps both, so a context that lets the canvas *register* a callback is the one place the two can meet — and it keeps the promise the spec makes, that both entry points share a single optimistic path.
 
-- [ ] **Step 1: Write the failing test**
+**Three corrections, made while executing this task.**
+
+`data-column-id` on the column `<section>` is added here, not in Task 12 Step 5 where this plan first
+asks for it. Task 11's own third test locates `[data-column-id="${ready.id}"]`, so it cannot pass
+without the attribute. Task 12's step is now a no-op for the attribute and only threads callbacks.
+
+`AddCard` ties its label to its input with `useId()` rather than the planned `add-card-${columnName}`.
+Every seeded column name contains spaces — `Ready to Work` — and whitespace is not legal in an HTML
+`id`. Chromium happens to associate the label anyway, so `getByLabel('Card title')` would have passed
+while the markup stayed invalid. The prop signature is unchanged.
+
+Step 1's first test reloaded immediately after asserting the optimistic card, and failed: the reload
+aborted the in-flight server action, so nothing was written. The row itself was never the problem —
+querying `cards` three seconds after the submit returned it, with an empty status strip. The test now
+waits for `[data-card-id^="tmp-"]` to reach zero before reloading, which is `card.settle` swapping the
+temp id for the server's and so is the write landing rather than a sleep.
+
+- [x] **Step 1: Write the failing test**
 
 Create `e2e/cards.spec.ts`:
 
@@ -2713,12 +2768,12 @@ test('a viewer sees no way to add a card', async ({ page, context }) => {
 
 Add `seedMember` to that file's import.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/cards.spec.ts`
 Expected: FAIL — no "Add card to Ready to Work" button exists.
 
-- [ ] **Step 3: Write the composer**
+- [x] **Step 3: Write the composer**
 
 Create `components/board/add-card.tsx`:
 
@@ -2793,7 +2848,7 @@ export function AddCard({
 
 The `Add card` button needs a per-column accessible name so the e2e can target one column. Give it `aria-label={`Add card to ${columnName}`}`.
 
-- [ ] **Step 4: Write the actions context**
+- [x] **Step 4: Write the actions context**
 
 Create `components/board/board-actions.tsx`:
 
@@ -2851,7 +2906,7 @@ export function NewCardButton() {
 }
 ```
 
-- [ ] **Step 5: Give the top bar an actions slot**
+- [x] **Step 5: Give the top bar an actions slot**
 
 In `components/app/top-bar.tsx`, add `actions?: React.ReactNode` to the props and render it beside the account menu:
 
@@ -2882,7 +2937,7 @@ return (
 );
 ```
 
-- [ ] **Step 6: Wire the canvas**
+- [x] **Step 6: Wire the canvas**
 
 In `components/board/board-canvas.tsx`, take `dispatch` from the reducer, hold which column's composer is open, register the header handler, and call the action:
 
@@ -2943,12 +2998,12 @@ Render the status strip at the end of `<main>`:
 
 An empty `role="status"` region is correct — it must exist before the message arrives for the message to be announced.
 
-- [ ] **Step 7: Run the tests and watch them pass**
+- [x] **Step 7: Run the tests and watch them pass**
 
 Run: `pnpm exec playwright test e2e/cards.spec.ts e2e/board-view.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -2979,9 +3034,9 @@ git commit -m "feat: add a card from the column foot or the board header"
   ```
   Section E adds nothing to this. The menu never calls an action — `BoardCanvas` owns every call.
 
-- [ ] **Step 1: Invoke the `frontend-design` skill** if it has not already run in this session, for the menu's hover/focus reveal on the card.
+- [x] **Step 1: Invoke the `frontend-design` skill** if it has not already run in this session, for the menu's hover/focus reveal on the card.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Append to `e2e/cards.spec.ts`:
 
@@ -3082,12 +3137,12 @@ test('a viewer sees no card menu', async ({ page, context }) => {
 
 `BoardColumn`'s outer `<section>` needs `data-column-id={column.id}` for these locators. Add it in Step 4.
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/cards.spec.ts`
 Expected: FAIL — no "Card actions for Typo" button.
 
-- [ ] **Step 4: Write the menu**
+- [x] **Step 4: Write the menu**
 
 Create `components/board/card-menu.tsx`, following `components/boards/board-row-menu.tsx`'s shape exactly — same dropdown, same dialog, same copy voice:
 
@@ -3210,13 +3265,29 @@ export function CardMenu({
 
 A card is deleted from a dialog with a plain confirm, not a typed name. A board is a container of everything; one card is not, and `CLAUDE.md`'s typed-name guard is scoped to board deletion.
 
+**Three corrections, made while executing this task.**
+
+The trigger is `flex h-6 w-6 items-center justify-center` rather than the planned `px-1.5`. A bare `⋯`
+glyph with horizontal padding only is roughly a 20×16 target; 24px square is the floor this file's
+"Quality floor" asks for, and it costs nothing visually because the control is transparent until
+hover or focus.
+
+`board-card.tsx` gives the title `pr-6` when `canWrite`. The trigger is absolutely positioned over the
+card's top-right corner, so without it a title long enough to wrap runs underneath the `⋯`.
+
+Step 2's three reload tests hit the same race Task 11 did: the optimistic update lands, the assertion
+passes, and `page.reload()` then aborts the server action still in flight. Unlike `card.create` there
+is no temp id to watch, so the spec waits on the action's own POST round trip via a `written(page)`
+helper taken before the click. `data-column-id` needed by these locators was already added in Task 11,
+so Step 5's instruction to add it is a no-op and only the callbacks are threaded.
+
 The trigger is hidden while `card.pending` — the spec's rule that a card holding a temp id exposes no controls until the server has given it a real id.
 
-- [ ] **Step 5: Render it, and add the column id**
+- [x] **Step 5: Render it, and add the column id**
 
 In `board-card.tsx`, accept `canWrite` and the three callbacks plus `columns`, and render `<CardMenu … />` inside the `<article>` when `canWrite`. In `board-column.tsx`, add `data-column-id={column.id}` to the `<section>` and thread the callbacks through.
 
-- [ ] **Step 6: Wire the three actions in the canvas**
+- [x] **Step 6: Wire the three actions in the canvas**
 
 In `board-canvas.tsx`, each follows the same shape — apply optimistically, compute the inverse from the pre-state, revert on failure:
 
@@ -3267,12 +3338,12 @@ const moveCardTo = (card: StateCard, toColumnId: string) => {
 
 The optimistic rank and the server's rank are computed independently and will usually differ. That is harmless: both are strictly between the same two neighbours, so the resulting **order** is identical, and the next reload takes the server's value. Only the ordering is a contract; the string is not.
 
-- [ ] **Step 7: Run the tests and watch them pass**
+- [x] **Step 7: Run the tests and watch them pass**
 
 Run: `pnpm exec playwright test e2e/cards.spec.ts && pnpm test`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -3284,13 +3355,17 @@ git commit -m "feat: rename, move and delete a card from its menu"
 
 ### Section C gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
-- [ ] `e2e/board-view.spec.ts` still passes unchanged — the flow rule, the wash and the five column names survived the rewrite from `ColumnShell`.
-- [ ] `components/board/column-shell.tsx` is deleted, not left orphaned.
-- [ ] No component except `board-canvas.tsx` imports a server action.
-- [ ] A viewer, checked in a browser and not only in Playwright, sees a board with no "New card", no "Add card" and no card menus.
-- [ ] Screenshots of the board with cards, in both themes, attached to the PR.
-- [ ] Open the PR. Stop. Start Section D in a fresh session.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
+      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
+- [x] `e2e/board-view.spec.ts` still passes unchanged — the flow rule, the wash and the five column names survived the rewrite from `ColumnShell`. `git diff 582a256..HEAD -- e2e/board-view.spec.ts` is empty, so Tasks 11 and 12 did not touch it.
+- [x] `components/board/column-shell.tsx` is deleted, not left orphaned. It was renamed to `board-column.tsx` in 582a256; no file of that name exists.
+- [x] No component except `board-canvas.tsx` imports a server action. `grep -rn "from '@/lib/actions/" components/` returns only `board-canvas.tsx` inside `components/board/`; the other three hits are the pre-existing account menu and board-list components.
+- [x] A viewer, checked in a browser and not only in Playwright, sees a board with no "New card", no "Add card" and no card menus. Rendered at 1280x800 with the first card hovered and the screenshot read by eye, not only asserted: the header carries the avatar alone, no column has an "Add card" foot, and the hovered card shows no `⋯`.
+- [ ] Screenshots of the board with cards, in both themes, attached to the PR. Captured at 1280x800 in
+      both themes plus the viewer's board, and described in the PR body — but **not attached**, since
+      images cannot be uploaded to GitHub from the CLI. They need dragging in by hand.
+- [x] Open the PR. Stop. Start Section D in a fresh session. — PR #45.
 
 ---
 
@@ -3865,7 +3940,9 @@ git commit -m "feat: delete a column into a target that keeps its cards"
 
 ### Section D gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
+      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
 - [ ] Adding a sixth column re-interpolates the whole spectrum — confirmed by eye in a browser, not only by the passing test.
 - [ ] A column holding cards cannot be deleted without naming a target, and the cards arrive below the target's existing ones.
 - [ ] The Delete item is not offered on a board with one column.
@@ -4361,7 +4438,9 @@ git commit -m "feat: the drag tilt, the settle, and the reduced-motion path"
 
 ### Section E gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
+      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
 - [ ] Task 15's probe outcome is recorded in the PR body, including any React 19 console warning, and `app/design/dnd-probe/` is gone.
 - [ ] A card dragged across columns survives a reload, and **exactly one `cards` row changed** — confirmed with a `select` against the dev branch, not inferred from the UI.
 - [ ] **A rejected move puts the card back and says so in the status strip.** Force it — temporarily make `moveCard` return `{ ok: false, error: 'INVALID' }`, observe the revert and the message, then undo the change. Do not skip this because the inverse is unit-tested; the wiring is not.
@@ -4593,7 +4672,9 @@ git commit -m "feat: one column at a time below 700px, with a switcher"
 
 ### Section F gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
+      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
 - [ ] The board is usable at 360px **in a real browser**, not only in Playwright: one column fills the viewport, the switcher reaches every column, and nothing overflows the page sideways.
 - [ ] Dragging a card still works at 360px within the visible column, and **Move to** is how it crosses columns.
 - [ ] The wide board is unchanged — 312px columns, no snapping, no switcher.

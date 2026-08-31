@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { closeSeedPool, removeSeededUser, seedBoard, seedSession } from './support/session';
+import {
+  boardColumns,
+  closeSeedPool,
+  removeSeededUser,
+  seedBoard,
+  seedCard,
+  seedSession,
+} from './support/session';
 
 test.afterAll(async () => {
   await closeSeedPool();
@@ -62,6 +69,21 @@ test('the board shows its five seeded columns in order', async ({ page, context 
       'In Review',
       'Done',
     ]);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+test("the board shows each column's cards in rank order", async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  await seedCard(ready.id, { boardId, createdById: userId, title: 'Second', rank: 'a1' });
+  await seedCard(ready.id, { boardId, createdById: userId, title: 'First', rank: 'a0' });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await expect(page.getByTestId('card-title')).toHaveText(['First', 'Second']);
   } finally {
     await removeSeededUser(userId);
   }

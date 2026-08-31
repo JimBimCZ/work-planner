@@ -8,12 +8,14 @@ export function TopBar({
   email,
   image,
   title,
+  actions,
 }: {
   userId: string;
   name: string | null;
   email: string;
   image: string | null;
   title?: string;
+  actions?: React.ReactNode;
 }) {
   return (
     <header className="flex shrink-0 items-center justify-between border-b border-line bg-surface px-4 py-2.5">
@@ -22,7 +24,10 @@ export function TopBar({
       ) : (
         <span className="text-[15px] font-medium">Work Planner</span>
       )}
-      <AccountMenu userId={userId} name={name} email={email} image={image} />
+      <div className="flex items-center gap-3">
+        {actions}
+        <AccountMenu userId={userId} name={name} email={email} image={image} />
+      </div>
     </header>
   );
 }
