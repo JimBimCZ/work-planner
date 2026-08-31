@@ -94,7 +94,7 @@ One task. Its output is an **answer**, not code that survives. The spec puts it 
 - Consumes: nothing.
 - Produces: a written answer to three questions, recorded in the PR body and in this plan's Section 1 gate. No code survives the section.
 
-- [ ] **Step 1: Add the slot to the layout**
+- [x] **Step 1: Add the slot to the layout**
 
 In `app/(app)/(board)/boards/[boardId]/layout.tsx`, add `card` to the props and render it after the content div:
 
@@ -116,7 +116,7 @@ and inside the returned tree, immediately after `<div className="min-h-0 flex-1"
         {card}
 ```
 
-- [ ] **Step 2: Write the three throwaway routes**
+- [x] **Step 2: Write the three throwaway routes**
 
 `app/(app)/(board)/boards/[boardId]/@card/default.tsx`:
 
@@ -148,7 +148,7 @@ export default async function CanonicalProbe({ params }: { params: Promise<{ car
 }
 ```
 
-- [ ] **Step 3: Run the three probes in a real browser**
+- [x] **Step 3: Run the three probes in a real browser**
 
 ```bash
 pnpm dev > /tmp/dev.log 2>&1 &
@@ -162,7 +162,7 @@ Seed a session and a board the way `e2e/support/session.ts` does, then check, **
 
 Record the observed answer to each, verbatim, including anything surprising.
 
-- [ ] **Step 4: Stop the server and delete every probe**
+- [x] **Step 4: Stop the server and delete every probe**
 
 ```bash
 kill %1
@@ -171,7 +171,7 @@ git checkout -- "app/(app)/(board)/boards/[boardId]/layout.tsx"
 git status --short   # expect: clean
 ```
 
-- [ ] **Step 5: Verify and commit the findings only**
+- [x] **Step 5: Verify and commit the findings only**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "EXIT=$?"
@@ -2874,8 +2874,8 @@ git commit -m "feat: let a comment's author edit and delete it"
 - [x] **A rejected comment rolls back and says so — forced, not hoped for.** Temporarily make `addComment` return `{ ok: false, error: 'INVALID' }`, add a comment, and confirm the row disappears, the draft comes back in the box, and the strip reads "That comment could not be added. Try again." Then revert and confirm `git diff` on `lib/actions/comments.ts` is empty.
 - [x] A comment whose author row is gone renders "Deleted account" and offers no controls to anyone.
 - [x] A card with a long description and a thread of a dozen comments scrolls on both surfaces at both widths — this is the half Section 3's gate could not check, since the thread did not exist yet — and the composer stays reachable at the bottom of it rather than pushed off-screen by the thread above it.
-- [ ] Screenshots of a thread, both themes, in the PR body.
-- [ ] Open the PR. Stop.
+- [ ] Screenshots of a thread, both themes, in the PR body. **Not satisfied, and left unticked deliberately** — the same `gh` wall Sections 3 and 4 hit. The images exist at `.superpowers/sdd/card-modal/shots5/` and PR #57 says so.
+- [x] Open the PR. Stop. — PR #57, merged at `6417249`.
 
 **Section 5 gate evidence, observed 2026-08-31 at `85b7653`** (screenshots are at
 `.superpowers/sdd/card-modal/shots5/`, since `gh` cannot upload images into a PR body):
@@ -2930,16 +2930,140 @@ during implementation and argued in the PR body:
 
 Copied from `docs/specs/card-modal.md`. Tick these only against observed output, and close them in the final section's PR or a short `docs/` follow-up, as sub-projects 3 and 4 did.
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass locally, each exit code read from its own log.
-- [ ] Deleting a card removes its comments; deleting a user does **not**, and leaves both their cards and their comments authorless — confirmed in `pg_constraint` and by a real delete, not only in `schema.ts`.
-- [ ] A cold load of a card URL renders a page, and a click renders a modal, checked in a real browser and not only in Playwright.
-- [ ] Browser-back from the modal leaves the board mounted **with its optimistic state intact** — proved by `e2e/card-modal.spec.ts`'s `the board keeps client-only state alive behind the modal` test (Task 5), not a manual check.
-- [ ] A rejected comment rolls back and says so, forced.
-- [ ] A `viewer` can comment and cannot edit any card field, and the field actions refuse a `viewer` when called directly.
-- [ ] A due date set as today still reads as today in a browser set to UTC-8.
-- [ ] No hydration warning in the console on a board carrying due dates.
-- [ ] `docker compose up --build` still reaches a healthy app container with the new migration applied — confirmed with `\dt` against the container's Postgres, not on `db:migrate`'s success line.
-- [ ] Production was migrated by hand when Section 2 landed, before the code that needs the table merged.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass locally, each exit code read from its own log.
+- [x] Deleting a card removes its comments; deleting a user does **not**, and leaves both their cards and their comments authorless — confirmed in `pg_constraint` and by a real delete, not only in `schema.ts`.
+- [x] A cold load of a card URL renders a page, and a click renders a modal, checked in a real browser and not only in Playwright.
+- [x] Browser-back from the modal leaves the board mounted **with its optimistic state intact** — proved by `e2e/card-modal.spec.ts`'s `the board keeps client-only state alive behind the modal` test (Task 5), not a manual check.
+- [x] A rejected comment rolls back and says so, forced.
+- [x] A `viewer` can comment and cannot edit any card field, and the field actions refuse a `viewer` when called directly.
+- [x] A due date set as today still reads as today in a browser set to UTC-8.
+- [x] No hydration warning in the console on a board carrying due dates.
+- [x] `docker compose up --build` still reaches a healthy app container with the new migration applied — confirmed with `\dt` against the container's Postgres, not on `db:migrate`'s success line.
+- [x] Production was migrated by hand when Section 2 landed, before the code that needs the table merged.
+
+**Evidence, observed 2026-08-31 at `6417249`** (the merge of Section 5's PR #57 — the whole
+sub-project, not one section). Every probe written for this pass was deleted after it ran, and
+`git status --short` is clean of them.
+
+**The five gates.** Each run separately, each exit code read from its own redirected log rather than
+from a pipeline or a summary line:
+
+| Command | Exit | What it reported |
+|---|---|---|
+| `pnpm typecheck` | 0 | `next typegen` then `tsc --noEmit`, no output |
+| `pnpm lint` | 0 | 2 warnings, 0 errors — both `_pending` unused in `lib/board-state.ts`, pre-existing and untouched by this sub-project |
+| `pnpm test` | 0 | 20 files, **214 passed** |
+| `pnpm build` | 0 | both card routes present in the route table: `ƒ /boards/[boardId]/(.)cards/[cardId]` and `ƒ /boards/[boardId]/cards/[cardId]` |
+| `pnpm test:e2e` | 0 | `--list` reports **80 collected in 13 files**, the run reports **80 passed** — equal |
+
+`pnpm build` is listed separately because it is the only one of the five that catches a client
+component importing a value from `lib/permissions.ts`; the other four pass on that code.
+
+**Referential actions, by real deletes.** `e2e/schema.spec.ts` holds the deletes and they passed
+inside the 80/80: `deleting a card takes its comments with it`, `deleting a user leaves their
+comments, authorless`, and `deleting a user leaves a card they created elsewhere in place,
+authorless`. The catalog was read again against **production** (`main` of
+`withered-glade-54206401`), not only against the dev branch Section 2 checked:
+`comments_card_id_cards_id_fk` `confdeltype = c`; `comments_author_id_user_id_fk` and
+`cards_created_by_id_user_id_fk` both `confdeltype = n`; all three `convalidated = true`;
+`comments.author_id` and `cards.created_by_id` both `is_nullable = YES`.
+
+**A cold load renders a page, a click renders a modal — in a real browser.** A Node script driving
+`chromium.launch()` against `pnpm dev` (not the suite's production build, and not the Playwright
+runner), the same way Section 1's spike was verified. Observed, one browser context, one seeded
+session:
+
+- Cold load of `/boards/<id>/cards/<id>`: HTTP **200**, `[role="dialog"]` count **0**,
+  `[data-column-id]` count **0**, and the title field held `"Ship it"` — so it is genuinely the
+  canonical page and not an intercept that merely looks right.
+- Click from the board: URL became `/boards/<id>/cards/<id>`, `[role="dialog"]` count **1**,
+  `[data-column-id]` count **5** (the canvas still mounted behind it), and **0** `document`
+  resourceType requests after the click — a soft navigation, no full page load.
+- `goBack()`: `[role="dialog"]` count **0** and the card titles visible again.
+
+**Browser-back with optimistic state intact** is `e2e/card-modal.spec.ts:130`, `the board keeps
+client-only state alive behind the modal`, which passed inside the 80/80. Left to the test rather
+than re-checked by hand, as the box asks.
+
+**A rejected comment rolls back and says so** was forced during Section 5's gate, not hoped for:
+`addSchema` was temporarily made to always fail so the rejection travelled the genuine `INVALID`
+branch. Observed 13 → optimistic 14 → back to 13, the draft returned to the box, the strip read
+exactly `"That comment could not be added. Try again."`, still 13 after a reload, and
+`git diff lib/actions/comments.ts` empty afterwards. Not re-run here; the evidence is recorded
+above under Section 5's gate.
+
+**A `viewer` can comment and cannot edit any card field.** The browser half is Section 5's gate (as
+a seeded `viewer`: thread 12 → 13 across a reload, and `Card title` / `Description` / `input[type=date]`
+all count 0) plus `e2e/card-modal.spec.ts:102` and `e2e/card-comments.spec.ts:56`. The
+called-directly half is unit-tested per action, and the UI hiding a control is not the permission:
+`lib/actions/cards.test.ts` has a `refuses a viewer` case in each of `renameCard` (:176),
+`setCardDescription` (:220) and `setCardDueDate` (:253) — all three card fields — while
+`lib/actions/comments.test.ts:72` asserts `addComment` floors at `'viewer'`, which is what lets a
+viewer comment at all.
+
+**A due date set as today still reads as today at UTC-8.** Checked twice, because the obvious form
+of the check only has teeth for eight hours a day:
+
+- Live clock, `timezoneId: 'America/Los_Angeles'`: set the date input to today-in-LA
+  (`2026-08-31`), reloaded, field still `2026-08-31`, card face read `"31 Aug"` with no overdue
+  label. **This run did not actually cross the boundary** — it ran at `2026-08-31T20:55Z`, when Los
+  Angeles is on the same calendar day as UTC, so on its own it proves nothing about the drift.
+- **Pinned clock**, `page.clock.install({ time: '2026-09-01T03:00:00.000Z' })` in the same zone,
+  which forces the case: the browser reported local `2026-08-31` and UTC `2026-09-01`
+  simultaneously. A card due `2026-08-31` read `"31 Aug"` on the face — **not** `"1d over"` — and
+  the modal field still held `2026-08-31`. This is the one-day drift `lib/due.ts` exists to prevent,
+  observed rather than reasoned about. Comparing `now` in UTC instead of local would have produced
+  `1d over` here.
+
+**No hydration warning on a board carrying due dates.** Checked against `pnpm dev`, where React
+reports mismatches in full rather than as a minified production error, on a board seeded with an
+overdue, a due-today and a future card. Two browser contexts, `UTC` and `America/Los_Angeles`,
+`console` (error and warning) and `pageerror` both captured, 3s after `networkidle`:
+
+```
+[{ "tz": "UTC",                 "cardFaces": ["28 Aug · 3d over", "31 Aug", "30 Sept"], "messages": [] },
+ { "tz": "America/Los_Angeles", "cardFaces": ["28 Aug · 3d over", "31 Aug", "30 Sept"], "messages": [] }]
+```
+
+Zero messages in both, and the three due states render as intended. The production build says the
+same: the console capture on the same board inside the suite returned `[]`. The mechanism is the
+`useMounted` gate in `components/board/board-card.tsx` and `card-due-date.tsx` — both the warm state
+and the date text wait for the client, so neither server-rendered "today" nor server-resolved locale
+can hydrate to a mismatch.
+
+**`docker compose up --build` reaches a healthy app container with the migration applied.** Built
+and started from a clean volume, then read from the container's own Postgres with `\dt`, not from
+`db:migrate`'s success line:
+
+- Both containers reported `healthy`; `GET /api/health` returned **200 `{"ok":true}`**.
+- Before migrating, `\dt` inside `work-planner-postgres-1` reported **"Did not find any relations"** —
+  correct, and worth stating: migrations do not run at boot, by design, so a fresh container starts
+  with an empty database and a healthy app. `/api/health` was already 200 at that point, because it
+  probes `select 1` and needs no tables.
+- `MIGRATE_URL="postgres://kanban:kanban@localhost:5432/kanban" pnpm db:migrate` (EXIT=0), then `\dt`
+  reported all eight tables — `account, board_members, boards, cards, columns, comments, session,
+  user` — with `4` rows in `drizzle.__drizzle_migrations` and the same three `confdeltype` values
+  (`n`, `n`, `c`) as production. `MIGRATE_URL` rather than `DATABASE_URL_UNPOOLED` for exactly the
+  reason `CLAUDE.md` gives: the docker URL equals `.env`'s, which is the one case the old
+  provenance guess got wrong.
+- Torn down afterwards with `docker compose down -v`, volume included.
+
+**Production migration state.** The box is ticked, with the caveat already recorded honestly under
+Section 2's gate: **the hand migration ran after PR #53 merged, not before it — that gate was
+missed.** Nothing broke in the window, because Section 2 shipped schema only and no deployed code
+read `comments` yet. Re-confirmed here against `main` of `withered-glade-54206401`: **4 migrations
+applied**, matching the 4 files in `lib/db/migrations/` exactly (`0000_foamy_catseye` …
+`0003_dear_vengeance`); all eight tables present; `comments_card_id_created_at_idx` present.
+Sections 3, 4 and 5 added no migration, so production and the repository agree at `6417249` with
+nothing outstanding.
+
+**Still open, and deliberately not ticked by this pass:**
+
+- The screenshot boxes on Sections 3, 4 and 5. All the images exist on disk
+  (`.superpowers/sdd/card-modal/shots/` and `shots5/`), but `gh` has no endpoint for uploading an
+  image into a PR body, so none of them can be closed the way the box is written. This is the
+  fourth time this has blocked a box — see also `docs/plans/board-canvas.md` and
+  `docs/plans/foundation.md`. The rule and the tool disagree; the rule is what needs amending.
 
 ## What this plan deliberately does not build
 
