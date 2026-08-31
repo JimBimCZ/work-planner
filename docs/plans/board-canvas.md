@@ -23,6 +23,18 @@ Copied from the spec and `CLAUDE.md`. Every task's requirements implicitly inclu
 - **Never trust a client `boardId` or `userId` for authorisation.** Card and column actions resolve the board from the row.
 - **Neighbours, never indexes.** `moveCard` and `moveColumn` take `beforeId`/`afterId`, not a position.
 - **Ranks are `text`, from `lib/rank.ts`.** Never store integer positions, never renumber siblings on move.
+- **A rank fixture in a test must be a key `fractional-indexing` accepts,** because any fixture whose
+  rank reaches `rankBetween` or `ranksAfter` is validated by the library and throws
+  `invalid order key: <key>` if it is malformed. Under the default alphabet the head character
+  encodes the integer part's length: `a` means two characters (`a0`, `a1`), `b` means three
+  (`b00`, `b01`). **`'b0'` is not a valid key** — it reads as "three characters" but is two. It was
+  written as a fixture in Task 8 and cost a red test that looked like an implementation bug. The
+  rule is about *reach*, not about the literal: `'b0'` survives harmlessly in the Section C and E
+  reducer and `dropTarget` fixtures, which sort ranks as opaque strings and never call the library.
+  It is any fixture whose rank flows into `ranksAfter`/`rankBetween` — Section C's create path at
+  `ranksAfter(last?.rank ?? null, 1)`, Section E's drop — that must hold a real key. Prefer
+  `a0`/`a1`/`a2` for one range and `b00`/`b01` for a second, and check a new rank against the
+  library before assuming a failure is the code's.
 - **One migration mechanism:** `pnpm db:generate`. Never hand-edit a generated migration. Never `db:push`.
 - **`revalidatePath('/boards')` after every mutation. The canvas is never revalidated** — its invalidation story is Pusher in sub-project 6.
 - **No state management library.** `useState`/`useReducer` only. No TanStack Query in this sub-project.
@@ -625,7 +637,7 @@ No UI in this section either. The rules are proven in unit tests against a mocke
   ```
   Tasks 5 through 8 all import these three functions and the `Tx` type.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `lib/rank.test.ts`:
 
@@ -651,12 +663,12 @@ describe('ranksAfter', () => {
 
 Add `ranksAfter` to the import at the top of the file.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/rank.test.ts`
 Expected: FAIL — `ranksAfter` is not exported.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Append to `lib/rank.ts`:
 
@@ -664,12 +676,12 @@ Append to `lib/rank.ts`:
 export const ranksAfter = (a: string | null, count: number) => generateNKeysBetween(a, null, count);
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test lib/rank.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Write the scope helpers**
+- [x] **Step 5: Write the scope helpers**
 
 Create `lib/actions/scope.ts`. These are not tested on their own — they are one query each with no branching, and Tasks 5 to 8 exercise every path through them.
 
@@ -705,7 +717,7 @@ export async function touchBoard(tx: Tx, boardId: string): Promise<void> {
 }
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -733,7 +745,7 @@ git commit -m "feat: add a bulk rank helper and the board scope helpers"
   ```
   Section C's canvas calls all three. `createCard` returns the id **and** the rank because the reducer must settle its temp card with both.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/actions/cards.test.ts`. The mock records every write so a test can assert *how many* rows an action touched, which is the property the fractional-rank design exists to protect.
 
@@ -943,12 +955,20 @@ describe('deleteCard', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/actions/cards.test.ts`
 Expected: FAIL — `./cards` does not exist.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
+
+`createCard` hoists `const createdById = session.user.id` instead of reading it where it is used. The
+`!session?.user?.id` guard narrows a *property chain*, and TypeScript drops that narrowing inside a
+nested function — so `session.user.id` is `string | undefined` again inside the `db.transaction`
+callback and `tsc` rejects the insert. A plain `const` carries its own narrowing across the boundary.
+`createBoard` in `lib/actions/boards.ts` already does this with `ownerId`; the amendment brings this
+action into line rather than inventing a pattern. Only `createCard` needs it — no other action in this
+section touches the session inside its transaction.
 
 Create `lib/actions/cards.ts`:
 
@@ -981,11 +1001,13 @@ export async function createCard(input: unknown) {
   const parsed = createSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
 
+  const createdById = session.user.id;
+
   const boardId = await boardIdForColumn(parsed.data.columnId);
   if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
 
   try {
-    await assertBoardAccess(session.user.id, boardId, 'member');
+    await assertBoardAccess(createdById, boardId, 'member');
   } catch (error) {
     return boardAccessResult(error);
   }
@@ -1006,7 +1028,7 @@ export async function createCard(input: unknown) {
         columnId: parsed.data.columnId,
         title: parsed.data.title,
         rank,
-        createdById: session.user.id,
+        createdById,
       })
       .returning();
 
@@ -1069,12 +1091,12 @@ export async function deleteCard(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test lib/actions/cards.test.ts`
 Expected: PASS, all of them.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -1103,7 +1125,7 @@ git commit -m "feat: create, rename and delete a card"
 
 **Why the neighbours are found in JS rather than queried by id:** the action already needs the target column's cards to compute a rank, and finding `beforeCardId` inside that list proves the neighbour is genuinely in the target column at the same time. Two queries collapse into one, and a neighbour from another column is rejected for free rather than by a separate check.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `lib/actions/cards.test.ts`, and add `moveCard` to the import:
 
@@ -1204,12 +1226,12 @@ describe('moveCard', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/actions/cards.test.ts`
 Expected: FAIL — `moveCard` is not exported.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Add to `lib/actions/cards.ts`, and add `rankBetween` to the `@/lib/rank` import:
 
@@ -1234,14 +1256,16 @@ export async function moveCard(input: unknown) {
   const boardId = await boardIdForCard(cardId);
   if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
 
-  const targetBoardId = await boardIdForColumn(toColumnId);
-  if (targetBoardId !== boardId) return { ok: false, error: 'INVALID' } as const;
-
   try {
     await assertBoardAccess(session.user.id, boardId, 'member');
   } catch (error) {
     return boardAccessResult(error);
   }
+
+  // Asked after the access check, not before: answering it first would tell a
+  // caller with no membership whether two ids sit on the same board.
+  const targetBoardId = await boardIdForColumn(toColumnId);
+  if (targetBoardId !== boardId) return { ok: false, error: 'INVALID' } as const;
 
   const rank = await db.transaction(async (tx) => {
     const siblings = await tx.query.cards.findMany({
@@ -1272,12 +1296,12 @@ export async function moveCard(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test lib/actions/cards.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -1305,7 +1329,7 @@ git commit -m "feat: move a card between its neighbours"
   ```
   `addColumn` takes `{ boardId, name, afterColumnId: string | null }` — it is the one action that legitimately takes a `boardId`, because there is no row to resolve one from, and it checks that board directly. `moveColumn` takes `{ columnId, beforeColumnId, afterColumnId }`, left-to-right.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/actions/columns.test.ts`:
 
@@ -1496,12 +1520,12 @@ describe('moveColumn', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/actions/columns.test.ts`
 Expected: FAIL — `./columns` does not exist.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/actions/columns.ts`:
 
@@ -1647,12 +1671,12 @@ export async function moveColumn(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test lib/actions/columns.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -1684,7 +1708,7 @@ Both columns' cards are fetched in **one** query and split in JS. Two queries wo
 
 Nothing in the schema ties `cards.board_id` to `columns.board_id` — the denormalisation, and the permission check that keys off it, are both enforced only by this code. The tests below must therefore assert both halves: `'refuses a target on another board'` already proves the target must be one of `boardId`'s own `siblingColumns`, and the moved-card test asserts the update never touches `board_id` (it only sets `columnId` and `rank`).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `lib/actions/columns.test.ts`, replace the `cards` entry of the `query` mock so a row carries its column:
 
@@ -1736,7 +1760,7 @@ describe('deleteColumn', () => {
     cardsInColumns = [
       { id: 'card-x', columnId: 'col-2', rank: 'a0' },
       { id: 'card-y', columnId: 'col-2', rank: 'a1' },
-      { id: 'card-t', columnId: 'col-1', rank: 'b0' },
+      { id: 'card-t', columnId: 'col-1', rank: 'b00' },
     ];
 
     await expect(deleteColumn({ columnId: 'col-2', targetColumnId: 'col-1' })).resolves.toEqual({
@@ -1749,7 +1773,7 @@ describe('deleteColumn', () => {
     for (const write of cardWrites) {
       expect(write.values).toMatchObject({ columnId: 'col-1' });
       expect(write.values).not.toHaveProperty('boardId');
-      expect((write.values as { rank: string }).rank > 'b0').toBe(true);
+      expect((write.values as { rank: string }).rank > 'b00').toBe(true);
     }
 
     expect(ops.at(-2)).toMatchObject({ kind: 'delete', table: 'columns' });
@@ -1779,12 +1803,12 @@ describe('deleteColumn', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/actions/columns.test.ts`
 Expected: FAIL — `deleteColumn` is not exported.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Add to `lib/actions/columns.ts`. Extend the schema import list with `cards`, and add `ranksAfter` to the `@/lib/rank` import:
 
@@ -1845,12 +1869,12 @@ export async function deleteColumn(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test lib/actions/columns.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -1862,13 +1886,22 @@ git commit -m "feat: delete a column into a named target"
 
 ### Section B gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed.
-- [ ] No action inlines a membership query; every access question goes through `assertBoardAccess`.
-- [ ] No card or column action takes a `boardId` for authorisation. `addColumn` takes one and checks it directly — confirm by reading all eight.
-- [ ] `moveCard` and `moveColumn` each write exactly one row, asserted rather than assumed.
-- [ ] Every action bumps `boards.updatedAt` inside its transaction.
-- [ ] Nothing user-visible changed. Say so in the PR.
-- [ ] Open the PR. Stop. Start Section C in a fresh session.
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed. 139 tests across 15 files.
+- [x] No action inlines a membership query; every access question goes through `assertBoardAccess`.
+      `grep boardMembers lib/actions/cards.ts lib/actions/columns.ts lib/actions/scope.ts` returns nothing.
+- [x] No card or column action takes a `boardId` for authorisation. `addColumn` takes one and checks it directly — confirm by reading all eight.
+      Read: `createCard` resolves via `boardIdForColumn`; `renameCard`, `deleteCard` and `moveCard` via
+      `boardIdForCard`; `renameColumn`, `moveColumn` and `deleteColumn` via `boardIdForColumn`.
+      `addColumn` is the single exception and checks the board it was given. `moveCard` additionally
+      resolves the *target* column's board and refuses a cross-board move before authorising.
+- [x] `moveCard` and `moveColumn` each write exactly one row, asserted rather than assumed.
+      Asserted in the tests by counting recorded writes, not by reading the implementation.
+- [x] Every action bumps `boards.updatedAt` inside its transaction.
+      Eight `touchBoard(tx, boardId)` calls, one per action, all inside the transaction callback.
+- [x] Nothing user-visible changed. Say so in the PR.
+      No component, route or query touched — the board still renders read-only column shells. Nothing
+      calls any of the eight actions yet; Section C is the first caller.
+- [x] Open the PR. Stop. Start Section C in a fresh session.
 
 ---
 
