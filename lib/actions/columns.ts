@@ -6,9 +6,9 @@ import { z } from 'zod';
 
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { columns } from '@/lib/db/schema';
+import { cards, columns } from '@/lib/db/schema';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
-import { rankBetween } from '@/lib/rank';
+import { ranksAfter, rankBetween } from '@/lib/rank';
 
 import { boardIdForColumn, touchBoard, type Tx } from './scope';
 
@@ -22,6 +22,7 @@ const moveSchema = z.object({
   beforeColumnId: id.nullable(),
   afterColumnId: id.nullable(),
 });
+const deleteSchema = z.object({ columnId: id, targetColumnId: id });
 
 function siblingColumns(tx: Tx, boardId: string) {
   return tx.query.columns.findMany({
@@ -136,4 +137,57 @@ export async function moveColumn(input: unknown) {
 
   revalidatePath('/boards');
   return { ok: true, data: { rank } } as const;
+}
+
+export async function deleteColumn(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = deleteSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  const { columnId, targetColumnId } = parsed.data;
+
+  const boardId = await boardIdForColumn(columnId);
+  if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
+
+  try {
+    await assertBoardAccess(session.user.id, boardId, 'member');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  const outcome = await db.transaction(async (tx) => {
+    const siblings = await siblingColumns(tx, boardId);
+    if (siblings.length <= 1) return 'LAST_COLUMN' as const;
+
+    const target = siblings.find((column) => column.id === targetColumnId);
+    if (!target || targetColumnId === columnId) return 'INVALID' as const;
+
+    const affected = await tx.query.cards.findMany({
+      where: (card, { inArray }) => inArray(card.columnId, [columnId, targetColumnId]),
+      columns: { id: true, columnId: true, rank: true },
+      orderBy: (card, { asc }) => [asc(card.rank)],
+    });
+
+    const moving = affected.filter((card) => card.columnId === columnId);
+    const arrivals = affected.filter((card) => card.columnId === targetColumnId);
+    const ranks = ranksAfter(arrivals.at(-1)?.rank ?? null, moving.length);
+
+    for (const [position, card] of moving.entries()) {
+      await tx
+        .update(cards)
+        .set({ columnId: targetColumnId, rank: ranks[position] })
+        .where(eq(cards.id, card.id));
+    }
+
+    await tx.delete(columns).where(eq(columns.id, columnId));
+    await touchBoard(tx, boardId);
+    return 'OK' as const;
+  });
+
+  if (outcome !== 'OK') return { ok: false, error: outcome } as const;
+
+  revalidatePath('/boards');
+  return { ok: true } as const;
 }

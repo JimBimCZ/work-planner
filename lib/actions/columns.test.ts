@@ -15,7 +15,7 @@ const ops: Op[] = [];
 
 let columnRow: { id: string; boardId: string } | undefined;
 let boardColumnRows: { id: string; rank: string }[] = [];
-let cardsInColumn: { id: string; rank: string }[] = [];
+let cardsInColumns: { id: string; columnId: string; rank: string }[] = [];
 
 function tableName(table: unknown): string {
   const symbol = Object.getOwnPropertySymbols(table).find((s) => s.description === 'drizzle:Name');
@@ -24,7 +24,7 @@ function tableName(table: unknown): string {
 
 const query = {
   columns: { findFirst: async () => columnRow, findMany: async () => boardColumnRows },
-  cards: { findMany: async () => cardsInColumn },
+  cards: { findMany: async () => cardsInColumns },
 };
 
 const tx = {
@@ -56,7 +56,7 @@ vi.mock('@/lib/db', () => ({
   db: { query, transaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) },
 }));
 
-const { addColumn, moveColumn, renameColumn } = await import('./columns');
+const { addColumn, deleteColumn, moveColumn, renameColumn } = await import('./columns');
 const { BoardAccessError } = await import('@/lib/permissions');
 
 beforeEach(() => {
@@ -67,7 +67,7 @@ beforeEach(() => {
     { id: 'col-2', rank: 'a1' },
     { id: 'col-3', rank: 'a2' },
   ];
-  cardsInColumn = [];
+  cardsInColumns = [];
   assertBoardAccess.mockReset();
   assertBoardAccess.mockResolvedValue('member');
   authMock.mockReset();
@@ -180,5 +180,83 @@ describe('moveColumn', () => {
     });
 
     expect((result as { data: { rank: string } }).data.rank < 'a0').toBe(true);
+  });
+});
+
+describe('deleteColumn', () => {
+  test('refuses a target on another board', async () => {
+    await expect(
+      deleteColumn({ columnId: 'col-2', targetColumnId: 'elsewhere' }),
+    ).resolves.toEqual({ ok: false, error: 'INVALID' });
+  });
+
+  test('refuses moving cards into the column being deleted', async () => {
+    await expect(deleteColumn({ columnId: 'col-2', targetColumnId: 'col-2' })).resolves.toEqual({
+      ok: false,
+      error: 'INVALID',
+    });
+  });
+
+  test("refuses to delete a board's last column", async () => {
+    boardColumnRows = [{ id: 'col-2', rank: 'a0' }];
+    await expect(deleteColumn({ columnId: 'col-2', targetColumnId: 'col-2' })).resolves.toEqual({
+      ok: false,
+      error: 'LAST_COLUMN',
+    });
+  });
+
+  test('refuses a viewer', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await expect(deleteColumn({ columnId: 'col-2', targetColumnId: 'col-1' })).resolves.toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+  });
+
+  // CLAUDE.md: never cascade-delete cards with the column. Every card moves
+  // first, and the column is only dropped afterwards, in the same transaction.
+  test('moves every card to the target before dropping the column', async () => {
+    cardsInColumns = [
+      { id: 'card-x', columnId: 'col-2', rank: 'a0' },
+      { id: 'card-y', columnId: 'col-2', rank: 'a1' },
+      { id: 'card-t', columnId: 'col-1', rank: 'b00' },
+    ];
+
+    await expect(deleteColumn({ columnId: 'col-2', targetColumnId: 'col-1' })).resolves.toEqual({
+      ok: true,
+    });
+
+    const cardWrites = ops.filter((op) => op.table === 'cards');
+    expect(cardWrites).toHaveLength(2);
+    expect(cardWrites.every((op) => op.kind === 'update')).toBe(true);
+    for (const write of cardWrites) {
+      expect(write.values).toMatchObject({ columnId: 'col-1' });
+      expect(write.values).not.toHaveProperty('boardId');
+      expect((write.values as { rank: string }).rank > 'b00').toBe(true);
+    }
+
+    expect(ops.at(-2)).toMatchObject({ kind: 'delete', table: 'columns' });
+    expect(ops.at(-1)).toMatchObject({ kind: 'update', table: 'boards' });
+  });
+
+  test('keeps the arriving cards in the order they had', async () => {
+    cardsInColumns = [
+      { id: 'card-x', columnId: 'col-2', rank: 'a0' },
+      { id: 'card-y', columnId: 'col-2', rank: 'a1' },
+    ];
+
+    await deleteColumn({ columnId: 'col-2', targetColumnId: 'col-1' });
+
+    const ranks = ops
+      .filter((op) => op.table === 'cards')
+      .map((op) => (op.values as { rank: string }).rank);
+    expect([...ranks].sort()).toEqual(ranks);
+  });
+
+  test('deletes an empty column without writing a card row', async () => {
+    await expect(deleteColumn({ columnId: 'col-2', targetColumnId: 'col-1' })).resolves.toEqual({
+      ok: true,
+    });
+    expect(ops.filter((op) => op.table === 'cards')).toHaveLength(0);
   });
 });

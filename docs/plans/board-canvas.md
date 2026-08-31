@@ -23,6 +23,15 @@ Copied from the spec and `CLAUDE.md`. Every task's requirements implicitly inclu
 - **Never trust a client `boardId` or `userId` for authorisation.** Card and column actions resolve the board from the row.
 - **Neighbours, never indexes.** `moveCard` and `moveColumn` take `beforeId`/`afterId`, not a position.
 - **Ranks are `text`, from `lib/rank.ts`.** Never store integer positions, never renumber siblings on move.
+- **A rank fixture in a test must be a key `fractional-indexing` accepts,** because any fixture whose
+  rank reaches `rankBetween` or `ranksAfter` is validated by the library and throws
+  `invalid order key: <key>` if it is malformed. Under the default alphabet the head character
+  encodes the integer part's length: `a` means two characters (`a0`, `a1`), `b` means three
+  (`b00`, `b01`). **`'b0'` is not a valid key** — it reads as "three characters" but is two. It was
+  written as a fixture in Task 8 and cost a red test that looked like an implementation bug; the
+  same `'b0'` still appears in Sections C, D and E fixtures, and those sections feed fixture ranks
+  into `ranksAfter`/`rankBetween` too. Prefer `a0`/`a1`/`a2` for one range and `b00`/`b01` for a
+  second, and check any new rank against the library before assuming a failure is the code's.
 - **One migration mechanism:** `pnpm db:generate`. Never hand-edit a generated migration. Never `db:push`.
 - **`revalidatePath('/boards')` after every mutation. The canvas is never revalidated** — its invalidation story is Pusher in sub-project 6.
 - **No state management library.** `useState`/`useReducer` only. No TanStack Query in this sub-project.
@@ -1746,7 +1755,7 @@ describe('deleteColumn', () => {
     cardsInColumns = [
       { id: 'card-x', columnId: 'col-2', rank: 'a0' },
       { id: 'card-y', columnId: 'col-2', rank: 'a1' },
-      { id: 'card-t', columnId: 'col-1', rank: 'b0' },
+      { id: 'card-t', columnId: 'col-1', rank: 'b00' },
     ];
 
     await expect(deleteColumn({ columnId: 'col-2', targetColumnId: 'col-1' })).resolves.toEqual({
@@ -1759,7 +1768,7 @@ describe('deleteColumn', () => {
     for (const write of cardWrites) {
       expect(write.values).toMatchObject({ columnId: 'col-1' });
       expect(write.values).not.toHaveProperty('boardId');
-      expect((write.values as { rank: string }).rank > 'b0').toBe(true);
+      expect((write.values as { rank: string }).rank > 'b00').toBe(true);
     }
 
     expect(ops.at(-2)).toMatchObject({ kind: 'delete', table: 'columns' });
