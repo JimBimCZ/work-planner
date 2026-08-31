@@ -3,15 +3,18 @@
 import { type Dispatch, type SetStateAction, useState, useTransition } from 'react';
 
 import { useBoardActions } from '@/components/board/board-actions';
+import { useCardEscapeGuard } from '@/components/board/card-modal';
 import { renameCard, setCardDescription } from '@/lib/actions/cards';
 import type { CardForView } from '@/lib/cards';
 
 export function CardBody({
   card,
   canWrite,
+  showHeading = true,
 }: {
   card: CardForView;
   canWrite: boolean;
+  showHeading?: boolean;
 }) {
   const { patchCard } = useBoardActions();
   const [title, setTitle] = useState(card.title);
@@ -20,6 +23,8 @@ export function CardBody({
   const [savedDescription, setSavedDescription] = useState(card.description ?? '');
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+
+  useCardEscapeGuard(() => title !== savedTitle || description !== savedDescription);
 
   function commitField({
     next,
@@ -90,7 +95,9 @@ export function CardBody({
   if (!canWrite) {
     return (
       <article className="flex flex-col gap-4">
-        <h1 className="text-sm font-medium leading-5 text-ink">{savedTitle}</h1>
+        {showHeading ? (
+          <h2 className="text-sm font-medium leading-5 text-ink">{savedTitle}</h2>
+        ) : null}
         <p className="whitespace-pre-wrap text-[15px] leading-6 text-ink">
           {savedDescription || <span className="text-muted">No description yet</span>}
         </p>
@@ -107,13 +114,8 @@ export function CardBody({
         onChange={(event) => setTitle(event.target.value)}
         onBlur={commitTitle}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            // The dialog also listens for Escape; reverting the field should
-            // not also close the card out from under the person doing it.
-            event.stopPropagation();
-            setTitle(savedTitle);
-          }
           if (event.key === 'Enter') event.currentTarget.blur();
+          if (event.key === 'Escape' && title !== savedTitle) setTitle(savedTitle);
         }}
         className="rounded-[var(--radius-control)] border border-line bg-surface px-2 py-1 text-sm font-medium text-ink"
       />
@@ -125,8 +127,7 @@ export function CardBody({
         onChange={(event) => setDescription(event.target.value)}
         onBlur={commitDescription}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.stopPropagation();
+          if (event.key === 'Escape' && description !== savedDescription) {
             setDescription(savedDescription);
           }
         }}

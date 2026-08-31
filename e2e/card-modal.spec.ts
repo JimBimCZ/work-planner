@@ -275,3 +275,47 @@ test('typing after a save starts keeps the newer text once the response lands', 
     await removeSeededUser(userId);
   }
 });
+
+test('Escape on a dirty title reverts the field without closing the modal', async ({
+  page,
+  context,
+}) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  await seedCard(ready.id, { boardId, createdById: userId, title: 'Ship it' });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await page.getByTestId('card-title').filter({ hasText: 'Ship it' }).click();
+
+    const title = page.getByRole('textbox', { name: 'Card title' });
+    await title.fill('Changed but not saved');
+    await title.press('Escape');
+
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(title).toHaveValue('Ship it');
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+test('Escape on a clean title closes the modal', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  await seedCard(ready.id, { boardId, createdById: userId, title: 'Ship it' });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await page.getByTestId('card-title').filter({ hasText: 'Ship it' }).click();
+
+    const title = page.getByRole('textbox', { name: 'Card title' });
+    await title.focus();
+    await title.press('Escape');
+
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});

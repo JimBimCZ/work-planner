@@ -12,7 +12,7 @@ export default async function InterceptedCardPage({
 
   return (
     <CardModal title={card.title}>
-      <CardBody card={card} canWrite={canWrite} />
+      <CardBody card={card} canWrite={canWrite} showHeading={false} />
     </CardModal>
   );
 }
