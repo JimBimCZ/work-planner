@@ -33,7 +33,7 @@ Copied from the spec and `CLAUDE.md`. Every task's requirements implicitly inclu
 
 These are outside the plan's code and block the e2e from being meaningful.
 
-- [ ] **Confirm the Pusher app exists and the credentials are real.** `.env` already carries a numeric `PUSHER_APP_ID` with a 20-character key and secret and a 2-character cluster, which look like a provisioned app, but nothing in this repository has ever called Pusher. Prove it with a real trigger before building on it — Task 1's manual check does this.
+- [x] **Confirm the Pusher app exists and the credentials are real.** `.env` already carries a numeric `PUSHER_APP_ID` with a 20-character key and secret and a 2-character cluster, which look like a provisioned app, but nothing in this repository has ever called Pusher. Prove it with a real trigger before building on it — Task 1's manual check does this.
 - [ ] **Add the four variables to the Vercel project** (Production, Preview and Development): `PUSHER_APP_ID`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER`.
 - [ ] **Add them as GitHub Actions secrets and wire them into `.github/workflows/ci.yml`.** The CI job currently has no Pusher variables at all, so without this every realtime e2e skips itself and the suite is theatre. Note that `NEXT_PUBLIC_PUSHER_KEY` is inlined at build time and Playwright's `webServer` runs `pnpm build && pnpm start`, so it must be present as a **build-time** environment variable in CI, not only at run time.
 
@@ -93,13 +93,13 @@ Everything after this section is repetition of a path this section proves. It go
 - Consumes: nothing.
 - Produces: `type BoardEvent` (the full union, though only `card.moved` is published this section); `PAYLOAD_CEILING: number`; `channelFor(boardId: string): string`; `pusherServer(): Pusher | null`; `publish(boardId: string, event: BoardEvent): Promise<void>`.
 
-- [ ] **Step 1: Add the server SDK**
+- [x] **Step 1: Add the server SDK**
 
 ```bash
 pnpm add pusher
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `lib/events.test.ts`. The Pusher SDK is mocked so nothing leaves the machine; `publish` reads credentials from `process.env` **at call time**, not at module load, which is what makes these tests possible.
 
@@ -187,12 +187,12 @@ describe('publish', () => {
 });
 ```
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 Run: `pnpm test lib/events.test.ts`
 Expected: FAIL — `Cannot find module './events'`.
 
-- [ ] **Step 4: Write the implementation**
+- [x] **Step 4: Write the implementation**
 
 Create `lib/events.ts`:
 
@@ -283,12 +283,12 @@ export async function publish(boardId: string, event: BoardEvent): Promise<void>
 }
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm test lib/events.test.ts`
 Expected: PASS, 7 tests.
 
-- [ ] **Step 6: Prove the credentials are real, by hand**
+- [x] **Step 6: Prove the credentials are real, by hand**
 
 The unit tests mock the SDK, so they prove the shape and nothing about the account. Run this once, read the output, then delete the file:
 
@@ -319,7 +319,7 @@ rm pusher-probe.mjs
 
 Expected: a `200` status object. A `401` means the key, secret or cluster is wrong — **stop and fix the credentials before continuing**, because every later section assumes this works. Record the observed status in the PR body.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/events.ts lib/events.test.ts package.json pnpm-lock.yaml
@@ -336,7 +336,7 @@ git commit -m "feat: add lib/events.ts, the board event contract and publisher"
 - Consumes: `pusherServer` and `channelFor` from `lib/events.ts`; `auth` from `lib/auth.ts`; `assertBoardAccess` and `BoardAccessError` from `lib/permissions.ts`.
 - Produces: `POST(request: Request): Promise<Response>` at `/api/pusher/auth`, returning `{ auth: string }` on success and 403 on every refusal.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `app/api/pusher/auth/route.test.ts`:
 
@@ -436,12 +436,12 @@ test('refuses a request with no form fields', async () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test app/api/pusher/auth/route.test.ts`
 Expected: FAIL — `Cannot find module './route'`.
 
-- [ ] **Step 3: Write the route**
+- [x] **Step 3: Write the route**
 
 Create `app/api/pusher/auth/route.ts`:
 
@@ -494,12 +494,12 @@ export async function POST(request: Request) {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test app/api/pusher/auth/route.test.ts`
 Expected: PASS, 9 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/api/pusher/auth
@@ -519,13 +519,13 @@ git commit -m "feat: authorise the board channel from the session, not the reque
 - Consumes: `type BoardEvent` from `lib/events.ts` — **`import type` only**. `lib/events.ts` imports the `pusher` server SDK; importing a *value* from it here would pull that into the browser bundle and break `pnpm build`, which is the only check that catches it.
 - Produces: `RealtimeProvider({ boardId, children })`; `useRealtime(): { subscribe: (h: (e: BoardEvent) => void) => () => void; status: 'off' | 'connecting' | 'subscribed' | 'failed' }`. Later sections add `claim()` (Section 2) and `reconnected` (Section 4) to the same context.
 
-- [ ] **Step 1: Add the client SDK**
+- [x] **Step 1: Add the client SDK**
 
 ```bash
 pnpm add pusher-js
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `e2e/realtime.spec.ts`. This is the first test in the suite that needs real credentials, so it declares that dependency loudly rather than passing vacuously.
 
@@ -595,12 +595,12 @@ test('a board the user cannot read never subscribes', async ({ page, context }) 
 });
 ```
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 Run: `pnpm exec playwright test realtime --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/e2e.log`
 Expected: FAIL — no element matches `[data-realtime]`.
 
-- [ ] **Step 4: Write the provider**
+- [x] **Step 4: Write the provider**
 
 Create `components/board/realtime.tsx`:
 
@@ -710,7 +710,7 @@ export function useRealtime() {
 }
 ```
 
-- [ ] **Step 5: Wire it into the board layout**
+- [x] **Step 5: Wire it into the board layout**
 
 In `app/(app)/(board)/boards/[boardId]/layout.tsx`, import `RealtimeProvider` and wrap the existing `BoardActionsProvider`. It goes here and nowhere else: this layout is the only shared parent of the board page, the canonical card page and the `@card` slot, so one connection serves all three.
 
@@ -739,7 +739,7 @@ import { RealtimeProvider } from '@/components/board/realtime';
   );
 ```
 
-- [ ] **Step 6: Add the four variables everywhere they belong**
+- [x] **Step 6: Add the four variables everywhere they belong**
 
 `.env.example` already lists all four — confirm with `grep -i pusher .env.example` and add any that are missing, values empty.
 
@@ -765,7 +765,7 @@ import { RealtimeProvider } from '@/components/board/realtime';
       NEXT_PUBLIC_PUSHER_CLUSTER: ${{ secrets.NEXT_PUBLIC_PUSHER_CLUSTER }}
 ```
 
-- [ ] **Step 7: Run the tests and watch them pass**
+- [x] **Step 7: Run the tests and watch them pass**
 
 ```bash
 pnpm exec playwright test realtime --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/e2e.log
@@ -773,7 +773,7 @@ pnpm exec playwright test realtime --reporter=line > /tmp/e2e.log 2>&1; echo "EX
 
 Expected: EXIT=0, 2 passed. **If they report as skipped, the credentials are not in your environment** — fix that before continuing, because a skipped realtime test proves nothing.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add components/board/realtime.tsx "app/(app)/(board)/boards/[boardId]/layout.tsx" e2e/realtime.spec.ts package.json pnpm-lock.yaml .env.example docker-compose.yml .github/workflows/ci.yml
