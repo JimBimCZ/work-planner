@@ -17,7 +17,11 @@ export function CardModal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && router.back()}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
+      {/* sm:max-w-sm is shadcn's default confirm-dialog width. The canonical
+          page renders this same CardBody at max-w-2xl, so the modal matches
+          that instead — otherwise the same card presents at two different
+          widths depending on which surface opened it. */}
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         {/* Radix only wires up aria-labelledby when a DialogTitle is present
             and warns about nothing when it isn't, so this is the dialog's
             only accessible name. sr-only because the visible title is the
