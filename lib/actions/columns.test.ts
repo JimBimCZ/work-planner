@@ -137,6 +137,14 @@ describe('renameColumn', () => {
     });
   });
 
+  test('refuses a viewer', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await expect(renameColumn({ columnId: 'col-2', name: 'Blocked' })).resolves.toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+  });
+
   test('writes the trimmed name and bumps the board', async () => {
     await renameColumn({ columnId: 'col-2', name: '  Blocked  ' });
 
@@ -180,6 +188,18 @@ describe('moveColumn', () => {
     });
 
     expect((result as { data: { rank: string } }).data.rank < 'a0').toBe(true);
+  });
+
+  test('refuses a viewer', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await expect(
+      moveColumn({ columnId: 'col-3', beforeColumnId: 'col-1', afterColumnId: 'col-2' }),
+    ).resolves.toEqual({ ok: false, error: 'FORBIDDEN' });
+  });
+
+  test('bumps the board', async () => {
+    await moveColumn({ columnId: 'col-3', beforeColumnId: 'col-1', afterColumnId: 'col-2' });
+    expect(ops).toContainEqual(expect.objectContaining({ kind: 'update', table: 'boards' }));
   });
 });
 

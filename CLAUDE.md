@@ -179,6 +179,8 @@ import { generateKeyBetween } from 'fractional-indexing';
 export const rankBetween = (a: string | null, b: string | null) => generateKeyBetween(a, b);
 ```
 
+Ranks are compared in two places — Postgres (`order by rank`) and JavaScript (`before.rank >= after.rank`) — so they agree only while the database collates by code point. **Verified 2026-08-31: both the `main` and `dev` branches of `withered-glade-54206401` are `C.UTF-8`, and `select 'Zz' < 'a0'` returns true.** That case is reachable, not hypothetical: `generateKeyBetween(null, 'a0')` is `'Zz'`, so two drops at the top of a column produce `Zy < Zz < a0`, which a locale-aware collation would order the other way and hand `createCard` the wrong last rank. If a database is ever created outside Neon — the `postgres:17-alpine` in `docker-compose.yml` pins no locale — check it before trusting the ordering.
+
 Never store integer positions and never renumber siblings on move. If two ranks ever collide, break the tie on `createdAt` then `id`, and let the next move resolve it.
 
 Column reordering uses the same helper against sibling columns. There is one ordering mechanism in this codebase, not two.

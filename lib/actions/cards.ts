@@ -134,14 +134,16 @@ export async function moveCard(input: unknown) {
   const boardId = await boardIdForCard(cardId);
   if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
 
-  const targetBoardId = await boardIdForColumn(toColumnId);
-  if (targetBoardId !== boardId) return { ok: false, error: 'INVALID' } as const;
-
   try {
     await assertBoardAccess(session.user.id, boardId, 'member');
   } catch (error) {
     return boardAccessResult(error);
   }
+
+  // Asked after the access check, not before: answering it first would tell a
+  // caller with no membership whether two ids sit on the same board.
+  const targetBoardId = await boardIdForColumn(toColumnId);
+  if (targetBoardId !== boardId) return { ok: false, error: 'INVALID' } as const;
 
   const rank = await db.transaction(async (tx) => {
     const siblings = await tx.query.cards.findMany({

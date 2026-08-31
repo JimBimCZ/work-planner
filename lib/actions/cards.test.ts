@@ -120,7 +120,12 @@ describe('createCard', () => {
   });
 
   test("trims the title and appends below the column's last card", async () => {
-    cardsInColumn = [{ id: 'card-0', rank: 'a0' }];
+    // Two siblings, so "last" is a different row from "first" and the
+    // assertion fails if the rank is taken from the head of the column.
+    cardsInColumn = [
+      { id: 'card-0', rank: 'a0' },
+      { id: 'card-1', rank: 'a1' },
+    ];
 
     const result = await createCard({ columnId: 'col-1', title: '  Ship it  ' });
 
@@ -128,7 +133,7 @@ describe('createCard', () => {
     const insert = ops.find((op) => op.kind === 'insert');
     expect(insert?.table).toBe('cards');
     expect(insert?.values).toMatchObject({ title: 'Ship it', columnId: 'col-1', boardId: 'b1' });
-    expect((insert?.values as { rank: string }).rank > 'a0').toBe(true);
+    expect((insert?.values as { rank: string }).rank > 'a1').toBe(true);
   });
 
   test('returns the id and the rank, so the client can settle its temp card', async () => {
@@ -165,6 +170,14 @@ describe('renameCard', () => {
   test("authorises the card's own board", async () => {
     await renameCard({ cardId: 'card-1', title: 'Ship it' });
     expect(assertBoardAccess).toHaveBeenCalledWith('user-1', 'b1', 'member');
+  });
+
+  test('refuses a viewer', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await expect(renameCard({ cardId: 'card-1', title: 'Ship it' })).resolves.toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
   });
 
   test('writes the trimmed title and bumps the board', async () => {
@@ -252,6 +265,17 @@ describe('moveCard', () => {
     await expect(
       moveCard({ cardId: 'card-1', toColumnId: 'col-2', beforeCardId: null, afterCardId: null }),
     ).resolves.toEqual({ ok: false, error: 'FORBIDDEN' });
+  });
+
+  // Access is decided before the cross-board question is asked. Answering that
+  // first would tell a non-member whether two ids sit on the same board.
+  test('refuses a non-member before it says whether the target is on their board', async () => {
+    columnRow = { id: 'col-2', boardId: 'other-board' };
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('NOT_FOUND'));
+
+    await expect(
+      moveCard({ cardId: 'card-1', toColumnId: 'col-2', beforeCardId: null, afterCardId: null }),
+    ).resolves.toEqual({ ok: false, error: 'NOT_FOUND' });
   });
 
   test('ranks between the two neighbours it was given', async () => {

@@ -28,10 +28,13 @@ Copied from the spec and `CLAUDE.md`. Every task's requirements implicitly inclu
   `invalid order key: <key>` if it is malformed. Under the default alphabet the head character
   encodes the integer part's length: `a` means two characters (`a0`, `a1`), `b` means three
   (`b00`, `b01`). **`'b0'` is not a valid key** — it reads as "three characters" but is two. It was
-  written as a fixture in Task 8 and cost a red test that looked like an implementation bug; the
-  same `'b0'` still appears in Sections C, D and E fixtures, and those sections feed fixture ranks
-  into `ranksAfter`/`rankBetween` too. Prefer `a0`/`a1`/`a2` for one range and `b00`/`b01` for a
-  second, and check any new rank against the library before assuming a failure is the code's.
+  written as a fixture in Task 8 and cost a red test that looked like an implementation bug. The
+  rule is about *reach*, not about the literal: `'b0'` survives harmlessly in the Section C and E
+  reducer and `dropTarget` fixtures, which sort ranks as opaque strings and never call the library.
+  It is any fixture whose rank flows into `ranksAfter`/`rankBetween` — Section C's create path at
+  `ranksAfter(last?.rank ?? null, 1)`, Section E's drop — that must hold a real key. Prefer
+  `a0`/`a1`/`a2` for one range and `b00`/`b01` for a second, and check a new rank against the
+  library before assuming a failure is the code's.
 - **One migration mechanism:** `pnpm db:generate`. Never hand-edit a generated migration. Never `db:push`.
 - **`revalidatePath('/boards')` after every mutation. The canvas is never revalidated** — its invalidation story is Pusher in sub-project 6.
 - **No state management library.** `useState`/`useReducer` only. No TanStack Query in this sub-project.
@@ -1253,14 +1256,16 @@ export async function moveCard(input: unknown) {
   const boardId = await boardIdForCard(cardId);
   if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
 
-  const targetBoardId = await boardIdForColumn(toColumnId);
-  if (targetBoardId !== boardId) return { ok: false, error: 'INVALID' } as const;
-
   try {
     await assertBoardAccess(session.user.id, boardId, 'member');
   } catch (error) {
     return boardAccessResult(error);
   }
+
+  // Asked after the access check, not before: answering it first would tell a
+  // caller with no membership whether two ids sit on the same board.
+  const targetBoardId = await boardIdForColumn(toColumnId);
+  if (targetBoardId !== boardId) return { ok: false, error: 'INVALID' } as const;
 
   const rank = await db.transaction(async (tx) => {
     const siblings = await tx.query.cards.findMany({
