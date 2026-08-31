@@ -3,14 +3,16 @@
 import {
   closestCorners,
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { useEffect, useReducer, useState, useTransition } from 'react';
+import { useCallback, useEffect, useReducer, useState, useSyncExternalStore, useTransition } from 'react';
 
 import { BoardColumn } from '@/components/board/board-column';
 import { useBoardActions } from '@/components/board/board-actions';
@@ -30,6 +32,14 @@ import {
 import type { BoardWithCards } from '@/lib/boards';
 import { flowHue } from '@/lib/flow';
 import { rankBetween, ranksAfter } from '@/lib/rank';
+
+const REDUCED = '(prefers-reduced-motion: reduce)';
+
+function subscribe(onChange: () => void) {
+  const query = window.matchMedia(REDUCED);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
 
 // Seeded once, on mount. There is no realtime in this sub-project, so the
 // reducer is the truth for the session and a reload is what re-reads the server.
@@ -53,11 +63,21 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   const [composerIn, setComposerIn] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const { register } = useBoardActions();
+
+  const reducedMotion = useSyncExternalStore(
+    subscribe,
+    useCallback(() => window.matchMedia(REDUCED).matches, []),
+    // The server cannot know the preference; assume motion and let the client
+    // correct on hydration rather than render the reduced path to everyone.
+    useCallback(() => false, []),
+  );
 
   const columns = orderedColumns(state);
   const total = columns.length;
   const firstColumnId = columns[0]?.id ?? null;
+  const dragging = draggingId ? (state.cards.find((card) => card.id === draggingId) ?? null) : null;
 
   useEffect(() => {
     register(canWrite && firstColumnId ? () => setComposerIn(firstColumnId) : null);
@@ -225,7 +245,12 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  function onDragStart({ active }: DragStartEvent) {
+    setDraggingId(String(active.id));
+  }
+
   function onDragEnd({ active, over }: DragEndEvent) {
+    setDraggingId(null);
     if (!over || !canWrite) return;
 
     const target = dropTarget(state, String(active.id), String(over.id));
@@ -252,7 +277,13 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
 
   return (
     <main className="h-full overflow-x-auto">
-      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={onDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => setDraggingId(null)}
+      >
         <div className="flex h-full min-w-max">
           {columns.map((column, index) => (
             <BoardColumn
@@ -279,6 +310,25 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
             />
           ))}
         </div>
+
+        {/* useSortable only translates a card within its own SortableContext, so
+            a card dragged to another column would sit still while the pointer
+            left it behind. The overlay is what actually follows the cursor, and
+            so it is where the brief's shadow, scale and tilt belong. */}
+        <DragOverlay dropAnimation={null}>
+          {dragging ? (
+            <article
+              aria-hidden
+              className="rounded-[var(--radius-card)] border border-line bg-surface px-3 py-2.5 shadow-[0_12px_24px_-8px_rgb(0_0_0/0.35)]"
+              style={{
+                width: 288,
+                transform: reducedMotion ? undefined : 'scale(1.02) rotate(3deg)',
+              }}
+            >
+              <h3 className="text-sm font-medium leading-5 text-ink">{dragging.title}</h3>
+            </article>
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       <p

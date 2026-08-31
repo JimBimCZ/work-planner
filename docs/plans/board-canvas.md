@@ -4448,9 +4448,9 @@ git commit -m "feat: drag a card between columns, optimistically"
 
 The one place the interface acknowledges physicality, per the design brief — and the only motion work in the sub-project.
 
-- [ ] **Step 1: Invoke the `frontend-design` skill.**
+- [x] **Step 1: Invoke the `frontend-design` skill.**
 
-- [ ] **Step 2: Write the implementation**
+- [x] **Step 2: Write the implementation**
 
 On the card, while `isDragging`: a real shadow, `scale(1.02)` and a 3° tilt, composed onto dnd-kit's own transform rather than replacing it:
 
@@ -4467,7 +4467,26 @@ The drop settle is 180ms `cubic-bezier(0.2, 0, 0, 1)` on **transform only** — 
 
 Cards arriving in a column fade in over 200ms with a 4px rise. Add a keyframe in `app/globals.css` and apply it to `<article>` on mount.
 
-- [ ] **Step 3: Respect `prefers-reduced-motion`**
+**Correction: this task needs a `DragOverlay`, which the plan does not mention.** Putting the tilt on
+the card behind `isDragging` only works while the card is inside its own `SortableContext`. Measured on
+the real board: dragging within a column gives the card `translate3d(0px, 20px, 0px)`, but with the
+pointer over the next column its inline style is `""` and its box is still at `x: 12` while the pointer
+is at `x: 468`. The card does not follow the cursor across columns, so the shadow, scale and tilt would
+be invisible during exactly the drag they exist for. Task 15's spike predicted this and it is recorded
+there.
+
+So the overlay is what follows the cursor, and it carries the motion. The card left behind takes
+`opacity-40`, which reads as the hole it came from rather than a second copy. The overlay is
+`aria-hidden` and carries **neither** `data-card-id` nor `data-testid="card-title"` — a second element
+with that testid would break `toHaveText([...])` in every existing spec. Verified: three seeded cards
+give three `card-title` elements mid-drag, not four.
+
+Observed with `emulateMedia`: `no-preference` gives the overlay
+`transform: scale(1.02) rotate(3deg)`, `reduce` gives it no transform while the card still follows the
+pointer. `dropAnimation={null}` because the reducer has already moved the card by the time the overlay
+would animate home, so the default animation flies it to the wrong place.
+
+- [x] **Step 3: Respect `prefers-reduced-motion`**
 
 No tilt, no rise. In `globals.css`:
 
@@ -4479,7 +4498,7 @@ No tilt, no rise. In `globals.css`:
 
 and drop the `rotate`/`scale` when the query matches, read once with `useSyncExternalStore` over `matchMedia('(prefers-reduced-motion: reduce)')` so it is not sampled on every render.
 
-- [ ] **Step 4: Verify by eye and by audit**
+- [x] **Step 4: Verify by eye and by audit**
 
 ```bash
 pnpm dev
@@ -4487,7 +4506,7 @@ pnpm dev
 
 Drag a card and watch the tilt and the settle. Then set the OS reduced-motion preference (macOS: System Settings → Accessibility → Display → Reduce motion) and confirm the tilt and the rise are gone while the card still moves. Stop the dev server.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test

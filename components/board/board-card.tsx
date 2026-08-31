@@ -23,9 +23,12 @@ export function BoardCard({
 }) {
   // A card with a temp id has no server id to move, so it is not draggable
   // until it settles; a viewer is never draggable at all.
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
     disabled: !canWrite || card.pending === true,
+    // The drop settle, per the design brief. Set through the hook rather than a
+    // CSS rule so it applies to the settle and not to the drag itself.
+    transition: { duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' },
   });
 
   return (
@@ -35,7 +38,11 @@ export function BoardCard({
       {...attributes}
       {...listeners}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className="group relative rounded-[var(--radius-card)] border border-line bg-surface px-3 py-2.5 shadow-[0_1px_2px_rgb(0_0_0/0.04)]"
+      className={`card-enter group relative rounded-[var(--radius-card)] border border-line bg-surface px-3 py-2.5 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ${
+        // The overlay carries the card while it is dragged, so what is left
+        // behind is the hole it came from, not a second copy.
+        isDragging ? 'opacity-40' : ''
+      }`}
     >
       <h3
         data-testid="card-title"
