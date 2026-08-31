@@ -634,7 +634,7 @@ No UI in this section either. The rules are proven in unit tests against a mocke
   ```
   Tasks 5 through 8 all import these three functions and the `Tx` type.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `lib/rank.test.ts`:
 
@@ -660,12 +660,12 @@ describe('ranksAfter', () => {
 
 Add `ranksAfter` to the import at the top of the file.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/rank.test.ts`
 Expected: FAIL — `ranksAfter` is not exported.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Append to `lib/rank.ts`:
 
@@ -673,12 +673,12 @@ Append to `lib/rank.ts`:
 export const ranksAfter = (a: string | null, count: number) => generateNKeysBetween(a, null, count);
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test lib/rank.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Write the scope helpers**
+- [x] **Step 5: Write the scope helpers**
 
 Create `lib/actions/scope.ts`. These are not tested on their own — they are one query each with no branching, and Tasks 5 to 8 exercise every path through them.
 
@@ -714,7 +714,7 @@ export async function touchBoard(tx: Tx, boardId: string): Promise<void> {
 }
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -742,7 +742,7 @@ git commit -m "feat: add a bulk rank helper and the board scope helpers"
   ```
   Section C's canvas calls all three. `createCard` returns the id **and** the rank because the reducer must settle its temp card with both.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/actions/cards.test.ts`. The mock records every write so a test can assert *how many* rows an action touched, which is the property the fractional-rank design exists to protect.
 
@@ -952,12 +952,12 @@ describe('deleteCard', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/actions/cards.test.ts`
 Expected: FAIL — `./cards` does not exist.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `createCard` hoists `const createdById = session.user.id` instead of reading it where it is used. The
 `!session?.user?.id` guard narrows a *property chain*, and TypeScript drops that narrowing inside a
@@ -1088,12 +1088,12 @@ export async function deleteCard(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test lib/actions/cards.test.ts`
 Expected: PASS, all of them.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -1122,7 +1122,7 @@ git commit -m "feat: create, rename and delete a card"
 
 **Why the neighbours are found in JS rather than queried by id:** the action already needs the target column's cards to compute a rank, and finding `beforeCardId` inside that list proves the neighbour is genuinely in the target column at the same time. Two queries collapse into one, and a neighbour from another column is rejected for free rather than by a separate check.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `lib/actions/cards.test.ts`, and add `moveCard` to the import:
 
@@ -1223,12 +1223,12 @@ describe('moveCard', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/actions/cards.test.ts`
 Expected: FAIL — `moveCard` is not exported.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Add to `lib/actions/cards.ts`, and add `rankBetween` to the `@/lib/rank` import:
 
@@ -1291,12 +1291,12 @@ export async function moveCard(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test lib/actions/cards.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -1324,7 +1324,7 @@ git commit -m "feat: move a card between its neighbours"
   ```
   `addColumn` takes `{ boardId, name, afterColumnId: string | null }` — it is the one action that legitimately takes a `boardId`, because there is no row to resolve one from, and it checks that board directly. `moveColumn` takes `{ columnId, beforeColumnId, afterColumnId }`, left-to-right.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/actions/columns.test.ts`:
 
@@ -1515,12 +1515,12 @@ describe('moveColumn', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/actions/columns.test.ts`
 Expected: FAIL — `./columns` does not exist.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/actions/columns.ts`:
 
@@ -1666,12 +1666,12 @@ export async function moveColumn(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test lib/actions/columns.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -1703,7 +1703,7 @@ Both columns' cards are fetched in **one** query and split in JS. Two queries wo
 
 Nothing in the schema ties `cards.board_id` to `columns.board_id` — the denormalisation, and the permission check that keys off it, are both enforced only by this code. The tests below must therefore assert both halves: `'refuses a target on another board'` already proves the target must be one of `boardId`'s own `siblingColumns`, and the moved-card test asserts the update never touches `board_id` (it only sets `columnId` and `rank`).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `lib/actions/columns.test.ts`, replace the `cards` entry of the `query` mock so a row carries its column:
 
@@ -1798,12 +1798,12 @@ describe('deleteColumn', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/actions/columns.test.ts`
 Expected: FAIL — `deleteColumn` is not exported.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Add to `lib/actions/columns.ts`. Extend the schema import list with `cards`, and add `ranksAfter` to the `@/lib/rank` import:
 
@@ -1864,12 +1864,12 @@ export async function deleteColumn(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `pnpm test lib/actions/columns.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -1881,13 +1881,22 @@ git commit -m "feat: delete a column into a named target"
 
 ### Section B gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed.
-- [ ] No action inlines a membership query; every access question goes through `assertBoardAccess`.
-- [ ] No card or column action takes a `boardId` for authorisation. `addColumn` takes one and checks it directly — confirm by reading all eight.
-- [ ] `moveCard` and `moveColumn` each write exactly one row, asserted rather than assumed.
-- [ ] Every action bumps `boards.updatedAt` inside its transaction.
-- [ ] Nothing user-visible changed. Say so in the PR.
-- [ ] Open the PR. Stop. Start Section C in a fresh session.
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed. 139 tests across 15 files.
+- [x] No action inlines a membership query; every access question goes through `assertBoardAccess`.
+      `grep boardMembers lib/actions/cards.ts lib/actions/columns.ts lib/actions/scope.ts` returns nothing.
+- [x] No card or column action takes a `boardId` for authorisation. `addColumn` takes one and checks it directly — confirm by reading all eight.
+      Read: `createCard` resolves via `boardIdForColumn`; `renameCard`, `deleteCard` and `moveCard` via
+      `boardIdForCard`; `renameColumn`, `moveColumn` and `deleteColumn` via `boardIdForColumn`.
+      `addColumn` is the single exception and checks the board it was given. `moveCard` additionally
+      resolves the *target* column's board and refuses a cross-board move before authorising.
+- [x] `moveCard` and `moveColumn` each write exactly one row, asserted rather than assumed.
+      Asserted in the tests by counting recorded writes, not by reading the implementation.
+- [x] Every action bumps `boards.updatedAt` inside its transaction.
+      Eight `touchBoard(tx, boardId)` calls, one per action, all inside the transaction callback.
+- [x] Nothing user-visible changed. Say so in the PR.
+      No component, route or query touched — the board still renders read-only column shells. Nothing
+      calls any of the eight actions yet; Section C is the first caller.
+- [x] Open the PR. Stop. Start Section C in a fresh session.
 
 ---
 
