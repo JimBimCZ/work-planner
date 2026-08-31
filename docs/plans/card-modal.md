@@ -21,7 +21,7 @@ Copied from the spec and `CLAUDE.md`. Every task's requirements implicitly inclu
 - **Before any push:** `pnpm typecheck && pnpm lint && pnpm test`, output observed.
 - **Every server action re-checks permission** through `lib/permissions.ts`. Never inline a membership query. Never trust a `boardId` from the client for authorisation — resolve it from the row.
 - **Actions return a discriminated result**, never throw for expected failures: `{ ok: true, data }` / `{ ok: false, error: 'UNAUTHENTICATED' | 'INVALID' | 'NOT_FOUND' | 'FORBIDDEN' }`.
-- **`lib/permissions.ts` is server-only**, and so is anything importing it. A `'use client'` file importing any *value* from it pulls `pg` into the browser bundle and the build dies on `dns`/`fs`/`net`/`tls`. `typecheck`, `lint` and `test` all pass on that code — only `pnpm build` catches it. Client components take derived booleans (`canWrite`, `canComment`) computed on the server. `import type` is erased and stays safe.
+- **`lib/permissions.ts` is server-only**, and so is anything importing it. A `'use client'` file importing any *value* from it pulls `pg` into the browser bundle and the build dies on `dns`/`fs`/`net`/`tls`. `typecheck`, `lint` and `test` all pass on that code — only `pnpm build` catches it. Client components take a derived boolean (`canWrite`) computed on the server. `import type` is erased and stays safe.
 - **`publish()` is not called anywhere.** Realtime is sub-project 6. Every action here is a future call site and none of them make one.
 - **No `any`**, no non-null assertions to silence the compiler, no `@ts-expect-error` without an explanation on the line above.
 - **No unnecessary comments.** Comment the non-obvious decision, never what the code plainly says.
@@ -75,7 +75,9 @@ CLAUDE.md                             MODIFY  Layout section corrected in Sectio
 
 ## Section 1 — The routing spike
 
-Branch: `spike/card-route-intercept`
+Branch: `docs/card-modal-spec` — shipped together with the spec and plan rather
+than its own branch, because the spike deletes every file it creates and a
+separate PR would carry no content.
 
 One task. Its output is an **answer**, not code that survives. The spec puts it first because a broken intercept produces a full-page navigation and no error — there is nothing to notice unless you look for it deliberately.
 
@@ -209,7 +211,7 @@ Nothing user-visible. Landing the migration alone lets production be hand-migrat
 
 **Interfaces:**
 - Consumes: `cards`, `users` from `lib/db/schema.ts`.
-- Produces: `comments` table with columns `id`, `cardId`, `authorId` (nullable), `body`, `createdAt`, `updatedAt`; `commentsRelations` with `card` and `author`; `cardsRelations` gains `comments: many(comments)`.
+- Produces: `comments` table with columns `id`, `cardId`, `authorId` (nullable), `body`, `createdAt`, `updatedAt`; `commentsRelations` with `card` and `author`; `cardsRelations` gains `comments: many(comments)`; `cards.createdById` becomes nullable with `onDelete: 'set null'` (was `notNull`, `onDelete: 'cascade'`).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -245,6 +247,18 @@ describe('comments', () => {
 ```
 
 Add `comments` to the schema import at the top of the file, matching how `cards` is already imported there.
+
+**Also update the existing `describe('the cards table', ...)` block**, which today asserts the cascade this migration removes. `comments.cardId` cascades from `cards`, so leaving `cards.createdById` cascading from `users` would let deleting an account delete every comment on a card that account created — including comments left by other people, on boards that account never owned:
+
+- In `'makes title and rank required, and leaves SP5 fields nullable'`, add `expect(byName.created_by_id).toBe(false);` beside the `description` and `due_date` assertions — a card can now be created by nobody once its author is deleted.
+- In `'cascades from its board but declares no action on its column'`, change
+  ```ts
+  expect(actions).toContainEqual({ column: 'created_by_id', onDelete: 'cascade' });
+  ```
+  to
+  ```ts
+  expect(actions).toContainEqual({ column: 'created_by_id', onDelete: 'set null' });
+  ```
 
 - [ ] **Step 2: Run it and watch it fail**
 
@@ -297,6 +311,14 @@ export const commentsRelations = relations(comments, ({ one }) => ({
 }));
 ```
 
+**In the same file, change the existing `cards` table's `createdById` column** from a required cascade to a nullable set-null column — the reason is the one above for `comments.authorId`, applied one hop further out: a cascade from `createdById` would delete every comment on a card once its creator's account is gone, through the `comments.cardId` cascade this migration just added, on boards the creator never owned:
+
+```ts
+    createdById: text('created_by_id').references(() => users.id, { onDelete: 'set null' }),
+```
+
+(was `.notNull()` with `onDelete: 'cascade'`.)
+
 - [ ] **Step 4: Run the tests and watch them pass**
 
 ```bash
@@ -316,8 +338,9 @@ cat lib/db/migrations/0003_*.sql
 - `"card_id" ... ON DELETE cascade`
 - `"author_id" text` with **no** `NOT NULL`, and `ON DELETE set null`
 - `CREATE INDEX "comments_card_id_created_at_idx"`
+- the `ALTER TABLE "cards"` statement drops `NOT NULL` on `"created_by_id"` and switches its foreign key from `ON DELETE cascade` to `ON DELETE set null`
 
-If any of the three is wrong, fix `schema.ts` and regenerate. Never hand-edit generated SQL.
+If any of the four is wrong, fix `schema.ts` and regenerate. Never hand-edit generated SQL.
 
 - [ ] **Step 6: Apply it to the dev branch and prove it landed**
 
@@ -337,21 +360,23 @@ const env = Object.fromEntries(
 );
 const pool = new Pool({ connectionString: env.DATABASE_URL });
 const cols = await pool.query(
-  `select column_name, is_nullable from information_schema.columns
-   where table_name = 'comments' order by ordinal_position`);
+  `select table_name, column_name, is_nullable from information_schema.columns
+   where (table_name = 'comments' and column_name in ('card_id', 'author_id'))
+      or (table_name = 'cards' and column_name = 'created_by_id')
+   order by table_name, ordinal_position`);
 console.table(cols.rows);
 const fks = await pool.query(
-  `select con.conname, con.confdeltype from pg_constraint con
+  `select rel.relname as table_name, con.conname, con.confdeltype from pg_constraint con
    join pg_class rel on rel.oid = con.conrelid
-   where con.contype = 'f' and rel.relname = 'comments'`);
-console.table(fks.rows);   // expect confdeltype: card_id = c, author_id = n
+   where con.contype = 'f' and rel.relname in ('comments', 'cards')`);
+console.table(fks.rows);   // expect confdeltype: comments.card_id = c, comments.author_id = n, cards.created_by_id = n
 await pool.end();
 EOF
 node ./check-comments.mjs
 rm ./check-comments.mjs
 ```
 
-Expected: `author_id` `is_nullable = YES`; `confdeltype` **c** for the card FK and **n** (set null) for the author FK.
+Expected: `author_id` `is_nullable = YES`; `confdeltype` **c** for the card FK and **n** (set null) for the author FK. `cards.created_by_id` is now the same shape — `is_nullable = YES`, `confdeltype` **n** — since a card's creator can be gone the same way a comment's author can.
 
 - [ ] **Step 7: Commit**
 
@@ -361,7 +386,10 @@ git commit -m "feat: add the comments table
 
 authorId is nullable and sets null rather than cascading, because
 /privacy already promises that boards owned by other people keep your
-comments when your account is deleted."
+comments when your account is deleted. cards.createdById gets the same
+treatment: a cascade there would otherwise delete every comment on a
+card through the new comments.cardId cascade, on boards the card's
+creator does not own."
 ```
 
 ### Task 3: Prove the referential actions against a real database
@@ -450,6 +478,50 @@ test('deleting a user leaves their comments, authorless', async ({ context }) =>
     await removeSeededUser(owner.userId);
   }
 });
+
+// The scenario this migration exists to prevent: cards.createdById used to
+// cascade, so deleting an account would take every comment on every card that
+// account created — including comments left by other people, on boards the
+// deleted account did not own.
+test('deleting a user leaves a card they created elsewhere in place, authorless', async ({
+  context,
+}) => {
+  const creator = await seedSession(context);
+  const owner = await seedSession(context);
+  const boardId = await seedBoard(owner.userId, "Someone else's board");
+  const [first] = await boardColumns(boardId);
+  const cardId = await seedCard(first.id, {
+    boardId,
+    createdById: creator.userId,
+    title: 'Left behind',
+  });
+  const commentId = await seedComment(cardId, owner.userId, 'Still discussing this');
+
+  try {
+    await removeSeededUser(creator.userId);
+
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const { rows: cardRows } = await pool.query<{ created_by_id: string | null; title: string }>(
+        'select created_by_id, title from cards where id = $1',
+        [cardId],
+      );
+      expect(cardRows).toHaveLength(1);
+      expect(cardRows[0].created_by_id).toBeNull();
+      expect(cardRows[0].title).toBe('Left behind');
+
+      const { rows: commentRows } = await pool.query<{ n: number }>(
+        'select count(*)::int as n from comments where id = $1',
+        [commentId],
+      );
+      expect(commentRows[0].n).toBe(1);
+    } finally {
+      await pool.end();
+    }
+  } finally {
+    await removeSeededUser(owner.userId);
+  }
+});
 ```
 
 Add `seedComment` and `seedMember` to the import list at the top of `e2e/schema.spec.ts`.
@@ -470,13 +542,13 @@ No implementation is needed: the schema from Task 2 is what these prove. Re-run 
 pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -6 /tmp/e2e.log
 ```
 
-Expected: EXIT=0, four tests in this file.
+Expected: EXIT=0, five tests in this file.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add e2e/support/session.ts e2e/schema.spec.ts
-git commit -m "test: prove the comment referential actions against a real database"
+git commit -m "test: prove the comment and card-authorship referential actions against a real database"
 ```
 
 ### Section 2 gate
@@ -484,7 +556,8 @@ git commit -m "test: prove the comment referential actions against a real databa
 - [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, each exit code read from its own redirected log, and the count that ran compared against the count collected.
 - [ ] The generated SQL was **read**: `author_id` has no `NOT NULL` and carries `ON DELETE set null`; `card_id` carries `ON DELETE cascade`.
 - [ ] `information_schema` and `pg_constraint` on the dev branch agree with the SQL — `confdeltype` **n** for the author FK, **c** for the card FK.
-- [ ] Both referential actions are proved by a real delete, not only by `schema.ts`.
+- [ ] `cards.created_by_id` was changed the same way — no `NOT NULL`, `ON DELETE set null` — confirmed in the generated SQL and in `pg_constraint`.
+- [ ] Both referential actions are proved by a real delete, not only by `schema.ts`, including that a card outlives the user who created it.
 - [ ] Nothing user-visible changed. Say so in the PR.
 - [ ] **Production is migrated by hand before this merges**, not after. Vercel deploys from `main` and CI cannot gate it:
       `MIGRATE_URL="$(npx --yes neonctl@4 connection-string main --project-id withered-glade-54206401)" pnpm db:migrate`
@@ -508,7 +581,7 @@ The first visible change: a card opens. Title and description edit; due dates an
 **Interfaces:**
 - Consumes: `db` from `@/lib/db`; the `comments` relation from Task 2.
 - Produces:
-  - `type CardComment = { id: string; body: string; createdAt: Date; updatedAt: Date; author: { id: string; name: string | null; image: string | null } | null }`
+  - `type CardComment = { id: string; body: string; createdAt: Date; author: { id: string; name: string | null; image: string | null } | null }` — no `updatedAt`; nothing renders it.
   - `type CardForView = { id: string; boardId: string; columnId: string; title: string; description: string | null; dueDate: Date | null; comments: CardComment[] }`
   - `getCardForView(cardId: string): Promise<CardForView | null>`
 
@@ -569,9 +642,7 @@ describe('getCardForView', () => {
       title: 'Ship it',
       description: null,
       dueDate: null,
-      comments: [
-        { id: 'm1', body: 'Still here', createdAt: new Date(0), updatedAt: new Date(0), author: null },
-      ],
+      comments: [{ id: 'm1', body: 'Still here', createdAt: new Date(0), author: null }],
     };
 
     const card = await getCardForView('k1');
@@ -602,7 +673,6 @@ export type CardComment = {
   id: string;
   body: string;
   createdAt: Date;
-  updatedAt: Date;
   author: { id: string; name: string | null; image: string | null } | null;
 };
 
@@ -632,7 +702,7 @@ export const getCardForView = cache(async (cardId: string): Promise<CardForView 
     },
     with: {
       comments: {
-        columns: { id: true, body: true, createdAt: true, updatedAt: true },
+        columns: { id: true, body: true, createdAt: true },
         orderBy: (comment, { asc }) => [asc(comment.createdAt), asc(comment.id)],
         with: { author: { columns: { id: true, name: true, image: true } } },
       },
@@ -675,8 +745,8 @@ git commit -m "feat: read a card and its thread for both entry points"
 **Interfaces:**
 - Consumes: `getCardForView`, `CardForView` from Task 4; `assertBoardAccess`, `atLeast`, `BoardAccessError` from `@/lib/permissions`.
 - Produces:
-  - `CardModal({ children }: { children: React.ReactNode })` — client, wraps content in a `Dialog` and calls `router.back()` on close.
-  - `CardBody({ card, canWrite, canComment }: { card: CardForView; canWrite: boolean; canComment: boolean })` — client. Task 10 adds `viewerId: string`.
+  - `CardModal({ children, title }: { children: React.ReactNode; title: string })` — client, wraps content in a `Dialog` and calls `router.back()` on close. `title` becomes the dialog's accessible name.
+  - `CardBody({ card, canWrite }: { card: CardForView; canWrite: boolean })` — client. `canComment` does not exist: both pages already `notFound()` anyone below `viewer`, so reaching the page at all is the right to comment. Task 10 adds `viewerId: string`.
   - `BoardCard` gains a required `boardId: string` prop.
 
 - [ ] **Step 1: Write the failing test**
@@ -756,6 +826,12 @@ test('a cold load of the card URL renders a page, not a modal', async ({ page, c
     await expect(page.getByRole('heading', { name: 'Ship it' })).toBeAttached();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.locator('[data-column-id]')).toHaveCount(0);
+    // The cold load has no history entry to go back to, so the page needs its
+    // own way back to the board.
+    await expect(page.getByRole('link', { name: 'Back to board' })).toHaveAttribute(
+      'href',
+      `/boards/${boardId}`,
+    );
   } finally {
     await removeSeededUser(userId);
   }
@@ -799,6 +875,34 @@ test('a viewer opens a card and cannot edit its fields', async ({ page, context 
     await removeSeededUser(owner.userId);
   }
 });
+
+// The whole architecture rests on the canvas staying mounted behind the modal.
+// A fresh remount would satisfy `[data-column-id]` being attached just as
+// well, so this proves it with state that lives only in board-canvas.tsx and
+// nowhere on the server: the "Add card" composer's open flag.
+test('the board keeps client-only state alive behind the modal', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  await seedCard(ready.id, { boardId, createdById: userId, title: 'Ship it' });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await page.getByRole('button', { name: 'Add card to Ready to Work' }).click();
+    await expect(page.getByLabel('Card title')).toBeVisible();
+
+    await page.getByTestId('card-title').filter({ hasText: 'Ship it' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+
+    await page.goBack();
+
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    // A remount would have closed the composer along with everything else.
+    await expect(page.getByLabel('Card title')).toBeVisible();
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
 ```
 
 - [ ] **Step 2: Run it and watch it fail**
@@ -821,14 +925,11 @@ import type { CardForView } from '@/lib/cards';
 export function CardBody({
   card,
   canWrite,
-  canComment,
 }: {
   card: CardForView;
   canWrite: boolean;
-  canComment: boolean;
 }) {
   void canWrite;
-  void canComment;
 
   return (
     <article className="flex flex-col gap-4">
@@ -850,16 +951,29 @@ Create `components/board/card-modal.tsx`:
 
 import { useRouter } from 'next/navigation';
 
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 
 // Closing the card is a navigation, not a state change — which is what makes
 // browser-back close it and forward reopen it.
-export function CardModal({ children }: { children: React.ReactNode }) {
+export function CardModal({
+  children,
+  title,
+}: {
+  children: React.ReactNode;
+  title: string;
+}) {
   const router = useRouter();
 
   return (
     <Dialog open onOpenChange={(open) => !open && router.back()}>
-      <DialogContent>{children}</DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        {/* Radix only wires up aria-labelledby when a DialogTitle is present
+            and warns about nothing when it isn't, so this is the dialog's
+            only accessible name. sr-only because the visible title is the
+            editable input (or, for a viewer, CardBody's own heading) inside. */}
+        <DialogTitle className="sr-only">{title}</DialogTitle>
+        {children}
+      </DialogContent>
     </Dialog>
   );
 }
@@ -909,16 +1023,17 @@ export default async function InterceptedCardPage({
   }
 
   return (
-    <CardModal>
-      <CardBody card={card} canWrite={atLeast(role, 'member')} canComment />
+    <CardModal title={card.title}>
+      <CardBody card={card} canWrite={atLeast(role, 'member')} />
     </CardModal>
   );
 }
 ```
 
-`app/(app)/(board)/boards/[boardId]/cards/[cardId]/page.tsx` — the same checks, no dialog:
+`app/(app)/(board)/boards/[boardId]/cards/[cardId]/page.tsx` — the same checks, no dialog, and its own way back to the board since a cold load has no history entry to go back to:
 
 ```tsx
+import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 
 import { CardBody } from '@/components/board/card-body';
@@ -947,8 +1062,14 @@ export default async function CardPage({
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6">
-      <CardBody card={card} canWrite={atLeast(role, 'member')} canComment />
+    <div className="mx-auto h-full max-w-2xl overflow-y-auto p-6">
+      <Link
+        href={`/boards/${boardId}`}
+        className="mb-4 inline-block text-sm text-muted hover:text-ink"
+      >
+        Back to board
+      </Link>
+      <CardBody card={card} canWrite={atLeast(role, 'member')} />
     </div>
   );
 }
@@ -1002,7 +1123,7 @@ In `components/board/board-canvas.tsx`, pass `boardId={board.id}` wherever `Boar
 pnpm exec playwright test e2e/card-modal.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/e2e.log
 ```
 
-Expected: EXIT=0, five tests. Then the whole suite, because `board-dnd.spec.ts` asserts a click does **not** move a card and now that click also navigates:
+Expected: EXIT=0, six tests. Then the whole suite, because `board-dnd.spec.ts` asserts a click does **not** move a card and now that click also navigates:
 
 ```bash
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e.log
@@ -1015,8 +1136,11 @@ The Layout section currently shows `@card/(.)cards/[cardId]` against a canonical
 ```
     (board)/
       boards/[boardId]/
-        @card/(.)cards/[cardId]/  # intercepted — renders as modal over the board
-        cards/[cardId]/           # canonical card page — the intercept target, and
+        @card/
+          default.tsx            # returns null; without it a hard load 404s
+                                  # the whole board — the spike proved this
+          (.)cards/[cardId]/     # intercepted — renders as modal over the board
+        cards/[cardId]/          # canonical card page — the intercept target, and
                                   # what a shared link opens on a cold load
 ```
 
@@ -1216,14 +1340,10 @@ import type { CardForView } from '@/lib/cards';
 export function CardBody({
   card,
   canWrite,
-  canComment,
 }: {
   card: CardForView;
   canWrite: boolean;
-  canComment: boolean;
 }) {
-  void canComment;
-
   const { patchCard } = useBoardActions();
   const [title, setTitle] = useState(card.title);
   const [savedTitle, setSavedTitle] = useState(card.title);
@@ -1282,7 +1402,6 @@ export function CardBody({
 
   return (
     <article className="flex flex-col gap-4">
-      <h1 className="sr-only">{savedTitle}</h1>
       <input
         aria-label="Card title"
         value={title}
@@ -1322,11 +1441,29 @@ export function CardBody({
 }
 ```
 
-The read-only branch renders a real `<h1>`, which is what the viewer test asserts; the editable branch keeps one for the accessible name and hides it.
+The read-only branch renders a real `<h1>`, which is what the viewer test asserts. The editable branch has none: `CardModal` supplies the dialog's accessible name through its own `DialogTitle` now, and a second sr-only heading here would only have duplicated it — the title input's own `aria-label` already names the field.
 
 - [ ] **Step 8: Extend the e2e**
 
-Append to `e2e/card-modal.spec.ts`:
+**First, fix the cold-load test from Task 5.** `CardBody`'s editable branch no longer has a heading of its own — `CardModal` supplies the dialog's accessible name, and the canonical page (which never mounts `CardModal`) now shows the title only in the input. In `a cold load of the card URL renders a page, not a modal`, replace:
+
+```ts
+    // Attached, not visible: Task 6 makes the writer's heading sr-only, and
+    // whether Playwright calls a clipped 1px element visible should not decide
+    // this test. The Section 3 gate's screenshots cover what is on screen.
+    await expect(page.getByRole('heading', { name: 'Ship it' })).toBeAttached();
+```
+
+with:
+
+```ts
+    // The writer's title lives in the editable input now — CardBody carries
+    // no heading of its own once CardModal supplies the dialog's accessible
+    // name (Task 6), and this page never mounts CardModal.
+    await expect(page.getByRole('textbox', { name: 'Card title' })).toHaveValue('Ship it');
+```
+
+Then append to `e2e/card-modal.spec.ts`:
 
 ```ts
 test('a title edited in the modal changes the card behind it', async ({ page, context }) => {
@@ -1341,7 +1478,11 @@ test('a title edited in the modal changes the card behind it', async ({ page, co
 
     const title = page.getByRole('textbox', { name: 'Card title' });
     await title.fill('Ship it twice');
+    // The promise is created before the action that fires the POST, the same
+    // pattern the description test below already uses.
+    const saved = written(page);
     await title.blur();
+    await saved;
 
     await page.goBack();
     await expect(page.getByTestId('card-title')).toHaveText(['Ship it twice']);
@@ -1403,6 +1544,7 @@ git commit -m "feat: edit a card's title and description from the modal"
 - [ ] Browser-back closes the modal and the board still shows its cards.
 - [ ] A card id from another board 404s.
 - [ ] A dragged card still does not open the modal — the 5px activation distance is intact, and `e2e/board-dnd.spec.ts` still passes unchanged.
+- [ ] A card carrying a description at or near the 10,000-character cap scrolls on both surfaces — the modal and the canonical page — checked at 1280×800 and at 360px, and the page itself never scrolls sideways.
 - [ ] `CLAUDE.md`'s Layout section is corrected in this PR, not a later one.
 - [ ] Screenshots of the modal and the canonical page, both themes, in the PR body.
 - [ ] Open the PR. Stop. Start Section 4 in a fresh session.
@@ -1507,8 +1649,16 @@ describe('the input round trip', () => {
 });
 
 describe('formatDue', () => {
+  test('formats the date it was given', () => {
+    expect(formatDue(due(2026, 9, 1), 'en-GB')).toBe('1 Sept');
+  });
+
+  // Midnight UTC on the 1st is the previous evening in any western zone, so a
+  // formatter that used the runner's timezone would say 31 Aug. This is the
+  // assertion that would catch `timeZone: 'UTC'` going missing.
   test('formats from the UTC parts, not the runner timezone', () => {
-    expect(formatDue(due(2026, 9, 1), 'en-GB')).toBe('1 Sep');
+    const midnightUtc = new Date('2026-09-01T00:00:00.000Z');
+    expect(formatDue(midnightUtc, 'en-GB')).toBe('1 Sept');
   });
 });
 ```
@@ -1767,7 +1917,7 @@ and every place that builds a `StateCard` optimistically — the create path —
 
 In `components/board/board-card.tsx`, render the date under the title.
 
-**The state must be computed after mount, not during render.** `dueState` depends on the viewer's local today, so a server render and a client render can disagree and React does not patch a mismatched attribute — the same failure that left dnd-kit's `aria-describedby` dangling in sub-project 4. The date *text* comes from UTC parts and is stable, so it renders on both sides; only the colour and the `Nd over` label wait for the client:
+**The whole element must render after mount, not during the initial render.** `dueState` depends on the viewer's local today, so a server render and a client render can disagree and React does not patch a mismatched attribute — the same failure that left dnd-kit's `aria-describedby` dangling in sub-project 4. The date text is not exempt from this the way it looks like it should be: `formatDue(due)` passes no locale, so `Intl` resolves the environment default — Node's on the server, `navigator.language` on the client — and a `cs-CZ` viewer would see `Sep 1` from the server and `1. 9.` after hydration. So the gate covers the date, the colour and the `Nd over` label together — the component renders `null` until `now` is set, and only then renders anything at all. The one-frame absence is the same trade the plan already made for the colour alone:
 
 ```tsx
 import { useEffect, useState } from 'react';
@@ -1780,14 +1930,16 @@ function DueDate({ value }: { value: string }) {
   const due = fromDateInputValue(value);
   const [now, setNow] = useState<Date | null>(null);
 
-  // Server and client disagree about "today", so the warm state is decided
-  // after mount. The date text itself comes from UTC parts and is stable.
+  // Server and client can disagree about "today" AND about locale —
+  // formatDue resolves Intl's default locale when none is passed, Node's on
+  // the server and the browser's on the client. Both the warm state and the
+  // date text wait for the client so neither can hydrate to a mismatch.
   useEffect(() => setNow(new Date()), []);
 
-  if (!due) return null;
+  if (!due || !now) return null;
 
-  const state = now ? dueState(due, now) : 'plain';
-  const label = now ? dueLabel(due, now) : null;
+  const state = dueState(due, now);
+  const label = dueLabel(due, now);
   const tone =
     state === 'over' ? 'text-time-over' : state === 'soon' ? 'text-time-soon' : 'text-muted';
 
@@ -1813,6 +1965,10 @@ Create `components/board/card-due-date.tsx`:
 ```tsx
 'use client';
 
+import { useEffect, useState } from 'react';
+
+import { formatDue, fromDateInputValue } from '@/lib/due';
+
 // A native date input: no dependency, keyboard-accessible without work, and
 // formatted in the viewer's locale by the browser.
 export function CardDueDate({
@@ -1824,10 +1980,16 @@ export function CardDueDate({
   canWrite: boolean;
   onCommit: (value: string | null) => void;
 }) {
+  // formatDue resolves Intl's default locale when none is passed — Node's on
+  // the server, the browser's on the client — so the read-only label waits
+  // for the client, the same reason the card face's DueDate does.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   if (!canWrite) {
-    return value ? (
-      <p className="font-mono text-xs text-muted">Due {value}</p>
-    ) : null;
+    if (!value || !mounted) return null;
+    const due = fromDateInputValue(value);
+    return due ? <p className="font-mono text-xs text-muted">Due {formatDue(due)}</p> : null;
   }
 
   return (
@@ -1837,7 +1999,16 @@ export function CardDueDate({
         type="date"
         aria-label="Due date"
         value={value ?? ''}
-        onChange={(event) => onCommit(event.target.value === '' ? null : event.target.value)}
+        onChange={(event) => {
+          // `change` fires on every segment edit and reports '' until all
+          // three are complete, so committing every change would clear an
+          // in-progress edit and, for a fresh date, briefly write null before
+          // the real value lands. A complete date is still worth saving the
+          // moment it lands, though — picking one from the calendar UI
+          // should not have to wait for a blur that may never come.
+          if (event.target.value !== '') onCommit(event.target.value);
+        }}
+        onBlur={(event) => onCommit(event.target.value === '' ? null : event.target.value)}
         className="rounded-[var(--radius-control)] border border-line bg-surface px-2 py-1 font-mono text-xs text-ink"
       />
     </label>
@@ -1845,7 +2016,7 @@ export function CardDueDate({
 }
 ```
 
-A date input has no meaningful blur semantics — it commits when a date is picked — so this one writes on change rather than on blur.
+A date input does have meaningful blur semantics, unlike the note this replaces once claimed: `change` fires on every segment edit and is unreliable mid-edit, but blur fires once, when the person is done with the field either way — including clearing it. Committing there, and on `change` only once a full date is present, is what keeps a partial edit from writing a stray `null` and keeps a picked date from waiting on a blur.
 
 - [ ] **Step 8: Wire it into the card body**
 
@@ -2076,6 +2247,14 @@ describe('deleteComment', () => {
     });
   });
 
+  test('refuses everyone on a comment whose author was deleted', async () => {
+    commentRow = { authorId: null, card: { boardId: 'b1' } };
+    await expect(deleteComment({ commentId: 'm1' })).resolves.toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+  });
+
   test('lets the author delete', async () => {
     commentRow = { authorId: 'user-1', card: { boardId: 'b1' } };
     await expect(deleteComment({ commentId: 'm1' })).resolves.toEqual({ ok: true });
@@ -2252,7 +2431,7 @@ checked before authorship so a non-member cannot learn the comment exists."
 
 **Interfaces:**
 - Consumes: `addComment` from Task 9; `CardComment` from `lib/cards.ts`.
-- Produces: `CardComments({ cardId, comments, canComment, viewerId }: { cardId: string; comments: CardComment[]; canComment: boolean; viewerId: string })`.
+- Produces: `CardComments({ cardId, comments, viewerId }: { cardId: string; comments: CardComment[]; viewerId: string })`. No `canComment`: both pages already `notFound()` anyone below `viewer`, so the composer is unconditional — reaching the page at all is the right to comment.
 
 `viewerId` is threaded from the session in both server pages and passed down; it is what the author-only controls in Task 11 compare against, and it never grants anything on its own — the actions re-check.
 
@@ -2371,12 +2550,10 @@ type Row = CardComment & { pending?: boolean };
 export function CardComments({
   cardId,
   comments,
-  canComment,
   viewerId,
 }: {
   cardId: string;
   comments: CardComment[];
-  canComment: boolean;
   viewerId: string;
 }) {
   const [rows, setRows] = useState<Row[]>(comments);
@@ -2393,7 +2570,6 @@ export function CardComments({
       id: tempId,
       body,
       createdAt: new Date(),
-      updatedAt: new Date(),
       author: { id: viewerId, name: null, image: null },
       pending: true,
     };
@@ -2439,25 +2615,25 @@ export function CardComments({
         </ul>
       )}
 
-      {canComment ? (
-        <div className="flex flex-col gap-2">
-          <textarea
-            aria-label="Add a comment"
-            rows={3}
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            className="rounded-[var(--radius-control)] border border-line bg-surface px-2 py-1.5 text-sm text-ink"
-          />
-          <button
-            type="button"
-            onClick={submit}
-            disabled={draft.trim() === ''}
-            className="self-start rounded-[var(--radius-control)] bg-flow-mid px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
-          >
-            Comment
-          </button>
-        </div>
-      ) : null}
+      {/* Unconditional: both pages already notFound() anyone below viewer,
+          so reaching this component at all is the right to comment. */}
+      <div className="flex flex-col gap-2">
+        <textarea
+          aria-label="Add a comment"
+          rows={3}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          className="rounded-[var(--radius-control)] border border-line bg-surface px-2 py-1.5 text-sm text-ink"
+        />
+        <button
+          type="button"
+          onClick={submit}
+          disabled={draft.trim() === ''}
+          className="self-start rounded-[var(--radius-control)] bg-flow-mid px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+        >
+          Comment
+        </button>
+      </div>
 
       <p role="status" aria-live="polite" className="min-h-5 text-xs text-time-over">
         {error}
@@ -2475,7 +2651,6 @@ In both `app/(app)/(board)/boards/[boardId]/@card/(.)cards/[cardId]/page.tsx` an
       <CardBody
         card={card}
         canWrite={atLeast(role, 'member')}
-        canComment
         viewerId={session.user.id}
       />
 ```
@@ -2483,12 +2658,7 @@ In both `app/(app)/(board)/boards/[boardId]/@card/(.)cards/[cardId]/page.tsx` an
 In `components/board/card-body.tsx`, accept `viewerId: string` and render the thread at the end of both branches:
 
 ```tsx
-      <CardComments
-        cardId={card.id}
-        comments={card.comments}
-        canComment={canComment}
-        viewerId={viewerId}
-      />
+      <CardComments cardId={card.id} comments={card.comments} viewerId={viewerId} />
 ```
 
 - [ ] **Step 5: Run the tests and watch them pass**
@@ -2698,6 +2868,7 @@ git commit -m "feat: let a comment's author edit and delete it"
 - [ ] A member sees no Edit or Delete on someone else's comment, **and** calling `editComment` and `deleteComment` directly as that member returns `FORBIDDEN`. The UI hiding a control is not the permission.
 - [ ] **A rejected comment rolls back and says so — forced, not hoped for.** Temporarily make `addComment` return `{ ok: false, error: 'INVALID' }`, add a comment, and confirm the row disappears, the draft comes back in the box, and the strip reads "That comment could not be added. Try again." Then revert and confirm `git diff` on `lib/actions/comments.ts` is empty.
 - [ ] A comment whose author row is gone renders "Deleted account" and offers no controls to anyone.
+- [ ] A card with a long description and a thread of a dozen comments scrolls on both surfaces at both widths — this is the half Section 3's gate could not check, since the thread did not exist yet — and the composer stays reachable at the bottom of it rather than pushed off-screen by the thread above it.
 - [ ] Screenshots of a thread, both themes, in the PR body.
 - [ ] Open the PR. Stop.
 
@@ -2708,9 +2879,9 @@ git commit -m "feat: let a comment's author edit and delete it"
 Copied from `docs/specs/card-modal.md`. Tick these only against observed output, and close them in the final section's PR or a short `docs/` follow-up, as sub-projects 3 and 4 did.
 
 - [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass locally, each exit code read from its own log.
-- [ ] Deleting a card removes its comments; deleting a user does **not**, and leaves them authorless — confirmed in `pg_constraint` and by a real delete, not only in `schema.ts`.
+- [ ] Deleting a card removes its comments; deleting a user does **not**, and leaves both their cards and their comments authorless — confirmed in `pg_constraint` and by a real delete, not only in `schema.ts`.
 - [ ] A cold load of a card URL renders a page, and a click renders a modal, checked in a real browser and not only in Playwright.
-- [ ] Browser-back from the modal leaves the board mounted **with its optimistic state intact** — make a change on the board, open a card, go back, and confirm the change is still there.
+- [ ] Browser-back from the modal leaves the board mounted **with its optimistic state intact** — proved by `e2e/card-modal.spec.ts`'s `the board keeps client-only state alive behind the modal` test (Task 5), not a manual check.
 - [ ] A rejected comment rolls back and says so, forced.
 - [ ] A `viewer` can comment and cannot edit any card field, and the field actions refuse a `viewer` when called directly.
 - [ ] A due date set as today still reads as today in a browser set to UTC-8.

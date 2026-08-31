@@ -162,6 +162,7 @@ comments           id, cardId, authorId, body, createdAt, updatedAt
 Rules:
 
 - `cards.boardId` is denormalised deliberately — every permission check and every realtime event keys off the board, and this avoids a join on the hot path. Keep it consistent with `columnId`'s board in every write.
+- `cards.createdById` is nullable and sets null on delete, not cascade: `comments.cardId` cascades from `cards`, so a cascading `createdById` would delete every comment on a card once its creator's account is gone — including comments left by other people, on boards the creator never owned.
 - Deleting a column requires a target column to move its cards into. Never cascade-delete cards with the column.
 - Comments and cards are soft-delete free for now: hard delete, but only via an action that checks role.
 - Index `cards(columnId, rank)`, `cards(boardId)`, `comments(cardId, createdAt)`, `board_members(userId)`.

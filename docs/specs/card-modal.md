@@ -137,11 +137,16 @@ avatar, because there is no id left to hash a colour from.
 It also settles a permission question without a second rule: a comment with no
 author can be edited and deleted by nobody.
 
-**Left alone, and raised rather than fixed:** `cards.createdById` already
-cascades from `users`, so deleting an account deletes every card that person
-created on other people's boards. No published text contradicts it, so it is out
-of scope here — but it is the same shape of surprise and belongs in open
-decisions.
+**Fixed here, not left alone.** `cards.createdById` cascaded from `users`, so
+deleting an account would delete every card that person created on other
+people's boards — and, because this sub-project also makes `comments.cardId`
+cascade from `cards`, every comment on those cards too, including comments left
+by people who never touched their own account. That second half is new: the
+cascade only becomes a policy contradiction once comments cascade from cards,
+and that cascade is this sub-project's doing, not something the app already
+shipped. `cards.createdById` gets the same shape as `comments.authorId` above —
+nullable, `set null` — for the same reason: a card a deleted user created lives
+on, authorless, and its comments, including other people's, survive with it.
 
 ### Server actions
 
@@ -160,11 +165,12 @@ requires:
 - `deleteComment({ commentId })` — author only
 
 `viewer` commenting is not a relaxation invented here; `CLAUDE.md` grants viewers
-read and comment. It does mean the modal needs two derived booleans where the
-canvas needed one: `canWrite` for the fields and `canComment` for the composer.
-Both are computed on the server and passed down, never a role the client resolves
-— `lib/permissions.ts` imports `lib/db` and cannot be reached from a client
-component.
+read and comment. Both pages already `notFound()` anyone below `viewer`, so the
+right to comment is established by reaching the page at all — there is no second
+gate to compute. `canWrite` is the modal's only derived boolean, the same as the
+canvas's, computed on the server and passed down, never a role the client
+resolves — `lib/permissions.ts` imports `lib/db` and cannot be reached from a
+client component.
 
 Author-only resolves in one query through a new `commentScope(commentId)` in
 `lib/actions/scope.ts`, returning `{ boardId, authorId }`. **The order is
@@ -318,8 +324,8 @@ value nothing can set is not demonstrable.
   read from redirected logs rather than from a pipeline's summary line, and the
   number that ran compared against the number collected.
 - Deleting a card removes its comments; deleting a user does **not**, and leaves
-  them authorless — confirmed in `pg_constraint` and by a real delete, not only in
-  `schema.ts`.
+  both their cards and their comments authorless — confirmed in `pg_constraint`
+  and by a real delete, not only in `schema.ts`.
 - A cold load of a card URL renders a page, and a click renders a modal, checked
   in a real browser and not only in Playwright.
 - Browser-back from the modal leaves the board mounted, with its optimistic state
@@ -334,9 +340,6 @@ value nothing can set is not demonstrable.
 
 ## Open decisions carried forward
 
-- **`cards.createdById` cascades from `users`.** Deleting an account deletes
-  cards that person created on boards they do not own. Surfaced by this
-  sub-project's audit of `comments.authorId`; deliberately not changed here.
 - **Comment length beyond 4,000 characters**, if sub-project 6's payload budget
   turns out to be tighter than expected.
 - **Whether a card's column and board are shown on the canonical page.** It has
@@ -358,3 +361,6 @@ value nothing can set is not demonstrable.
   intercept is the documented same-level case, and `CLAUDE.md` is corrected.
 - `comments.authorId` sets null on user deletion, to keep a promise `/privacy`
   already makes.
+- `cards.createdById` sets null too, once this sub-project's own
+  `comments.cardId` cascade would otherwise turn that column's existing cascade
+  into a way to delete other people's comments.
