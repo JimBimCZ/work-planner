@@ -1952,6 +1952,16 @@ Pure. No React, no database, no server actions. It is the only place the canvas'
 
 **Why inverse operations rather than a snapshot:** restoring a snapshot also undoes anything that landed while the failed request was in flight. `card.settle` has no inverse — settling a temp id is a reconciliation with the server, not an optimistic guess, so it returns `[]`.
 
+**Round-trip assertions compare rendered output, not raw state.** `BoardState`'s arrays carry no
+ordering: `orderedColumns` and `cardsIn` both sort by rank, and every consumer from Task 10 onward
+reads through them. An inverse therefore restores an entity's *identity*, not its array slot —
+`card.create` appends, so undoing a delete puts the card back at the end of the array. Asserting
+`toEqual(base())` on the state fails on that alone while every selector agrees, which is what it did
+when this plan was first executed. Comparing `orderedColumns` plus `cardsIn` per column is
+insensitive to the slot and stricter about what matters: it also pins the restored rank, which a
+whole-state `toEqual` would let through if the reducer put the card back in the right position with
+the wrong rank.
+
 - [ ] **Step 1: Write the failing test**
 
 Create `lib/board-state.test.ts`:
@@ -1965,6 +1975,7 @@ import {
   cardsIn,
   inverse,
   orderedColumns,
+  type BoardAction,
   type BoardState,
 } from './board-state';
 
@@ -2089,38 +2100,49 @@ describe('column actions', () => {
 });
 
 describe('inverses', () => {
+  // Compared through the selectors, not with toEqual on the state: raw array
+  // position carries no meaning here — orderedColumns and cardsIn both sort by
+  // rank, and an inverse restores an entity's identity, not its array slot.
+  const rendered = (state: BoardState) =>
+    orderedColumns(state).map((column) => [column, cardsIn(state, column.id)] as const);
+
+  const restoresTheBoard = (action: BoardAction) => {
+    const next = boardReducer(base(), action);
+    expect(rendered(applyAll(next, inverse(base(), action)))).toEqual(rendered(base()));
+  };
+
   test('undo a create by deleting it', () => {
     const card = { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x' };
     const action = { type: 'card.create', card } as const;
 
-    const next = boardReducer(base(), action);
-    expect(applyAll(next, inverse(base(), action))).toEqual(base());
+    restoresTheBoard(action);
   });
 
   test('undo a rename by restoring the old title', () => {
     const action = { type: 'card.rename', cardId: 'card-a', title: 'Renamed' } as const;
-    const next = boardReducer(base(), action);
-    expect(applyAll(next, inverse(base(), action))).toEqual(base());
+    restoresTheBoard(action);
   });
 
   test('undo a delete by putting the card back', () => {
     const action = { type: 'card.delete', cardId: 'card-a' } as const;
-    const next = boardReducer(base(), action);
-    expect(applyAll(next, inverse(base(), action))).toEqual(base());
+    restoresTheBoard(action);
   });
 
   test('undo a move by moving it back', () => {
     const action = { type: 'card.move', cardId: 'card-a', toColumnId: 'col-2', rank: 'z0' } as const;
-    const next = boardReducer(base(), action);
-    expect(applyAll(next, inverse(base(), action))).toEqual(base());
+    restoresTheBoard(action);
   });
 
   test('undo a column delete by restoring it and every card in it', () => {
-    const action = {
-      type: 'column.delete', columnId: 'col-1', targetColumnId: 'col-2', ranks: ['e0', 'e1'],
-    } as const;
-    const next = boardReducer(base(), action);
-    expect(applyAll(next, inverse(base(), action))).toEqual(base());
+    // Annotated rather than `as const`: `as const` makes `ranks` a readonly
+    // tuple, which BoardAction's mutable string[] does not accept.
+    const action: BoardAction = {
+      type: 'column.delete',
+      columnId: 'col-1',
+      targetColumnId: 'col-2',
+      ranks: ['e0', 'e1'],
+    };
+    restoresTheBoard(action);
   });
 
   test('settling is a reconciliation, so it has no inverse', () => {
