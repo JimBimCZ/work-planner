@@ -96,16 +96,23 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   }, [register, canWrite, firstColumnId]);
 
   // Below 700px one column fills the screen, so the tab has to follow a swipe
-  // as well as a click. 0.6 is past the point where two columns can both
-  // qualify, so the entry that is intersecting is the one on screen.
+  // as well as a click. A callback only carries the columns whose visibility
+  // changed, so the ratios are kept across calls and the largest one wins:
+  // crossing the breakpoint back down reports only the columns that left, and
+  // reading those alone would leave the tab on a column nobody can see.
   useEffect(() => {
+    const ratios = new Map<string, number>();
     const observer = new IntersectionObserver(
       (entries) => {
-        const visible = entries.find((entry) => entry.isIntersecting);
-        const id = visible?.target.getAttribute('data-column-id');
-        if (id) setActiveColumnId(id);
+        for (const entry of entries) {
+          const id = entry.target.getAttribute('data-column-id');
+          if (id) ratios.set(id, entry.intersectionRatio);
+        }
+
+        const [onScreen] = [...ratios].sort(([, a], [, b]) => b - a);
+        if (onScreen && onScreen[1] > 0) setActiveColumnId(onScreen[0]);
       },
-      { threshold: 0.6 },
+      { threshold: [0.6, 1] },
     );
 
     for (const element of columnRefs.current.values()) observer.observe(element);
