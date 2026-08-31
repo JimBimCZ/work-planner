@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 
 import {
   daysUntilDue,
@@ -27,6 +27,30 @@ describe('daysUntilDue', () => {
 
   test('and at 00:30', () => {
     expect(daysUntilDue(due(2026, 9, 1), at(2026, 9, 1, 0))).toBe(0);
+  });
+});
+
+describe('west of Greenwich', () => {
+  // The local-vs-UTC distinction in localDay is only observable when the
+  // runner's zone differs from UTC, and CI (ubuntu-latest, no TZ set) runs in
+  // UTC — so this block pins a zone itself rather than depending on where the
+  // suite happens to run, and restores it afterwards.
+  const originalTz = process.env.TZ;
+
+  beforeAll(() => {
+    process.env.TZ = 'America/Los_Angeles';
+  });
+
+  afterAll(() => {
+    process.env.TZ = originalTz;
+  });
+
+  test('a date due today is today, even at 23:00', () => {
+    expect(daysUntilDue(due(2026, 9, 1), at(2026, 9, 1, 23))).toBe(0);
+  });
+
+  test('and dueState still says soon', () => {
+    expect(dueState(due(2026, 9, 1), at(2026, 9, 1, 23))).toBe('soon');
   });
 });
 
