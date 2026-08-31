@@ -565,7 +565,7 @@ git commit -m "test: prove the comment and card-authorship referential actions a
 - [ ] **Production is migrated by hand before this merges**, not after. Vercel deploys from `main` and CI cannot gate it:
       `MIGRATE_URL="$(npx --yes neonctl@4 connection-string main --project-id withered-glade-54206401)" pnpm db:migrate`
 - [ ] CI is green on the PR — that is what proves the migration applies to an empty database.
-- [ ] Open the PR. Stop. Start Section 3 in a fresh session.
+- [x] Open the PR. Stop. Start Section 3 in a fresh session. — PR #53.
 
 ---
 
