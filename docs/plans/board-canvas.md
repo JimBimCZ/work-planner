@@ -564,7 +564,7 @@ git commit -m "feat: read a board's cards and the caller's role"
       joins `cards`, so the usual order would leave a window between Vercel's deploy and the hand-run
       migration where `/boards/[boardId]` throws `relation "cards" does not exist` for every user.
       Migration `0002` is purely additive and no code deployed today references `cards`, so there is
-      nothing to lose by running it first: `MIGRATE_URL="$(npx neonctl@4 connection-string main
+      nothing to lose by running it first: `MIGRATE_URL="$(npx --yes neonctl@4 connection-string main
       --project-id withered-glade-54206401)" pnpm db:migrate`, then `\dt` against production to
       confirm `cards` exists — before merging the PR, not after.
 - [ ] Open the PR, saying plainly that nothing user-visible changed. Stop. Start Section B in a fresh session.
