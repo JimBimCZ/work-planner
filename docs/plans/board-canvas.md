@@ -3959,11 +3959,15 @@ git commit -m "feat: delete a column into a target that keeps its cards"
 
 ### Section D gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
-- [ ] Adding a sixth column re-interpolates the whole spectrum — confirmed by eye in a browser, not only by the passing test.
-- [ ] A column holding cards cannot be deleted without naming a target, and the cards arrive below the target's existing ones.
-- [ ] The Delete item is not offered on a board with one column.
-- [ ] Screenshots of a six-column board, both themes, attached to the PR.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+      typecheck clean; `pnpm build` clean; eslint 0 errors and the 2 pre-existing `_pending` warnings
+      in `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 46 passed, exit 0.
+- [x] Adding a sixth column re-interpolates the whole spectrum — confirmed by eye in a browser, not only by the passing test. Captured a five-column board, added "Blocked" through the menu, and captured it again at the same viewport: every column right of the insertion shifts hue, so the rule still runs one unbroken 225°→145° band over six columns instead of five.
+- [x] A column holding cards cannot be deleted without naming a target, and the cards arrive below the target's existing ones. The dialog has no path that submits without a target, and `arriving cards land below the ones already there` seeds both cards at rank `a0`, so the asserted order can only come from the re-rank the delete performs.
+- [x] The Delete item is not offered on a board with one column. Checked in a browser on a board reduced to one column: the menu offers Rename, a disabled Move left, a disabled Move right and Add column right, and no Delete item at all.
+- [ ] Screenshots of a six-column board, both themes, attached to the PR. Captured in both themes and
+      described in the PR body, but **not attached** — images cannot be uploaded to GitHub from the
+      CLI, so this stays a manual step.
 - [ ] Open the PR. Stop. Start Section E in a fresh session.
 
 ---

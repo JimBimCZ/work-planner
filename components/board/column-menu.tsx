@@ -48,7 +48,7 @@ export function ColumnMenu({
         >
           ⋯
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="min-w-44">
           <DropdownMenuItem onSelect={() => setOpen('rename')}>Rename</DropdownMenuItem>
           <DropdownMenuItem disabled={isFirst} onSelect={() => onMove('left')}>
             Move left
