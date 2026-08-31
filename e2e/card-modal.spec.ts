@@ -7,6 +7,7 @@ import {
   seedCard,
   seedMember,
   seedSession,
+  written,
 } from './support/session';
 
 test.afterAll(async () => {
@@ -64,10 +65,10 @@ test('a cold load of the card URL renders a page, not a modal', async ({ page, c
   try {
     await page.goto(`/boards/${boardId}/cards/${cardId}`);
 
-    // Attached, not visible: Task 6 makes the writer's heading sr-only, and
-    // whether Playwright calls a clipped 1px element visible should not decide
-    // this test. The Section 3 gate's screenshots cover what is on screen.
-    await expect(page.getByRole('heading', { name: 'Ship it' })).toBeAttached();
+    // The writer's title lives in the editable input now — CardBody carries
+    // no heading of its own once CardModal supplies the dialog's accessible
+    // name (Task 6), and this page never mounts CardModal.
+    await expect(page.getByRole('textbox', { name: 'Card title' })).toHaveValue('Ship it');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(page.locator('[data-column-id]')).toHaveCount(0);
     // The cold load has no history entry to go back to, so the page needs its
@@ -146,6 +147,56 @@ test('the board keeps client-only state alive behind the modal', async ({ page, 
     await expect(page.getByRole('dialog')).toHaveCount(0);
     // A remount would have closed the composer along with everything else.
     await expect(page.getByLabel('Card title')).toBeVisible();
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+test('a title edited in the modal changes the card behind it', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  await seedCard(ready.id, { boardId, createdById: userId, title: 'Ship it' });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await page.getByTestId('card-title').filter({ hasText: 'Ship it' }).click();
+
+    const title = page.getByRole('textbox', { name: 'Card title' });
+    await title.fill('Ship it twice');
+    // The promise is created before the action that fires the POST, the same
+    // pattern the description test below already uses.
+    const saved = written(page);
+    await title.blur();
+    await saved;
+
+    await page.goBack();
+    await expect(page.getByTestId('card-title')).toHaveText(['Ship it twice']);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+test('a description survives a reload', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, { boardId, createdById: userId, title: 'Ship it' });
+
+  try {
+    await page.goto(`/boards/${boardId}/cards/${cardId}`);
+    const description = page.getByRole('textbox', { name: 'Description' });
+    await description.fill('Because the board is the product');
+    // The promise is created before the action that fires the POST. Created
+    // after, it can miss the response and hang to timeout.
+    const saved = written(page);
+    await description.blur();
+    await saved;
+
+    await page.reload();
+    await expect(page.getByRole('textbox', { name: 'Description' })).toHaveValue(
+      'Because the board is the product',
+    );
   } finally {
     await removeSeededUser(userId);
   }
