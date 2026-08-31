@@ -27,6 +27,7 @@ export type BoardCardRow = {
   title: string;
   rank: string;
   createdAt: Date;
+  dueDate: Date | null;
 };
 
 export type BoardColumnRow = { id: string; name: string; rank: string; cards: BoardCardRow[] };
@@ -45,7 +46,14 @@ export const getBoardWithColumns = cache(async (boardId: string): Promise<BoardW
         orderBy: (column, { asc }) => [asc(column.rank)],
         with: {
           cards: {
-            columns: { id: true, columnId: true, title: true, rank: true, createdAt: true },
+            columns: {
+              id: true,
+              columnId: true,
+              title: true,
+              rank: true,
+              createdAt: true,
+              dueDate: true,
+            },
             orderBy: (card, { asc }) => [asc(card.rank), asc(card.createdAt), asc(card.id)],
           },
         },

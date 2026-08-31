@@ -3,9 +3,11 @@
 import { type Dispatch, type SetStateAction, useState, useTransition } from 'react';
 
 import { useBoardActions } from '@/components/board/board-actions';
+import { CardDueDate } from '@/components/board/card-due-date';
 import { useCardEscapeGuard } from '@/components/board/card-modal';
-import { renameCard, setCardDescription } from '@/lib/actions/cards';
+import { renameCard, setCardDescription, setCardDueDate } from '@/lib/actions/cards';
 import type { CardForView } from '@/lib/cards';
+import { toDateInputValue } from '@/lib/due';
 
 export function CardBody({
   card,
@@ -21,6 +23,7 @@ export function CardBody({
   const [savedTitle, setSavedTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description ?? '');
   const [savedDescription, setSavedDescription] = useState(card.description ?? '');
+  const [dueDate, setDueDate] = useState(card.dueDate ? toDateInputValue(card.dueDate) : null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -80,6 +83,29 @@ export function CardBody({
     });
   };
 
+  // Unlike title and description, this field keeps its own immediate
+  // optimistic setDueDate(next): a controlled date input must show the picked
+  // value at once, and commitField's shared path assumes the field already
+  // holds `next` before it is called. The no-op guard and the late-response
+  // guard on rollback still match commitField's behaviour, because the brief
+  // commits on both change and blur and a rejection landing late must not
+  // clobber a value set after it.
+  const commitDueDate = (next: string | null) => {
+    if (next === dueDate) return;
+    const previous = dueDate;
+    setDueDate(next);
+    setError(null);
+    startTransition(async () => {
+      const result = await setCardDueDate({ cardId: card.id, dueDate: next });
+      if (result.ok) {
+        patchCard?.(card.id, { dueDate: next });
+      } else {
+        setDueDate((current) => (current === next ? previous : current));
+        setError('That due date could not be saved. Try again.');
+      }
+    });
+  };
+
   const commitDescription = () => {
     const next = description.trim();
     commitField({
@@ -98,6 +124,7 @@ export function CardBody({
         {showHeading ? (
           <h2 className="text-sm font-medium leading-5 text-ink">{savedTitle}</h2>
         ) : null}
+        <CardDueDate value={dueDate} canWrite={canWrite} onCommit={commitDueDate} />
         <p className="whitespace-pre-wrap text-[15px] leading-6 text-ink">
           {savedDescription || <span className="text-muted">No description yet</span>}
         </p>
@@ -119,6 +146,7 @@ export function CardBody({
         }}
         className="rounded-[var(--radius-control)] border border-line bg-surface px-2 py-1 text-sm font-medium text-ink"
       />
+      <CardDueDate value={dueDate} canWrite={canWrite} onCommit={commitDueDate} />
       <textarea
         aria-label="Description"
         value={description}

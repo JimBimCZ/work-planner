@@ -70,6 +70,7 @@ describe('getBoardWithColumns', () => {
       title: true,
       rank: true,
       createdAt: true,
+      dueDate: true,
     });
   });
 

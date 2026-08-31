@@ -6,6 +6,35 @@ import Link from 'next/link';
 
 import { CardMenu } from '@/components/board/card-menu';
 import type { StateCard } from '@/lib/board-state';
+import { dueLabel, dueState, formatDue, fromDateInputValue } from '@/lib/due';
+import { useMounted } from '@/lib/use-mounted';
+
+function DueDate({ value }: { value: string }) {
+  const due = fromDateInputValue(value);
+  // Server and client can disagree about "today" AND about locale —
+  // formatDue resolves Intl's default locale when none is passed, Node's on
+  // the server and the browser's on the client. Both the warm state and the
+  // date text wait for the client so neither can hydrate to a mismatch.
+  // now is derived, not stored: it re-evaluates on every render rather than
+  // freezing at mount, so a board left open across midnight still compares
+  // against today rather than the day it was opened.
+  const mounted = useMounted();
+
+  if (!due || !mounted) return null;
+  const now = new Date();
+
+  const state = dueState(due, now);
+  const label = dueLabel(due, now);
+  const tone =
+    state === 'over' ? 'text-time-over' : state === 'soon' ? 'text-time-soon' : 'text-muted';
+
+  return (
+    <p className={`mt-1.5 font-mono text-xs ${tone}`}>
+      {formatDue(due)}
+      {label ? ` · ${label}` : ''}
+    </p>
+  );
+}
 
 export function BoardCard({
   card,
@@ -77,6 +106,8 @@ export function BoardCard({
           </Link>
         )}
       </h3>
+
+      {card.dueDate ? <DueDate value={card.dueDate} /> : null}
 
       {canWrite ? (
         <CardMenu

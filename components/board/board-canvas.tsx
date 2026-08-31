@@ -39,6 +39,7 @@ import {
   type StateColumn,
 } from '@/lib/board-state';
 import type { BoardWithCards } from '@/lib/boards';
+import { toDateInputValue } from '@/lib/due';
 import { flowHue } from '@/lib/flow';
 import { rankBetween, ranksAfter } from '@/lib/rank';
 
@@ -62,6 +63,7 @@ function seed(board: BoardWithCards): BoardState {
         title: card.title,
         rank: card.rank,
         createdAt: card.createdAt.toISOString(),
+        dueDate: card.dueDate ? toDateInputValue(card.dueDate) : null,
       })),
     ),
   };
@@ -101,6 +103,9 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   useEffect(() => {
     registerPatchCard((cardId, patch) => {
       if (patch.title !== undefined) dispatch({ type: 'card.rename', cardId, title: patch.title });
+      if (patch.dueDate !== undefined) {
+        dispatch({ type: 'card.setDueDate', cardId, dueDate: patch.dueDate });
+      }
     });
     return () => registerPatchCard(null);
   }, [registerPatchCard]);
@@ -151,6 +156,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
         title,
         rank: ranksAfter(last?.rank ?? null, 1)[0],
         createdAt: new Date().toISOString(),
+        dueDate: null,
         pending: true,
       },
     });
