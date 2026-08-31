@@ -950,6 +950,14 @@ Expected: FAIL — `./cards` does not exist.
 
 - [ ] **Step 3: Write the implementation**
 
+`createCard` hoists `const createdById = session.user.id` instead of reading it where it is used. The
+`!session?.user?.id` guard narrows a *property chain*, and TypeScript drops that narrowing inside a
+nested function — so `session.user.id` is `string | undefined` again inside the `db.transaction`
+callback and `tsc` rejects the insert. A plain `const` carries its own narrowing across the boundary.
+`createBoard` in `lib/actions/boards.ts` already does this with `ownerId`; the amendment brings this
+action into line rather than inventing a pattern. Only `createCard` needs it — no other action in this
+section touches the session inside its transaction.
+
 Create `lib/actions/cards.ts`:
 
 ```ts
@@ -981,11 +989,13 @@ export async function createCard(input: unknown) {
   const parsed = createSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
 
+  const createdById = session.user.id;
+
   const boardId = await boardIdForColumn(parsed.data.columnId);
   if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
 
   try {
-    await assertBoardAccess(session.user.id, boardId, 'member');
+    await assertBoardAccess(createdById, boardId, 'member');
   } catch (error) {
     return boardAccessResult(error);
   }
@@ -1006,7 +1016,7 @@ export async function createCard(input: unknown) {
         columnId: parsed.data.columnId,
         title: parsed.data.title,
         rank,
-        createdById: session.user.id,
+        createdById,
       })
       .returning();
 
