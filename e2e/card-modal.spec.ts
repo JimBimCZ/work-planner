@@ -110,7 +110,10 @@ test('a viewer opens a card and cannot edit its fields', async ({ page, context 
 
   try {
     await page.goto(`/boards/${boardId}/cards/${cardId}`);
-    await expect(page.getByRole('heading', { name: 'Ship it' })).toBeVisible();
+    // Attached, not visible: Task 6 makes the writer's heading sr-only, and
+    // whether Playwright calls a clipped 1px element visible should not
+    // decide this test.
+    await expect(page.getByRole('heading', { name: 'Ship it' })).toBeAttached();
     // A viewer's body has no inputs at all, so this heading is a real one.
     await expect(page.getByRole('textbox', { name: 'Card title' })).toHaveCount(0);
     await expect(page.getByRole('textbox', { name: 'Description' })).toHaveCount(0);
