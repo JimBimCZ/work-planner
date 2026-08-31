@@ -3362,8 +3362,10 @@ git commit -m "feat: rename, move and delete a card from its menu"
 - [x] `components/board/column-shell.tsx` is deleted, not left orphaned. It was renamed to `board-column.tsx` in 582a256; no file of that name exists.
 - [x] No component except `board-canvas.tsx` imports a server action. `grep -rn "from '@/lib/actions/" components/` returns only `board-canvas.tsx` inside `components/board/`; the other three hits are the pre-existing account menu and board-list components.
 - [x] A viewer, checked in a browser and not only in Playwright, sees a board with no "New card", no "Add card" and no card menus. Rendered at 1280x800 with the first card hovered and the screenshot read by eye, not only asserted: the header carries the avatar alone, no column has an "Add card" foot, and the hovered card shows no `⋯`.
-- [ ] Screenshots of the board with cards, in both themes, attached to the PR.
-- [ ] Open the PR. Stop. Start Section D in a fresh session.
+- [ ] Screenshots of the board with cards, in both themes, attached to the PR. Captured at 1280x800 in
+      both themes plus the viewer's board, and described in the PR body — but **not attached**, since
+      images cannot be uploaded to GitHub from the CLI. They need dragging in by hand.
+- [x] Open the PR. Stop. Start Section D in a fresh session. — PR #45.
 
 ---
 
