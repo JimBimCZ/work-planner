@@ -3355,11 +3355,13 @@ git commit -m "feat: rename, move and delete a card from its menu"
 
 ### Section C gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
-- [ ] `e2e/board-view.spec.ts` still passes unchanged — the flow rule, the wash and the five column names survived the rewrite from `ColumnShell`.
-- [ ] `components/board/column-shell.tsx` is deleted, not left orphaned.
-- [ ] No component except `board-canvas.tsx` imports a server action.
-- [ ] A viewer, checked in a browser and not only in Playwright, sees a board with no "New card", no "Add card" and no card menus.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
+      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
+- [x] `e2e/board-view.spec.ts` still passes unchanged — the flow rule, the wash and the five column names survived the rewrite from `ColumnShell`. `git diff 582a256..HEAD -- e2e/board-view.spec.ts` is empty, so Tasks 11 and 12 did not touch it.
+- [x] `components/board/column-shell.tsx` is deleted, not left orphaned. It was renamed to `board-column.tsx` in 582a256; no file of that name exists.
+- [x] No component except `board-canvas.tsx` imports a server action. `grep -rn "from '@/lib/actions/" components/` returns only `board-canvas.tsx` inside `components/board/`; the other three hits are the pre-existing account menu and board-list components.
+- [x] A viewer, checked in a browser and not only in Playwright, sees a board with no "New card", no "Add card" and no card menus. Rendered at 1280x800 with the first card hovered and the screenshot read by eye, not only asserted: the header carries the avatar alone, no column has an "Add card" foot, and the hovered card shows no `⋯`.
 - [ ] Screenshots of the board with cards, in both themes, attached to the PR.
 - [ ] Open the PR. Stop. Start Section D in a fresh session.
 
@@ -3936,7 +3938,9 @@ git commit -m "feat: delete a column into a target that keeps its cards"
 
 ### Section D gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
+      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
 - [ ] Adding a sixth column re-interpolates the whole spectrum — confirmed by eye in a browser, not only by the passing test.
 - [ ] A column holding cards cannot be deleted without naming a target, and the cards arrive below the target's existing ones.
 - [ ] The Delete item is not offered on a board with one column.
@@ -4432,7 +4436,9 @@ git commit -m "feat: the drag tilt, the settle, and the reduced-motion path"
 
 ### Section E gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
+      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
 - [ ] Task 15's probe outcome is recorded in the PR body, including any React 19 console warning, and `app/design/dnd-probe/` is gone.
 - [ ] A card dragged across columns survives a reload, and **exactly one `cards` row changed** — confirmed with a `select` against the dev branch, not inferred from the UI.
 - [ ] **A rejected move puts the card back and says so in the status strip.** Force it — temporarily make `moveCard` return `{ ok: false, error: 'INVALID' }`, observe the revert and the message, then undo the change. Do not skip this because the inverse is unit-tested; the wiring is not.
@@ -4664,7 +4670,9 @@ git commit -m "feat: one column at a time below 700px, with a switcher"
 
 ### Section F gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
+      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
 - [ ] The board is usable at 360px **in a real browser**, not only in Playwright: one column fills the viewport, the switcher reaches every column, and nothing overflows the page sideways.
 - [ ] Dragging a card still works at 360px within the visible column, and **Move to** is how it crosses columns.
 - [ ] The wide board is unchanged — 312px columns, no snapping, no switcher.
