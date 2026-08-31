@@ -213,7 +213,7 @@ Nothing user-visible. Landing the migration alone lets production be hand-migrat
 - Consumes: `cards`, `users` from `lib/db/schema.ts`.
 - Produces: `comments` table with columns `id`, `cardId`, `authorId` (nullable), `body`, `createdAt`, `updatedAt`; `commentsRelations` with `card` and `author`; `cardsRelations` gains `comments: many(comments)`; `cards.createdById` becomes nullable with `onDelete: 'set null'` (was `notNull`, `onDelete: 'cascade'`).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `lib/db/schema.test.ts`:
 
@@ -260,7 +260,7 @@ Add `comments` to the schema import at the top of the file, matching how `cards`
   expect(actions).toContainEqual({ column: 'created_by_id', onDelete: 'set null' });
   ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/db/schema.test.ts > /tmp/schema.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/schema.log
@@ -268,7 +268,7 @@ pnpm exec vitest run lib/db/schema.test.ts > /tmp/schema.log 2>&1; echo "EXIT=$?
 
 Expected: FAIL — `comments` is not exported from `@/lib/db/schema`.
 
-- [ ] **Step 3: Write the schema**
+- [x] **Step 3: Write the schema**
 
 In `lib/db/schema.ts`, after the `cards` table:
 
@@ -319,7 +319,7 @@ export const commentsRelations = relations(comments, ({ one }) => ({
 
 (was `.notNull()` with `onDelete: 'cascade'`.)
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 ```bash
 pnpm exec vitest run lib/db/schema.test.ts > /tmp/schema.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/schema.log
@@ -327,7 +327,7 @@ pnpm exec vitest run lib/db/schema.test.ts > /tmp/schema.log 2>&1; echo "EXIT=$?
 
 Expected: EXIT=0, three new tests passing.
 
-- [ ] **Step 5: Generate the migration and read the SQL**
+- [x] **Step 5: Generate the migration and read the SQL**
 
 ```bash
 pnpm db:generate > /tmp/gen.log 2>&1; echo "EXIT=$?"
@@ -342,7 +342,7 @@ cat lib/db/migrations/0003_*.sql
 
 If any of the four is wrong, fix `schema.ts` and regenerate. Never hand-edit generated SQL.
 
-- [ ] **Step 6: Apply it to the dev branch and prove it landed**
+- [x] **Step 6: Apply it to the dev branch and prove it landed**
 
 ```bash
 pnpm db:migrate > /tmp/migrate.log 2>&1; echo "EXIT=$?"; tail -3 /tmp/migrate.log
@@ -378,7 +378,7 @@ rm ./check-comments.mjs
 
 Expected: `author_id` `is_nullable = YES`; `confdeltype` **c** for the card FK and **n** (set null) for the author FK. `cards.created_by_id` is now the same shape — `is_nullable = YES`, `confdeltype` **n** — since a card's creator can be gone the same way a comment's author can.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/db/schema.ts lib/db/schema.test.ts lib/db/migrations
@@ -402,7 +402,7 @@ creator does not own."
 - Consumes: `seedSession`, `seedBoard`, `boardColumns`, `seedCard`, `removeSeededUser`, `closeSeedPool` from `e2e/support/session.ts`.
 - Produces: `seedComment(cardId, authorId, body?): Promise<string>` exported from `e2e/support/session.ts`.
 
-- [ ] **Step 1: Write the seed helper**
+- [x] **Step 1: Write the seed helper**
 
 Append to `e2e/support/session.ts`:
 
@@ -421,7 +421,7 @@ export async function seedComment(
 }
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Append to `e2e/schema.spec.ts`:
 
@@ -526,7 +526,7 @@ test('deleting a user leaves a card they created elsewhere in place, authorless'
 
 Add `seedComment` and `seedMember` to the import list at the top of `e2e/schema.spec.ts`.
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/e2e.log
@@ -534,7 +534,9 @@ pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: EXIT=1. If the migration has not been applied to the dev branch, the failure is `relation "comments" does not exist` — that is Task 2 Step 6 not done, not a test bug.
 
-- [ ] **Step 4: Make them pass**
+Observed: the predicted RED never happened. Task 2 Step 6 had already applied migration `0003` to the dev branch, so all three specs were green on their first run. The RED capability was proved afterwards instead, by inverting one load-bearing assertion per test and watching each fail for the expected reason: test 3's inversion — asserting `created_by_id` still equalled the deleted user's id — printed the surviving row as `{created_by_id: null, title: "Left behind"}`, which is the `set null` behaviour itself, not a broken test.
+
+- [x] **Step 4: Make them pass**
 
 No implementation is needed: the schema from Task 2 is what these prove. Re-run after confirming the migration landed:
 
@@ -544,7 +546,7 @@ pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: EXIT=0, five tests in this file.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add e2e/support/session.ts e2e/schema.spec.ts
@@ -553,16 +555,17 @@ git commit -m "test: prove the comment and card-authorship referential actions a
 
 ### Section 2 gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, each exit code read from its own redirected log, and the count that ran compared against the count collected.
-- [ ] The generated SQL was **read**: `author_id` has no `NOT NULL` and carries `ON DELETE set null`; `card_id` carries `ON DELETE cascade`.
-- [ ] `information_schema` and `pg_constraint` on the dev branch agree with the SQL — `confdeltype` **n** for the author FK, **c** for the card FK.
-- [ ] `cards.created_by_id` was changed the same way — no `NOT NULL`, `ON DELETE set null` — confirmed in the generated SQL and in `pg_constraint`.
-- [ ] Both referential actions are proved by a real delete, not only by `schema.ts`, including that a card outlives the user who created it.
-- [ ] Nothing user-visible changed. Say so in the PR.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, each exit code read from its own redirected log, and the count that ran compared against the count collected. Observed: `pnpm typecheck` EXIT=0; `pnpm lint` EXIT=0 (2 pre-existing warnings, both `_pending` unused in `lib/board-state.ts`, untouched by this branch); `pnpm test` EXIT=0, 173 passed across 16 files; `pnpm exec playwright test` EXIT=0, "Running 59 tests" and "59 passed" — collected equals passed.
+- [x] The generated SQL was **read**: `author_id` has no `NOT NULL` and carries `ON DELETE set null`; `card_id` carries `ON DELETE cascade`. Observed: `"author_id" text` carries no `NOT NULL` and its FK is `ON DELETE set null`; `card_id` is `ON DELETE cascade`; `CREATE INDEX "comments_card_id_created_at_idx"` on `("card_id","created_at")`; and `cards` gets `DROP CONSTRAINT`, `ALTER COLUMN "created_by_id" DROP NOT NULL`, then the FK re-added as `ON DELETE set null`.
+- [x] `information_schema` and `pg_constraint` on the dev branch agree with the SQL — `confdeltype` **n** for the author FK, **c** for the card FK. Observed: against the Neon dev branch, `information_schema` reports `comments.author_id` and `cards.created_by_id` both `is_nullable = YES`; `pg_constraint` reports `confdeltype` `c` for `comments_card_id_cards_id_fk` and `n` for both `comments_author_id_user_id_fk` and `cards_created_by_id_user_id_fk`, all `convalidated = true`.
+- [x] `cards.created_by_id` was changed the same way — no `NOT NULL`, `ON DELETE set null` — confirmed in the generated SQL and in `pg_constraint`. Observed: confirmed in the same SQL read and `pg_constraint` query above — `cards_created_by_id_user_id_fk` has `confdeltype = n` and `cards.created_by_id.is_nullable = YES`.
+- [x] Both referential actions are proved by a real delete, not only by `schema.ts`, including that a card outlives the user who created it. Observed: proved by real deletes in `e2e/schema.spec.ts`, not only by `schema.ts` — including that a card outlives the user who created it.
+- [x] Nothing user-visible changed. Say so in the PR. Observed: the diff touches only `lib/db/`, `e2e/`, and documentation.
+- [x] Migration safety, established by the whole-branch review: `drizzle-kit migrate` delegates to drizzle-orm's `PgDialect.migrate`, which wraps every pending migration file in a single transaction — so `cards` is never left without its foreign key, and any failure rolls the file back. `ALTER COLUMN ... DROP NOT NULL` is catalog-only and `ADD CONSTRAINT` validates without rewriting the table. The caveat, true but not actionable at today's row counts: the `DROP CONSTRAINT`'s ACCESS EXCLUSIVE lock on `cards` and `user` is held until commit, so if `cards` ever grows large the pattern becomes `ADD CONSTRAINT ... NOT VALID` plus a separate `VALIDATE CONSTRAINT`. There is no down migration, and re-adding `NOT NULL` would fail once any row carries a null `created_by_id`.
 - [ ] **Production is migrated by hand before this merges**, not after. Vercel deploys from `main` and CI cannot gate it:
       `MIGRATE_URL="$(npx --yes neonctl@4 connection-string main --project-id withered-glade-54206401)" pnpm db:migrate`
 - [ ] CI is green on the PR — that is what proves the migration applies to an empty database.
-- [ ] Open the PR. Stop. Start Section 3 in a fresh session.
+- [x] Open the PR. Stop. Start Section 3 in a fresh session. — PR #53.
 
 ---
 

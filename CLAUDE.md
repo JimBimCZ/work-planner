@@ -162,6 +162,7 @@ comments           id, cardId, authorId, body, createdAt, updatedAt
 Rules:
 
 - `cards.boardId` is denormalised deliberately — every permission check and every realtime event keys off the board, and this avoids a join on the hot path. Keep it consistent with `columnId`'s board in every write.
+- `comments.authorId` is nullable and sets null on delete, not cascade: `/privacy` promises that boards owned by other people keep your comments when your account is deleted. A comment with no author can be edited and deleted by nobody.
 - `cards.createdById` is nullable and sets null on delete, not cascade: `comments.cardId` cascades from `cards`, so a cascading `createdById` would delete every comment on a card once its creator's account is gone — including comments left by other people, on boards the creator never owned.
 - Deleting a column requires a target column to move its cards into. Never cascade-delete cards with the column.
 - Comments and cards are soft-delete free for now: hard delete, but only via an action that checks role.
@@ -592,7 +593,7 @@ Not settled yet — raise these rather than deciding unilaterally:
 - Labels/tags, attachments, activity log.
 - Whether comments need editing/deletion beyond the author's own.
 - Board archive vs hard delete.
-- Account deletion mechanics — self-service in the UI, or on request by email. The privacy policy has to describe whichever is real.
+- Account deletion mechanics — self-service in the UI, or on request by email. The privacy policy has to describe whichever is real. Whichever it is, it must delete the person's comments before the `user` row: `/privacy` promises that a request to also delete comments on boards someone else owns will be honoured, and `comments.authorId` sets null on delete — the only link back to those comments — so deleting the user first severs it before it can be used.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

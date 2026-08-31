@@ -1,7 +1,7 @@
 import { getTableName } from 'drizzle-orm';
 import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, test } from 'vitest';
-import { accounts, boardMembers, boardRole, boards, cards, columns, sessions, users } from './schema';
+import { accounts, boardMembers, boardRole, boards, cards, columns, comments, sessions, users } from './schema';
 
 // DrizzleAdapter is called with no schema argument, so it queries its own
 // default table definitions. These names are a contract with the adapter, and
@@ -74,6 +74,7 @@ describe('the cards table', () => {
     expect(byName.rank).toBe(true);
     expect(byName.description).toBe(false);
     expect(byName.due_date).toBe(false);
+    expect(byName.created_by_id).toBe(false);
   });
 
   // The whole no-orphan design rests on this pair. board_id cascades so
@@ -87,7 +88,7 @@ describe('the cards table', () => {
     }));
 
     expect(actions).toContainEqual({ column: 'board_id', onDelete: 'cascade' });
-    expect(actions).toContainEqual({ column: 'created_by_id', onDelete: 'cascade' });
+    expect(actions).toContainEqual({ column: 'created_by_id', onDelete: 'set null' });
     expect(actions).toContainEqual({ column: 'column_id', onDelete: 'no action' });
   });
 
@@ -96,5 +97,32 @@ describe('the cards table', () => {
       .indexes.map((index) => index.config.name)
       .sort();
     expect(indexes).toEqual(['cards_board_id_idx', 'cards_column_id_rank_idx']);
+  });
+});
+
+describe('comments', () => {
+  test('belongs to a card and cascades with it', () => {
+    const config = getTableConfig(comments);
+    const cardFk = config.foreignKeys.find((fk) =>
+      fk.reference().columns.some((c) => c.name === 'card_id'),
+    );
+    expect(cardFk?.onDelete).toBe('cascade');
+  });
+
+  // The published privacy policy says other people's boards keep your comments
+  // when your account goes. A cascade here would make that sentence false.
+  test('keeps the comment when its author is deleted', () => {
+    const config = getTableConfig(comments);
+    const authorFk = config.foreignKeys.find((fk) =>
+      fk.reference().columns.some((c) => c.name === 'author_id'),
+    );
+    expect(authorFk?.onDelete).toBe('set null');
+    expect(config.columns.find((c) => c.name === 'author_id')?.notNull).toBe(false);
+  });
+
+  test('indexes the thread the way it is read', () => {
+    const config = getTableConfig(comments);
+    const names = config.indexes.map((i) => i.config.name);
+    expect(names).toContain('comments_card_id_created_at_idx');
   });
 });
