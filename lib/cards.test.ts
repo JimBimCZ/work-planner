@@ -17,12 +17,6 @@ vi.mock('@/lib/db', () => ({
 const authMock = vi.fn();
 vi.mock('@/lib/auth', () => ({ auth: () => authMock() }));
 
-const assertBoardAccess = vi.fn();
-vi.mock('@/lib/permissions', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/permissions')>('@/lib/permissions');
-  return { ...actual, assertBoardAccess: (...args: unknown[]) => assertBoardAccess(...args) };
-});
-
 const { getCardForView } = await import('./cards');
 
 type CommentsConfig = {
