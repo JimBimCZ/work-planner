@@ -225,6 +225,7 @@ Ably is an acceptable substitute if Pusher's free tier proves too small. Polling
 - **`lib/permissions.ts` is server-only, and so is anything that imports it.** It imports `lib/db`, which builds a `pg` pool at module scope, so a `'use client'` file importing *any* value from it — `atLeast` included — pulls the driver into the browser bundle and the build dies on `dns`/`fs`/`net`/`tls`. `pnpm typecheck`, `pnpm lint` and `pnpm test` all pass on that code; only bundling catches it. Client components take a derived boolean (`canWrite`) computed on the server, never a role they resolve themselves. `import type` is erased and stays safe.
 - All checks go through `lib/permissions.ts`: `assertBoardAccess(userId, boardId, minRole)`. Never inline a membership query in an action.
 - `viewer` can read and comment; `member` can mutate cards and columns; `owner` can manage members and delete the board.
+- A comment's own author, and nobody else — not the board owner — can edit or delete it.
 - Invite flow: owner adds a member by email. If no user exists with that email, store a pending invite keyed on email and resolve it at first sign-in.
 
 **Neon Auth is deliberately not used, and stays disabled on every Neon branch.** The Vercel-managed
@@ -596,7 +597,6 @@ One section of the plan, one branch, one PR. Ship the PR as soon as the section 
 Not settled yet — raise these rather than deciding unilaterally:
 
 - Labels/tags, attachments, activity log.
-- Whether comments need editing/deletion beyond the author's own.
 - Board archive vs hard delete.
 - Account deletion mechanics — self-service in the UI, or on request by email. The privacy policy has to describe whichever is real. Whichever it is, it must delete the person's comments before the `user` row: `/privacy` promises that a request to also delete comments on boards someone else owns will be honoured, and `comments.authorId` sets null on delete — the only link back to those comments — so deleting the user first severs it before it can be used.
 

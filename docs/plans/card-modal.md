@@ -2161,7 +2161,7 @@ Branch: `feat/card-comments`
   - `deleteComment(input: unknown)` — `{ commentId: string }`, author only.
   - `addComment` returns `{ ok: true, data: { id: string } }`. The client keeps its own optimistic timestamp, so the server's is not sent back.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/actions/comments.test.ts`, copying the mock harness at the top of `lib/actions/cards.test.ts` and adding a `comments` row to it. The row must be shaped like the **query result** `commentScope` reads, not like the value it returns:
 
@@ -2268,7 +2268,7 @@ describe('deleteComment', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/comments.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/unit.log
@@ -2276,7 +2276,7 @@ pnpm exec vitest run lib/actions/comments.test.ts > /tmp/unit.log 2>&1; echo "EX
 
 Expected: FAIL — cannot resolve `./comments`.
 
-- [ ] **Step 3: Write the scope helper**
+- [x] **Step 3: Write the scope helper**
 
 Append to `lib/actions/scope.ts`:
 
@@ -2297,7 +2297,7 @@ export async function commentScope(
 }
 ```
 
-- [ ] **Step 4: Write the actions**
+- [x] **Step 4: Write the actions**
 
 Create `lib/actions/comments.ts`:
 
@@ -2411,13 +2411,13 @@ export async function deleteComment(input: unknown) {
 }
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 ```bash
 pnpm exec vitest run lib/actions/comments.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/actions
@@ -2442,7 +2442,7 @@ checked before authorship so a non-member cannot learn the comment exists."
 
 **This section keeps its own status strip**, rather than reporting into `CardBody`'s. A comment that failed to post belongs beside the composer that still holds its text, not at the top of a modal the person may have scrolled away from. The spec says the same.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `e2e/card-comments.spec.ts`:
 
@@ -2530,7 +2530,7 @@ test('a viewer can comment', async ({ page, context }) => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/card-comments.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/e2e.log
@@ -2538,7 +2538,7 @@ pnpm exec playwright test e2e/card-comments.spec.ts --reporter=line > /tmp/e2e.l
 
 Expected: EXIT=1 — there is no comment box.
 
-- [ ] **Step 3: Write the thread**
+- [x] **Step 3: Write the thread**
 
 Create `components/board/card-comments.tsx`:
 
@@ -2648,7 +2648,7 @@ export function CardComments({
 }
 ```
 
-- [ ] **Step 4: Render it, and thread the viewer id**
+- [x] **Step 4: Render it, and thread the viewer id**
 
 In both `app/(app)/(board)/boards/[boardId]/@card/(.)cards/[cardId]/page.tsx` and `app/(app)/(board)/boards/[boardId]/cards/[cardId]/page.tsx`, pass the id already on the session:
 
@@ -2666,13 +2666,13 @@ In `components/board/card-body.tsx`, accept `viewerId: string` and render the th
       <CardComments cardId={card.id} comments={card.comments} viewerId={viewerId} />
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 ```bash
 pnpm exec playwright test e2e/card-comments.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/e2e.log
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/board app e2e/card-comments.spec.ts
@@ -2689,7 +2689,7 @@ git commit -m "feat: read and add comments on a card"
 - Consumes: `editComment`, `deleteComment` from Task 9.
 - Produces: no new exports; `CardComments` grows the controls.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `e2e/card-comments.spec.ts`:
 
@@ -2745,7 +2745,7 @@ test("a member is offered nothing on someone else's comment", async ({ page, con
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/card-comments.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/e2e.log
@@ -2753,7 +2753,7 @@ pnpm exec playwright test e2e/card-comments.spec.ts --reporter=line > /tmp/e2e.l
 
 Expected: EXIT=1 — there is no Edit comment button.
 
-- [ ] **Step 3: Add the controls**
+- [x] **Step 3: Add the controls**
 
 In `components/board/card-comments.tsx`, import the two actions and add editing state:
 
@@ -2849,7 +2849,7 @@ Inside the list item, offer the controls only to the author of a settled comment
 
 The copy rule holds: the button that says "Save changes" is the one whose success the strip would describe as changes saved.
 
-- [ ] **Step 4: Run everything**
+- [x] **Step 4: Run everything**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "EXIT=$?"
@@ -2859,7 +2859,7 @@ pnpm build > /tmp/build.log 2>&1; echo "EXIT=$?"
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e.log
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board e2e/card-comments.spec.ts
@@ -2868,14 +2868,61 @@ git commit -m "feat: let a comment's author edit and delete it"
 
 ### Section 5 gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm exec playwright test` all pass, exit codes read from redirected logs, count run compared against count collected.
-- [ ] A `viewer` can add a comment and still cannot edit any card field — both halves checked in a browser.
-- [ ] A member sees no Edit or Delete on someone else's comment, **and** calling `editComment` and `deleteComment` directly as that member returns `FORBIDDEN`. The UI hiding a control is not the permission.
-- [ ] **A rejected comment rolls back and says so — forced, not hoped for.** Temporarily make `addComment` return `{ ok: false, error: 'INVALID' }`, add a comment, and confirm the row disappears, the draft comes back in the box, and the strip reads "That comment could not be added. Try again." Then revert and confirm `git diff` on `lib/actions/comments.ts` is empty.
-- [ ] A comment whose author row is gone renders "Deleted account" and offers no controls to anyone.
-- [ ] A card with a long description and a thread of a dozen comments scrolls on both surfaces at both widths — this is the half Section 3's gate could not check, since the thread did not exist yet — and the composer stays reachable at the bottom of it rather than pushed off-screen by the thread above it.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm exec playwright test` all pass, exit codes read from redirected logs, count run compared against count collected.
+- [x] A `viewer` can add a comment and still cannot edit any card field — both halves checked in a browser.
+- [x] A member sees no Edit or Delete on someone else's comment, **and** calling `editComment` and `deleteComment` directly as that member returns `FORBIDDEN`. The UI hiding a control is not the permission.
+- [x] **A rejected comment rolls back and says so — forced, not hoped for.** Temporarily make `addComment` return `{ ok: false, error: 'INVALID' }`, add a comment, and confirm the row disappears, the draft comes back in the box, and the strip reads "That comment could not be added. Try again." Then revert and confirm `git diff` on `lib/actions/comments.ts` is empty.
+- [x] A comment whose author row is gone renders "Deleted account" and offers no controls to anyone.
+- [x] A card with a long description and a thread of a dozen comments scrolls on both surfaces at both widths — this is the half Section 3's gate could not check, since the thread did not exist yet — and the composer stays reachable at the bottom of it rather than pushed off-screen by the thread above it.
 - [ ] Screenshots of a thread, both themes, in the PR body.
 - [ ] Open the PR. Stop.
+
+**Section 5 gate evidence, observed 2026-08-31 at `85b7653`** (screenshots are at
+`.superpowers/sdd/card-modal/shots5/`, since `gh` cannot upload images into a PR body):
+
+- `pnpm typecheck` / `lint` / `test` / `build` / `playwright test` — all `EXIT=0`, each read from
+  its own redirected log. Unit: 20 files, **214 passed**. E2E: `--list` reports **80 collected**,
+  the run reports **80 passed** — equal.
+- **A `viewer` can comment and cannot edit any card field.** In a real browser as a seeded
+  `viewer`: thread went 12 → 13 comments across a reload, last body `"A viewer may comment."`;
+  `Card title` textbox count 0, `Description` textbox count 0, `input[type=date]` count 0.
+- **A member sees no controls on someone else's comment, and the actions refuse them directly.**
+  The UI half is covered by `e2e/card-comments.spec.ts`. The permission half was proved against
+  the real Neon dev branch, not a mock: a real `member` row calling `editComment` and
+  `deleteComment` on another user's comment got `FORBIDDEN` from both, the comment body was
+  unchanged afterwards, and that same member's `addComment` succeeded — so the refusal is
+  authorship, not access. The author then edited and deleted the same comment successfully.
+  Only `auth()` and `next/cache` were stubbed (a real OAuth session cannot be minted in Node);
+  `lib/db` and `lib/permissions` were the real ones. The check was deleted after it ran.
+- **A rejected comment rolls back and says so — forced.** `addSchema` was temporarily made to
+  always fail, so the rejection travelled the genuine `INVALID` branch and wrote nothing. Observed:
+  13 → optimistic 14 → back to 13; the draft returned to the box as `"This one must roll back."`;
+  the strip read exactly `"That comment could not be added. Try again."`; still 13 after a reload.
+  Reverted, and `git diff lib/actions/comments.ts` is empty.
+- **A deleted author renders "Deleted account" and offers nobody controls.** A seeded user was
+  really deleted, leaving `comments.author_id` null. The byline reads `Deleted account` in both
+  themes and that row carries **0** buttons, while the viewer's own comment carries 2.
+- **Long description plus a 13-comment thread scrolls on both surfaces at both widths, with the
+  composer still reachable.** Content genuinely overflows in all four combinations, and the
+  composer's box sits inside the viewport each time — canonical 1440×900 `y=730`, modal 1440×900
+  `y=665.5`, canonical 360×740 `y=570`, modal 360×740 `y=517.5`.
+- Screenshots: `thread-{canonical,modal}-{light,dark}.png`, plus `deleted-account-{light,dark}.png`
+  and `delete-confirm-light.png` for the confirm the final review added.
+
+**Where the branch deliberately departs from this section's written code**, each ruled on before or
+during implementation and argued in the PR body:
+
+- `getCardForRoute` returns a `Viewer`; Task 10's `viewerId={session.user.id}` could not compile,
+  because Section 3 moved `auth()` out of the two pages. The byline splits `author === null`
+  ("Deleted account") from a null *name* ("Someone") — the plan's single `??` bylined every
+  just-posted comment as "Deleted account".
+- Task 11's rejected-delete rollback places the row by the thread's own `(createdAt, id)` order
+  rather than a captured array index, which restored to the wrong slot under concurrent removal.
+- The three actions call `revalidatePath('/boards')`; the plan's code bumped `boards.updatedAt`
+  without it, leaving `/boards` orderable from a stale Router Cache.
+- Delete confirms before destroying a comment, matching every other irreversible action in the app.
+- An in-progress comment edit can be cancelled with Escape or a Cancel control, matching the title
+  and description in the same component tree.
 
 ---
 
