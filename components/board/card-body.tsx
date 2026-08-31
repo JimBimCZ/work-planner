@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 
 import { useBoardActions } from '@/components/board/board-actions';
 import { renameCard, setCardDescription } from '@/lib/actions/cards';
@@ -20,19 +20,12 @@ export function CardBody({
   const [savedDescription, setSavedDescription] = useState(card.description ?? '');
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
-  const titleCommit = useRef(0);
-  const descriptionCommit = useRef(0);
 
-  // Two blurs on the same field can each start a save, and the responses can
-  // land in either order over the network. A monotonic id per field means a
-  // response from a superseded commit is recognised as stale and ignored,
-  // rather than reverting the field out from under a newer edit.
   function commitField({
     next,
     saved,
     setValue,
     setSaved,
-    commitRef,
     save,
     errorMessage,
     onSuccess,
@@ -41,19 +34,15 @@ export function CardBody({
     saved: string;
     setValue: (value: string) => void;
     setSaved: (value: string) => void;
-    commitRef: React.RefObject<number>;
     save: () => Promise<{ ok: boolean }>;
     errorMessage: string;
     onSuccess?: () => void;
   }) {
     if (next === saved) return;
     setError(null);
-    const id = ++commitRef.current;
 
     startTransition(async () => {
       const result = await save();
-      if (id !== commitRef.current) return;
-
       if (result.ok) {
         setSaved(next);
         setValue(next);
@@ -77,7 +66,6 @@ export function CardBody({
       saved: savedTitle,
       setValue: setTitle,
       setSaved: setSavedTitle,
-      commitRef: titleCommit,
       save: () => renameCard({ cardId: card.id, title: next }),
       errorMessage: 'That card could not be renamed. Try again.',
       onSuccess: () => patchCard?.(card.id, { title: next }),
@@ -91,7 +79,6 @@ export function CardBody({
       saved: savedDescription,
       setValue: setDescription,
       setSaved: setSavedDescription,
-      commitRef: descriptionCommit,
       save: () => setCardDescription({ cardId: card.id, description: next }),
       errorMessage: 'That description could not be saved. Try again.',
     });
