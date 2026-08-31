@@ -9,6 +9,11 @@ import { reinsertOrdered } from '@/lib/comment-order';
 
 type Row = CardComment & { pending?: boolean };
 
+function commentLabel(body: string): string {
+  const oneLine = body.replace(/\s+/g, ' ').trim();
+  return oneLine.length > 40 ? `${oneLine.slice(0, 40)}…` : oneLine;
+}
+
 export function CardComments({
   cardId,
   comments,
@@ -124,7 +129,7 @@ export function CardComments({
                 editingId === row.id ? (
                   <div className="mt-1 flex flex-col gap-2">
                     <textarea
-                      aria-label="Edit comment"
+                      aria-label={`Edit comment: ${commentLabel(row.body)}`}
                       rows={3}
                       value={editDraft}
                       maxLength={4000}
@@ -155,7 +160,7 @@ export function CardComments({
                   <div className="mt-1 flex gap-3">
                     <button
                       type="button"
-                      aria-label="Edit comment"
+                      aria-label={`Edit comment: ${commentLabel(row.body)}`}
                       onClick={() => {
                         setEditingId(row.id);
                         setEditDraft(row.body);
@@ -166,7 +171,7 @@ export function CardComments({
                     </button>
                     <button
                       type="button"
-                      aria-label="Delete comment"
+                      aria-label={`Delete comment: ${commentLabel(row.body)}`}
                       onClick={() => setConfirmDeleteId(row.id)}
                       className="text-xs text-muted hover:text-time-over"
                     >

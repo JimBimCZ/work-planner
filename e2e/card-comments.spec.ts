@@ -90,16 +90,17 @@ test("the author edits and deletes their own comment", async ({ page, context })
   try {
     await page.goto(`/boards/${boardId}/cards/${cardId}`);
 
-    await page.getByRole('button', { name: 'Edit comment' }).click();
-    await page.getByRole('textbox', { name: 'Edit comment' }).fill('Fixed now');
+    await page.getByRole('button', { name: 'Edit comment: Typo here', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Edit comment: Typo here', exact: true }).fill('Fixed now');
     const edited = written(page);
     await page.getByRole('button', { name: 'Save changes' }).click();
     await edited;
     await page.reload();
     await expect(page.getByTestId('comment-body')).toHaveText(['Fixed now']);
 
+    await page.getByRole('button', { name: 'Delete comment: Fixed now', exact: true }).click();
     const removed = written(page);
-    await page.getByRole('button', { name: 'Delete comment' }).click();
+    await page.getByRole('button', { name: 'Delete comment', exact: true }).click();
     await removed;
     await page.reload();
     await expect(page.getByTestId('comment-body')).toHaveCount(0);
@@ -122,8 +123,8 @@ test("a member is offered nothing on someone else's comment", async ({ page, con
   try {
     await page.goto(`/boards/${boardId}/cards/${cardId}`);
     await expect(page.getByTestId('comment-body')).toHaveText(['Mine']);
-    await expect(page.getByRole('button', { name: 'Edit comment' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Delete comment' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Edit comment: Mine', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Delete comment: Mine', exact: true })).toHaveCount(0);
   } finally {
     await removeSeededUser(other.userId);
     await removeSeededUser(owner.userId);
