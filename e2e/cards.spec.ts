@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import {
   boardColumns,
   closeSeedPool,
@@ -7,16 +7,12 @@ import {
   seedCard,
   seedMember,
   seedSession,
+  written,
 } from './support/session';
 
 test.afterAll(async () => {
   await closeSeedPool();
 });
-
-// A server action is a POST back to the page's own URL, and the optimistic
-// update lands well before it resolves. Reloading in between aborts the write
-// in flight, so every test that reloads waits on the round trip first.
-const written = (page: Page) => page.waitForResponse((r) => r.request().method() === 'POST');
 
 test('add a card from the column, and it survives a reload', async ({ page, context }) => {
   const { userId } = await seedSession(context);

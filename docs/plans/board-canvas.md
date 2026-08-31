@@ -3399,7 +3399,7 @@ git commit -m "feat: rename, move and delete a card from its menu"
 
 **How "move left" becomes neighbours:** the menu says a direction; the canvas turns it into the pair the action wants. For a column at index `i` in rank order, moving left lands it between `columns[i - 2]` and `columns[i - 1]`; moving right, between `columns[i + 1]` and `columns[i + 2]`. A missing neighbour is `null`, which is how the action is told "the far end". The direction never reaches the server — an index is stale the moment someone else moves something, and a direction is an index in disguise.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `e2e/columns.spec.ts`:
 
@@ -3520,12 +3520,12 @@ test('a viewer sees no column menu', async ({ page, context }) => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/columns.spec.ts`
 Expected: FAIL — no "Column actions for In Testing" button.
 
-- [ ] **Step 3: Write the menu**
+- [x] **Step 3: Write the menu**
 
 Create `components/board/column-menu.tsx`. Same primitives and the same dialog shape as `card-menu.tsx`; the trigger sits in the column header:
 
@@ -3664,11 +3664,24 @@ export function ColumnMenu({
 
 Adding a column re-interpolates every hue, because `flowHue` takes the total. That is the signature behaviour from the design brief and needs no extra code — it falls out of rendering from `orderedColumns(state)`.
 
-- [ ] **Step 4: Render it in the column header**
+**Two corrections, made while executing this task.**
+
+`onDelete` is typed `(() => void) | null` rather than `() => void`, and the Delete item renders only
+when it is non-null. The plan asked for a no-op stub here and for Task 14 to hide the item on a
+one-column board; a stub would have shipped a destructive menu item that silently does nothing for one
+commit, which breaks the rule that every commit leaves the app working. Null expresses both "not wired
+yet" and "not offered on the last column", so Task 14 only has to pass a function.
+
+The trigger is a 24px square, matching `card-menu.tsx`. Unlike that one it is always visible rather
+than revealed on hover: there are a handful of columns, not dozens of cards, and hiding the only way
+to manage a column would make it undiscoverable. The `<h2>` keeps `data-testid="column-name"` and gains
+`min-w-0 flex-1 truncate` so a long name cannot push the trigger out of the header.
+
+- [x] **Step 4: Render it in the column header**
 
 In `board-column.tsx`, wrap the `<h2>` and the menu in a flex row so the trigger sits at the header's right edge. Keep `data-testid="column-name"` on the `<h2>` itself — `e2e/board-view.spec.ts` reads its text and would pick up the `⋯` if the id moved to the wrapper.
 
-- [ ] **Step 5: Wire the canvas**
+- [x] **Step 5: Wire the canvas**
 
 In `board-canvas.tsx`, using the same `run` helper Task 12 introduced:
 
@@ -3721,12 +3734,12 @@ const addColumnAfter = (column: StateColumn, name: string) => {
 };
 ```
 
-- [ ] **Step 6: Run the tests and watch them pass**
+- [x] **Step 6: Run the tests and watch them pass**
 
 Run: `pnpm exec playwright test e2e/columns.spec.ts e2e/board-view.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -3758,7 +3771,7 @@ git commit -m "feat: rename, add and reorder a column from its menu"
 
 The target defaults to the neighbour on the left, falling back to the neighbour on the right for the first column. **The dialog asks even when the column is empty** — a dialog that sometimes appears is worse than one that always does, and the answer is simply unused.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `e2e/columns.spec.ts`:
 
@@ -3821,12 +3834,12 @@ test('arriving cards land below the ones already there', async ({ page, context 
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/columns.spec.ts`
 Expected: FAIL — "Delete…" opens nothing.
 
-- [ ] **Step 3: Write the dialog**
+- [x] **Step 3: Write the dialog**
 
 Create `components/board/delete-column-dialog.tsx`:
 
@@ -3901,7 +3914,13 @@ export function DeleteColumnDialog({
 
 The `⋯` menu's Delete item is hidden entirely when the board has one column — the server returns `LAST_COLUMN`, but a control that can only fail should not be offered.
 
-- [ ] **Step 4: Wire the canvas**
+**One correction, made while executing this task.** `BoardColumn`'s `columns` prop widened from
+`{ id, name }[]` to `StateColumn[]`. The dialog's `others` needs the same objects the canvas already
+holds, and a `StateColumn[]` still satisfies the card menu's narrower `{ id, name }[]` by structural
+typing, so nothing downstream changed. The dialog's open state lives in `board-column.tsx` rather than
+in `ColumnMenu`, which keeps the menu ignorant of its siblings.
+
+- [x] **Step 4: Wire the canvas**
 
 ```tsx
 const removeColumn = (column: StateColumn, targetColumnId: string) => {
@@ -3923,12 +3942,12 @@ const removeColumn = (column: StateColumn, targetColumnId: string) => {
 
 The inverse of `column.delete` restores the column and moves every card back, which Task 9 already implements and tested. Nothing extra is needed here for rollback.
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm exec playwright test e2e/columns.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -3941,13 +3960,15 @@ git commit -m "feat: delete a column into a target that keeps its cards"
 ### Section D gate
 
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
-      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
-      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
-- [ ] Adding a sixth column re-interpolates the whole spectrum — confirmed by eye in a browser, not only by the passing test.
-- [ ] A column holding cards cannot be deleted without naming a target, and the cards arrive below the target's existing ones.
-- [ ] The Delete item is not offered on a board with one column.
-- [ ] Screenshots of a six-column board, both themes, attached to the PR.
-- [ ] Open the PR. Stop. Start Section E in a fresh session.
+      typecheck clean; `pnpm build` clean; eslint 0 errors and the 2 pre-existing `_pending` warnings
+      in `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 46 passed, exit 0.
+- [x] Adding a sixth column re-interpolates the whole spectrum — confirmed by eye in a browser, not only by the passing test. Captured a five-column board, added "Blocked" through the menu, and captured it again at the same viewport: every column right of the insertion shifts hue, so the rule still runs one unbroken 225°→145° band over six columns instead of five.
+- [x] A column holding cards cannot be deleted without naming a target, and the cards arrive below the target's existing ones. The dialog has no path that submits without a target, and `arriving cards land below the ones already there` seeds both cards at rank `a0`, so the asserted order can only come from the re-rank the delete performs.
+- [x] The Delete item is not offered on a board with one column. Checked in a browser on a board reduced to one column: the menu offers Rename, a disabled Move left, a disabled Move right and Add column right, and no Delete item at all.
+- [ ] Screenshots of a six-column board, both themes, attached to the PR. Captured in both themes and
+      described in the PR body, but **not attached** — images cannot be uploaded to GitHub from the
+      CLI, so this stays a manual step.
+- [x] Open the PR. Stop. Start Section E in a fresh session. — PR #46.
 
 ---
 
@@ -4438,9 +4459,7 @@ git commit -m "feat: the drag tilt, the settle, and the reduced-motion path"
 
 ### Section E gate
 
-- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
-      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
-      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
+- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
 - [ ] Task 15's probe outcome is recorded in the PR body, including any React 19 console warning, and `app/design/dnd-probe/` is gone.
 - [ ] A card dragged across columns survives a reload, and **exactly one `cards` row changed** — confirmed with a `select` against the dev branch, not inferred from the UI.
 - [ ] **A rejected move puts the card back and says so in the status strip.** Force it — temporarily make `moveCard` return `{ ok: false, error: 'INVALID' }`, observe the revert and the message, then undo the change. Do not skip this because the inverse is unit-tested; the wiring is not.
@@ -4672,9 +4691,7 @@ git commit -m "feat: one column at a time below 700px, with a switcher"
 
 ### Section F gate
 
-- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
-      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
-      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
+- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
 - [ ] The board is usable at 360px **in a real browser**, not only in Playwright: one column fills the viewport, the switcher reaches every column, and nothing overflows the page sideways.
 - [ ] Dragging a card still works at 360px within the visible column, and **Move to** is how it crosses columns.
 - [ ] The wide board is unchanged — 312px columns, no snapping, no switcher.
