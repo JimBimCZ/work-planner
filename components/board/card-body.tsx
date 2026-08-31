@@ -1,6 +1,12 @@
 'use client';
 
-import { type Dispatch, type SetStateAction, useState, useTransition } from 'react';
+import {
+  type Dispatch,
+  type KeyboardEvent,
+  type SetStateAction,
+  useState,
+  useTransition,
+} from 'react';
 
 import { useBoardActions } from '@/components/board/board-actions';
 import { CardDueDate } from '@/components/board/card-due-date';
@@ -24,10 +30,28 @@ export function CardBody({
   const [description, setDescription] = useState(card.description ?? '');
   const [savedDescription, setSavedDescription] = useState(card.description ?? '');
   const [dueDate, setDueDate] = useState(card.dueDate ? toDateInputValue(card.dueDate) : null);
+  // The date input is uncontrolled from `dueDate` itself: it holds a local
+  // draft so an in-progress edit can sit at '' without React's controlled-date
+  // restore snapping it back to the last committed value (a native date input
+  // reports '' until all three segments are complete, including transiently
+  // while editing an already-set date). `lastDueDate` plus the render-time
+  // re-sync below is the documented way to pull in a new `dueDate` value — an
+  // optimistic update or its rollback — without an effect.
+  const [draftDueDate, setDraftDueDate] = useState(dueDate ?? '');
+  const [lastDueDate, setLastDueDate] = useState(dueDate);
+  if (dueDate !== lastDueDate) {
+    setLastDueDate(dueDate);
+    setDraftDueDate(dueDate ?? '');
+  }
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  useCardEscapeGuard(() => title !== savedTitle || description !== savedDescription);
+  useCardEscapeGuard(
+    () =>
+      title !== savedTitle ||
+      description !== savedDescription ||
+      draftDueDate !== (dueDate ?? ''),
+  );
 
   function commitField({
     next,
@@ -106,6 +130,12 @@ export function CardBody({
     });
   };
 
+  const revertDueDate = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape' && draftDueDate !== (dueDate ?? '')) {
+      setDraftDueDate(dueDate ?? '');
+    }
+  };
+
   const commitDescription = () => {
     const next = description.trim();
     commitField({
@@ -124,7 +154,7 @@ export function CardBody({
         {showHeading ? (
           <h2 className="text-sm font-medium leading-5 text-ink">{savedTitle}</h2>
         ) : null}
-        <CardDueDate value={dueDate} canWrite={canWrite} onCommit={commitDueDate} />
+        <CardDueDate value={dueDate} canWrite={canWrite} />
         <p className="whitespace-pre-wrap text-[15px] leading-6 text-ink">
           {savedDescription || <span className="text-muted">No description yet</span>}
         </p>
@@ -146,7 +176,14 @@ export function CardBody({
         }}
         className="rounded-[var(--radius-control)] border border-line bg-surface px-2 py-1 text-sm font-medium text-ink"
       />
-      <CardDueDate value={dueDate} canWrite={canWrite} onCommit={commitDueDate} />
+      <CardDueDate
+        value={dueDate}
+        canWrite={canWrite}
+        draft={draftDueDate}
+        onDraftChange={setDraftDueDate}
+        onCommit={commitDueDate}
+        onKeyDown={revertDueDate}
+      />
       <textarea
         aria-label="Description"
         value={description}

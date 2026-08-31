@@ -400,3 +400,34 @@ test('clearing a due date empties it, and the empty state survives a reload', as
     await removeSeededUser(userId);
   }
 });
+
+test('clearing a due date and pressing Escape keeps the card open and reverts the field', async ({
+  page,
+  context,
+}) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  await seedCard(ready.id, {
+    boardId,
+    createdById: userId,
+    title: 'Ship it',
+    dueDate: '2026-09-10',
+  });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await page.getByTestId('card-title').filter({ hasText: 'Ship it' }).click();
+
+    const dueInput = page.locator('input[aria-label="Due date"]');
+    await expect(dueInput).toHaveValue('2026-09-10');
+
+    await dueInput.fill('');
+    await dueInput.press('Escape');
+
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(dueInput).toHaveValue('2026-09-10');
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
