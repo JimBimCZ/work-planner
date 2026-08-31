@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-
 import { formatDue, fromDateInputValue } from '@/lib/due';
+import { useMounted } from '@/lib/use-mounted';
 
 // A native date input: no dependency, keyboard-accessible without work, and
 // formatted in the viewer's locale by the browser.
@@ -18,9 +17,7 @@ export function CardDueDate({
   // formatDue resolves Intl's default locale when none is passed — Node's on
   // the server, the browser's on the client — so the read-only label waits
   // for the client, the same reason the card face's DueDate does.
-  const [mounted, setMounted] = useState(false);
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate: this IS the hydration-safety gate, not state synced from an external system.
-  useEffect(() => setMounted(true), []);
+  const mounted = useMounted();
 
   if (!canWrite) {
     if (!value || !mounted) return null;

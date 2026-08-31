@@ -3,24 +3,25 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 
 import { CardMenu } from '@/components/board/card-menu';
 import type { StateCard } from '@/lib/board-state';
 import { dueLabel, dueState, formatDue, fromDateInputValue } from '@/lib/due';
+import { useMounted } from '@/lib/use-mounted';
 
 function DueDate({ value }: { value: string }) {
   const due = fromDateInputValue(value);
-  const [now, setNow] = useState<Date | null>(null);
-
   // Server and client can disagree about "today" AND about locale —
   // formatDue resolves Intl's default locale when none is passed, Node's on
   // the server and the browser's on the client. Both the warm state and the
   // date text wait for the client so neither can hydrate to a mismatch.
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate: this IS the hydration-safety gate, not state synced from an external system.
-  useEffect(() => setNow(new Date()), []);
+  // now is derived, not stored: it re-evaluates on every render rather than
+  // freezing at mount, so a board left open across midnight still compares
+  // against today rather than the day it was opened.
+  const mounted = useMounted();
 
-  if (!due || !now) return null;
+  if (!due || !mounted) return null;
+  const now = new Date();
 
   const state = dueState(due, now);
   const label = dueLabel(due, now);
