@@ -114,7 +114,7 @@ export function CardComments({
         <ul className="flex flex-col gap-3">
           {rows.map((row) => (
             <li key={row.id} className={row.pending ? 'opacity-60' : ''}>
-              <p className="font-mono text-xs text-muted">
+              <p className="text-xs text-muted">
                 {row.author === null ? 'Deleted account' : (row.author.name ?? 'Someone')}
               </p>
               <p data-testid="comment-body" className="whitespace-pre-wrap text-sm text-ink">
@@ -127,6 +127,7 @@ export function CardComments({
                       aria-label="Edit comment"
                       rows={3}
                       value={editDraft}
+                      maxLength={4000}
                       onChange={(event) => setEditDraft(event.target.value)}
                       onKeyDown={(event) => {
                         if (event.key === 'Escape') cancelEdit();
@@ -208,6 +209,7 @@ export function CardComments({
           aria-label="Add a comment"
           rows={3}
           value={draft}
+          maxLength={4000}
           onChange={(event) => setDraft(event.target.value)}
           className="rounded-[var(--radius-control)] border border-line bg-surface px-2 py-1.5 text-sm text-ink"
         />
