@@ -10,9 +10,10 @@ vi.mock('@/lib/permissions', async () => {
 });
 
 const authorizeChannel = vi.fn();
+const pusherServer = vi.fn();
 vi.mock('@/lib/events', async () => {
   const actual = await vi.importActual<typeof import('@/lib/events')>('@/lib/events');
-  return { ...actual, pusherServer: () => ({ authorizeChannel }) };
+  return { ...actual, pusherServer: () => pusherServer() };
 });
 
 const { POST } = await import('./route');
@@ -35,6 +36,8 @@ beforeEach(() => {
   assertBoardAccess.mockResolvedValue('viewer');
   authorizeChannel.mockReset();
   authorizeChannel.mockReturnValue({ auth: 'key:signature' });
+  pusherServer.mockReset();
+  pusherServer.mockReturnValue({ authorizeChannel });
 });
 
 test('authorises a member of the board', async () => {
@@ -90,4 +93,14 @@ test('refuses a request with no form fields', async () => {
     new Request('http://localhost/api/pusher/auth', { method: 'POST', body: new FormData() }),
   );
   expect(response.status).toBe(400);
+});
+
+// The self-hosting configuration: Pusher credentials are absent from the
+// environment, so pusherServer() returns null even for an otherwise-valid,
+// authorised request.
+test('refuses when Pusher is not configured', async () => {
+  pusherServer.mockReturnValue(null);
+  const response = await POST(request(valid));
+  expect(response.status).toBe(403);
+  expect(authorizeChannel).not.toHaveBeenCalled();
 });
