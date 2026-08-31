@@ -51,7 +51,9 @@ export function CardComments({
         );
       } else {
         setRows((current) => current.filter((row) => row.id !== tempId));
-        setDraft(body);
+        // Only restore the failed text if the box is still empty — a faster
+        // draft typed while this request was in flight must not be clobbered.
+        setDraft((current) => (current === '' ? body : current));
         setError('That comment could not be added. Try again.');
       }
     });
@@ -71,7 +73,12 @@ export function CardComments({
     startTransition(async () => {
       const result = await editComment({ commentId: row.id, body });
       if (!result.ok) {
-        setRows((current) => current.map((r) => (r.id === row.id ? { ...r, body: previous } : r)));
+        // Only roll back if the row still holds the value this request sent —
+        // a later edit to the same comment that already succeeded must not be
+        // clobbered by this save's own rejection landing late.
+        setRows((current) =>
+          current.map((r) => (r.id === row.id && r.body === body ? { ...r, body: previous } : r)),
+        );
         setError('That comment could not be saved. Try again.');
       }
     });
