@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { addComment, deleteComment, editComment } from '@/lib/actions/comments';
 import type { CardComment, Viewer } from '@/lib/cards';
 import { reinsertOrdered } from '@/lib/comment-order';
@@ -23,6 +24,7 @@ export function CardComments({
   const [, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const submit = () => {
     const body = draft.trim();
@@ -147,7 +149,7 @@ export function CardComments({
                     <button
                       type="button"
                       aria-label="Delete comment"
-                      onClick={() => remove(row)}
+                      onClick={() => setConfirmDeleteId(row.id)}
                       className="text-xs text-muted hover:text-time-over"
                     >
                       Delete
@@ -155,6 +157,28 @@ export function CardComments({
                   </div>
                 )
               ) : null}
+
+              <Dialog
+                open={confirmDeleteId === row.id}
+                onOpenChange={(next) => (next ? undefined : setConfirmDeleteId(null))}
+              >
+                <DialogContent>
+                  <DialogTitle>Delete comment</DialogTitle>
+                  <p className="mt-2 text-sm text-muted">
+                    This removes the comment. It cannot be undone.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      remove(row);
+                      setConfirmDeleteId(null);
+                    }}
+                    className="mt-4 rounded-[var(--radius-control)] bg-time-over px-3 py-1.5 text-sm font-medium text-white"
+                  >
+                    Delete comment
+                  </button>
+                </DialogContent>
+              </Dialog>
             </li>
           ))}
         </ul>
