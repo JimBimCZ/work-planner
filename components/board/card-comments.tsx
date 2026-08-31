@@ -61,6 +61,11 @@ export function CardComments({
     });
   };
 
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft('');
+  };
+
   const saveEdit = (row: Row) => {
     const body = editDraft.trim();
     if (!body || body === row.body) {
@@ -123,15 +128,27 @@ export function CardComments({
                       rows={3}
                       value={editDraft}
                       onChange={(event) => setEditDraft(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Escape') cancelEdit();
+                      }}
                       className="rounded-[var(--radius-control)] border border-line bg-surface px-2 py-1.5 text-sm text-ink"
                     />
-                    <button
-                      type="button"
-                      onClick={() => saveEdit(row)}
-                      className="self-start rounded-[var(--radius-control)] bg-flow-mid px-3 py-1.5 text-sm font-medium text-white"
-                    >
-                      Save changes
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => saveEdit(row)}
+                        className="self-start rounded-[var(--radius-control)] bg-flow-mid px-3 py-1.5 text-sm font-medium text-white"
+                      >
+                        Save changes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEdit}
+                        className="text-xs text-muted hover:text-ink"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="mt-1 flex gap-3">
