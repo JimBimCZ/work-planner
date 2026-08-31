@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import { useBoardActions } from '@/components/board/board-actions';
+import { CardComments } from '@/components/board/card-comments';
 import { CardDueDate } from '@/components/board/card-due-date';
 import { useCardEscapeGuard } from '@/components/board/card-modal';
 import { renameCard, setCardDescription, setCardDueDate } from '@/lib/actions/cards';
@@ -18,10 +19,12 @@ import { toDateInputValue } from '@/lib/due';
 export function CardBody({
   card,
   canWrite,
+  viewer,
   showHeading = true,
 }: {
   card: CardForView;
   canWrite: boolean;
+  viewer: { id: string; name: string | null; image: string | null };
   showHeading?: boolean;
 }) {
   const { patchCard } = useBoardActions();
@@ -158,6 +161,7 @@ export function CardBody({
         <p className="whitespace-pre-wrap text-[15px] leading-6 text-ink">
           {savedDescription || <span className="text-muted">No description yet</span>}
         </p>
+        <CardComments cardId={card.id} comments={card.comments} viewer={viewer} />
       </article>
     );
   }
@@ -201,6 +205,7 @@ export function CardBody({
       <p role="status" aria-live="polite" className="min-h-5 text-xs text-time-over">
         {error}
       </p>
+      <CardComments cardId={card.id} comments={card.comments} viewer={viewer} />
     </article>
   );
 }

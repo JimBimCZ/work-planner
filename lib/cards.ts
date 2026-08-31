@@ -58,7 +58,11 @@ export const getCardForView = cache(async (cardId: string): Promise<CardForView 
 export async function getCardForRoute(
   boardId: string,
   cardId: string,
-): Promise<{ card: CardForView; canWrite: boolean }> {
+): Promise<{
+  card: CardForView;
+  canWrite: boolean;
+  viewer: { id: string; name: string | null; image: string | null };
+}> {
   const session = await auth();
   if (!session?.user?.id) redirect('/signin');
 
@@ -75,5 +79,13 @@ export async function getCardForRoute(
     throw error;
   }
 
-  return { card, canWrite: atLeast(role, 'member') };
+  return {
+    card,
+    canWrite: atLeast(role, 'member'),
+    viewer: {
+      id: session.user.id,
+      name: session.user.name ?? null,
+      image: session.user.image ?? null,
+    },
+  };
 }
