@@ -18,6 +18,10 @@ const id = z.string().min(1);
 const createSchema = z.object({ columnId: id, title: cardTitle });
 const renameSchema = z.object({ cardId: id, title: cardTitle });
 const deleteSchema = z.object({ cardId: id });
+const descriptionSchema = z.object({
+  cardId: id,
+  description: z.string().trim().max(10_000),
+});
 const moveSchema = z.object({
   cardId: id,
   toColumnId: id,
@@ -89,6 +93,34 @@ export async function renameCard(input: unknown) {
 
   await db.transaction(async (tx) => {
     await tx.update(cards).set({ title: parsed.data.title }).where(eq(cards.id, parsed.data.cardId));
+    await touchBoard(tx, boardId);
+  });
+
+  revalidatePath('/boards');
+  return { ok: true } as const;
+}
+
+export async function setCardDescription(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = descriptionSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  const boardId = await boardIdForCard(parsed.data.cardId);
+  if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
+
+  try {
+    await assertBoardAccess(session.user.id, boardId, 'member');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  // An emptied field is a cleared description, not a rejected one.
+  const description = parsed.data.description === '' ? null : parsed.data.description;
+
+  await db.transaction(async (tx) => {
+    await tx.update(cards).set({ description }).where(eq(cards.id, parsed.data.cardId));
     await touchBoard(tx, boardId);
   });
 
