@@ -4533,7 +4533,7 @@ git commit -m "feat: the drag tilt, the settle, and the reduced-motion path"
 - [ ] Screenshots or a capture of a drag in progress attached to the PR. Captured mid-drag in both
       motion settings and described in the PR body, but **not attached** — images cannot be uploaded
       to GitHub from the CLI.
-- [ ] Open the PR. Stop. Start Section F in a fresh session.
+- [x] Open the PR. Stop. Start Section F in a fresh session. — PR #48.
 
 ---
 
