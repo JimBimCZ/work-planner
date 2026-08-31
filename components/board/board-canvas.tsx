@@ -4,8 +4,16 @@ import { useEffect, useReducer, useState, useTransition } from 'react';
 
 import { BoardColumn } from '@/components/board/board-column';
 import { useBoardActions } from '@/components/board/board-actions';
-import { createCard } from '@/lib/actions/cards';
-import { boardReducer, cardsIn, orderedColumns, type BoardState } from '@/lib/board-state';
+import { createCard, deleteCard, moveCard, renameCard } from '@/lib/actions/cards';
+import {
+  boardReducer,
+  cardsIn,
+  inverse,
+  orderedColumns,
+  type BoardAction,
+  type BoardState,
+  type StateCard,
+} from '@/lib/board-state';
 import type { BoardWithCards } from '@/lib/boards';
 import { flowHue } from '@/lib/flow';
 import { ranksAfter } from '@/lib/rank';
@@ -74,6 +82,57 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     });
   }
 
+  // Every mutation but create follows one shape: compute the inverse from the
+  // pre-state, apply optimistically, and replay the inverse if the server says
+  // no. The inverse rather than a snapshot is what keeps a failed request from
+  // also undoing whatever landed while it was in flight.
+  function run(action: BoardAction, call: () => Promise<{ ok: boolean }>, message: string) {
+    const undo = inverse(state, action);
+    dispatch(action);
+    setError(null);
+
+    startTransition(async () => {
+      const result = await call();
+      if (!result.ok) {
+        for (const step of undo) dispatch(step);
+        setError(message);
+      }
+    });
+  }
+
+  const renameCardTo = (card: StateCard, title: string) =>
+    run(
+      { type: 'card.rename', cardId: card.id, title },
+      () => renameCard({ cardId: card.id, title }),
+      'That card could not be renamed. Try again.',
+    );
+
+  const removeCard = (card: StateCard) =>
+    run(
+      { type: 'card.delete', cardId: card.id },
+      () => deleteCard({ cardId: card.id }),
+      'That card could not be deleted. Try again.',
+    );
+
+  // The optimistic rank and the server's are computed independently and usually
+  // differ. Both sit strictly between the same two neighbours, so the order is
+  // identical and the next reload takes the server's value. Only the ordering
+  // is a contract; the string is not.
+  const moveCardTo = (card: StateCard, toColumnId: string) => {
+    const last = cardsIn(state, toColumnId).at(-1);
+    return run(
+      { type: 'card.move', cardId: card.id, toColumnId, rank: ranksAfter(last?.rank ?? null, 1)[0] },
+      () =>
+        moveCard({
+          cardId: card.id,
+          toColumnId,
+          beforeCardId: last?.id ?? null,
+          afterCardId: null,
+        }),
+      'That card could not be moved. Try again.',
+    );
+  };
+
   return (
     <main className="h-full overflow-x-auto">
       <div className="flex h-full min-w-max">
@@ -89,6 +148,10 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
             onOpenComposer={() => setComposerIn(column.id)}
             onCloseComposer={() => setComposerIn(null)}
             onAddCard={(title) => addCard(column.id, title)}
+            columns={columns}
+            onRenameCard={renameCardTo}
+            onDeleteCard={removeCard}
+            onMoveCardTo={moveCardTo}
           />
         ))}
       </div>

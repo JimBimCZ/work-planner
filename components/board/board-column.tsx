@@ -18,6 +18,10 @@ export function BoardColumn({
   onOpenComposer,
   onCloseComposer,
   onAddCard,
+  columns,
+  onRenameCard,
+  onDeleteCard,
+  onMoveCardTo,
 }: {
   column: StateColumn;
   cards: StateCard[];
@@ -28,6 +32,10 @@ export function BoardColumn({
   onOpenComposer: () => void;
   onCloseComposer: () => void;
   onAddCard: (title: string) => void;
+  columns: { id: string; name: string }[];
+  onRenameCard: (card: StateCard, title: string) => void;
+  onDeleteCard: (card: StateCard) => void;
+  onMoveCardTo: (card: StateCard, toColumnId: string) => void;
 }) {
   return (
     <section data-column-id={column.id} className="flex h-full w-[312px] shrink-0 flex-col">
@@ -52,7 +60,14 @@ export function BoardColumn({
           <ul className="mt-3 space-y-2 px-1.5">
             {cards.map((card) => (
               <li key={card.id}>
-                <BoardCard card={card} canWrite={canWrite} />
+                <BoardCard
+                  card={card}
+                  canWrite={canWrite}
+                  columns={columns}
+                  onRename={(title) => onRenameCard(card, title)}
+                  onDelete={() => onDeleteCard(card)}
+                  onMoveTo={(toColumnId) => onMoveCardTo(card, toColumnId)}
+                />
               </li>
             ))}
           </ul>

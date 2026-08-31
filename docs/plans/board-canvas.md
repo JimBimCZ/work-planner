@@ -3034,9 +3034,9 @@ git commit -m "feat: add a card from the column foot or the board header"
   ```
   Section E adds nothing to this. The menu never calls an action — `BoardCanvas` owns every call.
 
-- [ ] **Step 1: Invoke the `frontend-design` skill** if it has not already run in this session, for the menu's hover/focus reveal on the card.
+- [x] **Step 1: Invoke the `frontend-design` skill** if it has not already run in this session, for the menu's hover/focus reveal on the card.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Append to `e2e/cards.spec.ts`:
 
@@ -3137,12 +3137,12 @@ test('a viewer sees no card menu', async ({ page, context }) => {
 
 `BoardColumn`'s outer `<section>` needs `data-column-id={column.id}` for these locators. Add it in Step 4.
 
-- [ ] **Step 3: Run it and watch it fail**
+- [x] **Step 3: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/cards.spec.ts`
 Expected: FAIL — no "Card actions for Typo" button.
 
-- [ ] **Step 4: Write the menu**
+- [x] **Step 4: Write the menu**
 
 Create `components/board/card-menu.tsx`, following `components/boards/board-row-menu.tsx`'s shape exactly — same dropdown, same dialog, same copy voice:
 
@@ -3265,13 +3265,29 @@ export function CardMenu({
 
 A card is deleted from a dialog with a plain confirm, not a typed name. A board is a container of everything; one card is not, and `CLAUDE.md`'s typed-name guard is scoped to board deletion.
 
+**Three corrections, made while executing this task.**
+
+The trigger is `flex h-6 w-6 items-center justify-center` rather than the planned `px-1.5`. A bare `⋯`
+glyph with horizontal padding only is roughly a 20×16 target; 24px square is the floor this file's
+"Quality floor" asks for, and it costs nothing visually because the control is transparent until
+hover or focus.
+
+`board-card.tsx` gives the title `pr-6` when `canWrite`. The trigger is absolutely positioned over the
+card's top-right corner, so without it a title long enough to wrap runs underneath the `⋯`.
+
+Step 2's three reload tests hit the same race Task 11 did: the optimistic update lands, the assertion
+passes, and `page.reload()` then aborts the server action still in flight. Unlike `card.create` there
+is no temp id to watch, so the spec waits on the action's own POST round trip via a `written(page)`
+helper taken before the click. `data-column-id` needed by these locators was already added in Task 11,
+so Step 5's instruction to add it is a no-op and only the callbacks are threaded.
+
 The trigger is hidden while `card.pending` — the spec's rule that a card holding a temp id exposes no controls until the server has given it a real id.
 
-- [ ] **Step 5: Render it, and add the column id**
+- [x] **Step 5: Render it, and add the column id**
 
 In `board-card.tsx`, accept `canWrite` and the three callbacks plus `columns`, and render `<CardMenu … />` inside the `<article>` when `canWrite`. In `board-column.tsx`, add `data-column-id={column.id}` to the `<section>` and thread the callbacks through.
 
-- [ ] **Step 6: Wire the three actions in the canvas**
+- [x] **Step 6: Wire the three actions in the canvas**
 
 In `board-canvas.tsx`, each follows the same shape — apply optimistically, compute the inverse from the pre-state, revert on failure:
 
@@ -3322,12 +3338,12 @@ const moveCardTo = (card: StateCard, toColumnId: string) => {
 
 The optimistic rank and the server's rank are computed independently and will usually differ. That is harmless: both are strictly between the same two neighbours, so the resulting **order** is identical, and the next reload takes the server's value. Only the ordering is a contract; the string is not.
 
-- [ ] **Step 7: Run the tests and watch them pass**
+- [x] **Step 7: Run the tests and watch them pass**
 
 Run: `pnpm exec playwright test e2e/cards.spec.ts && pnpm test`
 Expected: PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
