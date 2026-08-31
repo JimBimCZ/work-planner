@@ -2,7 +2,7 @@
 
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useState } from 'react';
+import { useState, type Ref } from 'react';
 
 import { AddCard } from '@/components/board/add-card';
 import { BoardCard } from '@/components/board/board-card';
@@ -15,6 +15,7 @@ import { flowColor } from '@/lib/flow';
 // across the board; the 12px gutter is inset padding instead, which keeps the
 // card width at 300px without breaking the spectrum.
 export function BoardColumn({
+  ref,
   column,
   cards,
   hue,
@@ -35,6 +36,7 @@ export function BoardColumn({
   onMoveColumn,
   onDeleteColumn,
 }: {
+  ref?: Ref<HTMLElement>;
   column: StateColumn;
   cards: StateCard[];
   hue: number;
@@ -65,7 +67,11 @@ export function BoardColumn({
   const rest = columns.filter((c) => c.id !== column.id && c.id !== left?.id);
   const others = left ? [left, ...rest] : rest;
   return (
-    <section data-column-id={column.id} className="flex h-full w-[312px] shrink-0 flex-col">
+    <section
+      ref={ref}
+      data-column-id={column.id}
+      className="flex h-full w-screen shrink-0 snap-start flex-col min-[700px]:w-[312px] min-[700px]:snap-align-none"
+    >
       <div
         className="h-[3px] shrink-0"
         style={{ background: `linear-gradient(90deg, ${flowColor(hue)}, ${flowColor(nextHue)})` }}
