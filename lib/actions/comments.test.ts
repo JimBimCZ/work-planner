@@ -74,6 +74,11 @@ describe('addComment', () => {
     // not 'member', and that is the whole difference from the card actions.
     await addComment({ cardId: 'card-1', body: 'Looks right' });
     expect(assertBoardAccess).toHaveBeenCalledWith('user-1', 'b1', 'viewer');
+    expect(ops).toContainEqual({
+      kind: 'insert',
+      table: 'comments',
+      values: { cardId: 'card-1', authorId: 'user-1', body: 'Looks right' },
+    });
   });
 
   test('refuses a non-member', async () => {
