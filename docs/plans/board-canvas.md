@@ -4561,7 +4561,7 @@ The spec's interpretation, restated because it is what this section implements: 
   }): JSX.Element;
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `e2e/board-responsive.spec.ts`:
 
@@ -4651,12 +4651,16 @@ test('the switcher is gone on a wide viewport', async ({ page, context }) => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/board-responsive.spec.ts`
 Expected: FAIL — the column is 312px wide at every viewport and there is no tablist.
+Observed: exit 1, 2 failed of 4 — the width assertion got 312, and the tablist
+never appeared. The other two passed already: the page did not overflow
+sideways before this section either, and `toBeHidden` is satisfied by an
+element that is absent.
 
-- [ ] **Step 3: Write the switcher**
+- [x] **Step 3: Write the switcher**
 
 Create `components/board/column-switcher.tsx`:
 
@@ -4697,7 +4701,7 @@ export function ColumnSwitcher({
 }
 ```
 
-- [ ] **Step 4: Make the board snap**
+- [x] **Step 4: Make the board snap**
 
 In `board-column.tsx`, the `<section>` becomes full-width below 700px and 312px above it, and a snap target:
 
@@ -4711,7 +4715,15 @@ In `board-canvas.tsx`, the scroll container gains snapping below 700px only:
 <div className="flex h-full min-w-max snap-x snap-mandatory min-[700px]:snap-none">
 ```
 
-- [ ] **Step 5: Track and drive the active column**
+**Corrected while implementing.** That div is not the scroll container — `<main>`
+carries `overflow-x-auto`, and snapping only applies to the element that
+scrolls. The switcher also has to sit outside the scrolling element or it
+scrolls away with the columns. So `<main>` became `flex h-full flex-col`
+holding the switcher and a scrolling
+`min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto min-[700px]:snap-none`
+div, which wraps the existing `flex h-full min-w-max` row.
+
+- [x] **Step 5: Track and drive the active column**
 
 In `board-canvas.tsx`, hold a ref per column, scroll on select, and track what is on screen so the tab follows a manual swipe rather than only a click:
 
@@ -4741,12 +4753,21 @@ Render `<ColumnSwitcher columns={columns} activeId={activeColumnId} onSelect={sh
 
 `scrollIntoView` with `behavior: 'smooth'` must also honour reduced motion — pass `'auto'` when the same `matchMedia` check Task 17 added returns true.
 
-- [ ] **Step 6: Run the tests and watch them pass**
+**Corrected while implementing.** `entries.find((entry) => entry.isIntersecting)`
+leaves the tab on a column nobody can see. A callback only carries the columns
+whose visibility *changed*: crossing the breakpoint from 1280 back down to 360
+reports the four columns that left, none of them intersecting, so the id set
+arbitrarily while the board was wide survives. Caught in the browser — the
+switcher read "In Progress" over a visible "Ready to Work". The observer now
+keeps each column's ratio in a `Map` across callbacks and takes the largest,
+with `threshold: [0.6, 1]` so the settled column reports 1 and wins.
+
+- [x] **Step 6: Run the tests and watch them pass**
 
 Run: `pnpm exec playwright test`
 Expected: PASS, the whole suite. Section F changes layout, so every earlier board spec is a regression test for it.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -4758,11 +4779,34 @@ git commit -m "feat: one column at a time below 700px, with a switcher"
 
 ### Section F gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
-- [ ] The board is usable at 360px **in a real browser**, not only in Playwright: one column fills the viewport, the switcher reaches every column, and nothing overflows the page sideways.
-- [ ] Dragging a card still works at 360px within the visible column, and **Move to** is how it crosses columns.
-- [ ] The wide board is unchanged — 312px columns, no snapping, no switcher.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+      typecheck clean; eslint 0 errors and the 2 pre-existing `_pending` warnings in
+      `lib/board-state.ts`; vitest 170 passed across 16 files; playwright **55 passed of 55
+      collected, exit 0** — 49 before this section, plus this section's 6. Read from a
+      redirected log and `echo $?`, not from a pipeline's summary line.
+- [x] The board is usable at 360px **in a real browser**, not only in Playwright: one column fills the viewport, the switcher reaches every column, and nothing overflows the page sideways.
+      Chrome at an emulated 360x720: every column measured 360px wide at offsets 0, 360,
+      720, 1080, 1440; `documentElement.scrollWidth === clientWidth`; clicking the **Done**
+      tab put its card on screen at left 25, and the tab followed a manual scroll to
+      In Testing without a click.
+- [x] Dragging a card still works at 360px within the visible column, and **Move to** is how it crosses columns.
+      Both are now in `e2e/board-responsive.spec.ts`. Two findings behind them, neither a
+      defect: dropping over a card inserts *before* it (`dropTarget`), so the reordering
+      gesture is dragging the lower card up — the reverse asserts nothing and fails at
+      1280 too; and at 360px the Move-to submenu collision-flips to the left, where Radix
+      keeps it open only while the recorded direction of travel matches the side it opened
+      on (`isPointerMovingToSubmenu` against `pointerDirRef`, which defaults to `right`).
+      A teleporting `.click()` records no direction and the submenu closes before the
+      click lands; a pointer path — which is what a person produces — keeps it open. The
+      test moves the mouse in steps for that reason. `collisionPadding` on the parent menu
+      cannot avoid the flip: Radix wraps `shift` in `limitShift`, so the menu will not
+      detach from its trigger, measured unmoved even at 400px.
+- [x] The wide board is unchanged — 312px columns, no snapping, no switcher.
+      At a real 1280px window: all five columns 312px, `scroll-snap-type: none`,
+      `scroll-snap-align: none`, the tablist `display: none`, no sideways page overflow.
 - [ ] Screenshots at 360px and at 1280px, both themes, attached to the PR.
+      Captured at 360x720 and 1280x800 in both themes and described in the PR body, but
+      **not attached** — images cannot be uploaded to GitHub from the CLI.
 - [ ] Open the PR. Stop.
 
 ---
