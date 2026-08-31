@@ -464,6 +464,20 @@ This rule outranks everything else in this file. If you find yourself about to s
 - Don't assume the cause of a failure. Reproduce it, find the root cause, then fix — never patch at the first symptom that makes the error message go away.
 - When you can't verify something, say so explicitly and say what would be needed to verify it. An honest "I haven't confirmed this" is useful; a confident wrong answer is not.
 - Report what you actually observed, not what you expected to observe. If the test output was ambiguous, that's the finding.
+- **Read the exit code, and make sure it is the one you think it is.** A shell pipeline exits with the
+  status of its *last* command, so `pnpm exec playwright test | tail -5` reports `tail`'s success and a
+  failing suite announces itself as "exited with code 0". `vitest`, `tsc` and `eslint` pipe the same
+  way. Redirect to a file and echo `$?`:
+
+  ```bash
+  pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -3 /tmp/e2e.log
+  ```
+
+  This is not hypothetical. Three failing e2e tests survived three commits during Section E of the
+  board canvas behind a piped "code 0", and were only caught when a count disagreed — 46 passing
+  against 49 collected. **A summary line is not an exit code, and a passing count is not a passing
+  suite.** Compare the number that ran against the number that exists when it matters.
+  (`set -o pipefail` fixes the pipeline, but reading `$?` directly is what actually gets checked.)
 
 Uncertainty stated plainly is always preferable to fluent guessing. I would rather be asked than told something untrue.
 
