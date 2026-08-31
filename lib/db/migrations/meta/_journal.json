@@ -15,6 +15,13 @@
       "when": 1788108329704,
       "tag": "0001_whole_typhoid_mary",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788122457655,
+      "tag": "0002_classy_phalanx",
+      "breakpoints": true
     }
   ]
 }

@@ -4,15 +4,16 @@ import { ColumnShell } from '@/components/board/column-shell';
 import { auth } from '@/lib/auth';
 import { getBoardWithColumns } from '@/lib/boards';
 import { flowHue } from '@/lib/flow';
-import { assertBoardAccess, BoardAccessError } from '@/lib/permissions';
+import { assertBoardAccess, BoardAccessError, type BoardRole } from '@/lib/permissions';
 
 export default async function BoardPage({ params }: { params: Promise<{ boardId: string }> }) {
   const { boardId } = await params;
   const session = await auth();
   if (!session?.user?.id) redirect('/signin');
 
+  let role: BoardRole;
   try {
-    await assertBoardAccess(session.user.id, boardId, 'viewer');
+    role = await assertBoardAccess(session.user.id, boardId, 'viewer');
   } catch (error) {
     // A membership miss is indistinguishable from a missing board on purpose:
     // a 403 would confirm a guessed id is real.
@@ -26,7 +27,7 @@ export default async function BoardPage({ params }: { params: Promise<{ boardId:
   const total = board.columns.length;
 
   return (
-    <main className="h-full overflow-x-auto">
+    <main className="h-full overflow-x-auto" data-role={role}>
       <div className="flex h-full min-w-max">
         {board.columns.map((column, index) => (
           <ColumnShell

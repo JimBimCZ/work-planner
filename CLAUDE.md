@@ -69,7 +69,7 @@ docker build -t kanban .           # app image only, self-host
 **`MIGRATE_URL` names the database outright, and is how production is migrated:**
 
 ```bash
-MIGRATE_URL="$(npx neonctl@4 connection-string main --project-id <id>)" pnpm db:migrate
+MIGRATE_URL="$(npx --yes neonctl@4 connection-string main --project-id withered-glade-54206401)" pnpm db:migrate
 ```
 
 It exists because provenance cannot be inferred. drizzle-kit loads `.env` into `process.env` before
@@ -79,12 +79,21 @@ config used to guess by exactly that comparison, and it broke in the one case `.
 describe: `DATABASE_URL_UNPOOLED=postgres://kanban:kanban@localhost:5432/kanban pnpm db:migrate`
 matched `.env`, read as "not from the shell", and migrated the Neon dev branch while printing
 `migrations applied successfully!`. `MIGRATE_URL` carries no value to be confused with.
+
 `lib/db/migrate-target.ts` holds the rule and its tests.
+
+`--yes` is not decoration either. `npx` re-resolves `neonctl` on every invocation — it is never
+cached — and an interactive terminal answers that with a confirmation prompt the surrounding
+`$( )` swallows, so the command appears to hang forever and `MIGRATE_URL` ends up empty.
+Installing `neonctl` globally avoids both the prompt and the six seconds it costs.
 
 `DATABASE_URL_UNPOOLED` still works from the shell when its value differs from `.env`'s — that is what
 CI relies on — but prefer `MIGRATE_URL` when it matters, and confirm with `\dt` rather than the
 success line. Also note `drizzle-kit migrate` exits 1 with an empty stderr
 when `lib/db/migrations/` does not exist; the first `db:generate` creates it.
+
+`MIGRATE_URL` set but empty — a failed command substitution, most often — is a hard error rather than
+a silent fallback to another database, because a fallback there is this same failure mode again.
 
 Before declaring any task done, run `pnpm typecheck && pnpm lint && pnpm test`. Do not report success on output you have not seen.
 

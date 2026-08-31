@@ -100,15 +100,55 @@ export const columns = pgTable(
   (t) => [index('columns_board_id_rank_idx').on(t.boardId, t.rank)],
 );
 
+export const cards = pgTable(
+  'cards',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    boardId: text('board_id')
+      .notNull()
+      .references(() => boards.id, { onDelete: 'cascade' }),
+    // No onDelete: Postgres's default NO ACTION is what refuses to orphan a
+    // column's cards. deleteColumn moves them to a named target first.
+    columnId: text('column_id')
+      .notNull()
+      .references(() => columns.id),
+    title: text('title').notNull(),
+    description: text('description'),
+    dueDate: timestamp('due_date', { withTimezone: true }),
+    rank: text('rank').notNull(),
+    createdById: text('created_by_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index('cards_column_id_rank_idx').on(t.columnId, t.rank),
+    index('cards_board_id_idx').on(t.boardId),
+  ],
+);
+
 export const boardsRelations = relations(boards, ({ many }) => ({
   members: many(boardMembers),
   columns: many(columns),
+  cards: many(cards),
 }));
 
 export const boardMembersRelations = relations(boardMembers, ({ one }) => ({
   board: one(boards, { fields: [boardMembers.boardId], references: [boards.id] }),
 }));
 
-export const columnsRelations = relations(columns, ({ one }) => ({
+export const columnsRelations = relations(columns, ({ one, many }) => ({
   board: one(boards, { fields: [columns.boardId], references: [boards.id] }),
+  cards: many(cards),
+}));
+
+export const cardsRelations = relations(cards, ({ one }) => ({
+  board: one(boards, { fields: [cards.boardId], references: [boards.id] }),
+  column: one(columns, { fields: [cards.columnId], references: [columns.id] }),
 }));
