@@ -1,6 +1,7 @@
 'use server';
 
 import { eq } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { auth } from '@/lib/auth';
@@ -50,6 +51,7 @@ export async function addComment(input: unknown) {
     return { id: row.id };
   });
 
+  revalidatePath('/boards');
   return { ok: true, data: created } as const;
 }
 
@@ -79,6 +81,7 @@ export async function editComment(input: unknown) {
     await touchBoard(tx, scope.boardId);
   });
 
+  revalidatePath('/boards');
   return { ok: true } as const;
 }
 
@@ -105,5 +108,6 @@ export async function deleteComment(input: unknown) {
     await touchBoard(tx, scope.boardId);
   });
 
+  revalidatePath('/boards');
   return { ok: true } as const;
 }
