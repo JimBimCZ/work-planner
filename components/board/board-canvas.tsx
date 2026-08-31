@@ -1,5 +1,15 @@
 'use client';
 
+import {
+  closestCorners,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useEffect, useReducer, useState, useTransition } from 'react';
 
 import { BoardColumn } from '@/components/board/board-column';
@@ -9,6 +19,7 @@ import { addColumn, deleteColumn, moveColumn, renameColumn } from '@/lib/actions
 import {
   boardReducer,
   cardsIn,
+  dropTarget,
   inverse,
   orderedColumns,
   type BoardAction,
@@ -207,34 +218,68 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     );
   };
 
+  const sensors = useSensors(
+    // ~5px so a click still reaches the card body, which sub-project 5 uses to
+    // open the modal. Below that a click becomes a drag.
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function onDragEnd({ active, over }: DragEndEvent) {
+    if (!over || !canWrite) return;
+
+    const target = dropTarget(state, String(active.id), String(over.id));
+    if (!target) return;
+
+    const before = target.beforeCardId
+      ? state.cards.find((card) => card.id === target.beforeCardId)
+      : null;
+    const after = target.afterCardId
+      ? state.cards.find((card) => card.id === target.afterCardId)
+      : null;
+
+    run(
+      {
+        type: 'card.move',
+        cardId: String(active.id),
+        toColumnId: target.toColumnId,
+        rank: rankBetween(before?.rank ?? null, after?.rank ?? null),
+      },
+      () => moveCard({ cardId: String(active.id), ...target }),
+      'That card could not be moved. Try again.',
+    );
+  }
+
   return (
     <main className="h-full overflow-x-auto">
-      <div className="flex h-full min-w-max">
-        {columns.map((column, index) => (
-          <BoardColumn
-            key={column.id}
-            column={column}
-            cards={cardsIn(state, column.id)}
-            hue={flowHue(index, total)}
-            nextHue={flowHue(Math.min(index + 1, total - 1), total)}
-            canWrite={canWrite}
-            composerOpen={composerIn === column.id}
-            onOpenComposer={() => setComposerIn(column.id)}
-            onCloseComposer={() => setComposerIn(null)}
-            onAddCard={(title) => addCard(column.id, title)}
-            columns={columns}
-            onRenameCard={renameCardTo}
-            onDeleteCard={removeCard}
-            onMoveCardTo={moveCardTo}
-            isFirst={index === 0}
-            isLast={index === total - 1}
-            onRenameColumn={renameColumnTo}
-            onAddColumnAfter={addColumnAfter}
-            onMoveColumn={moveColumnBy}
-            onDeleteColumn={total > 1 ? removeColumn : null}
-          />
-        ))}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={onDragEnd}>
+        <div className="flex h-full min-w-max">
+          {columns.map((column, index) => (
+            <BoardColumn
+              key={column.id}
+              column={column}
+              cards={cardsIn(state, column.id)}
+              hue={flowHue(index, total)}
+              nextHue={flowHue(Math.min(index + 1, total - 1), total)}
+              canWrite={canWrite}
+              composerOpen={composerIn === column.id}
+              onOpenComposer={() => setComposerIn(column.id)}
+              onCloseComposer={() => setComposerIn(null)}
+              onAddCard={(title) => addCard(column.id, title)}
+              columns={columns}
+              onRenameCard={renameCardTo}
+              onDeleteCard={removeCard}
+              onMoveCardTo={moveCardTo}
+              isFirst={index === 0}
+              isLast={index === total - 1}
+              onRenameColumn={renameColumnTo}
+              onAddColumnAfter={addColumnAfter}
+              onMoveColumn={moveColumnBy}
+              onDeleteColumn={total > 1 ? removeColumn : null}
+            />
+          ))}
+        </div>
+      </DndContext>
 
       <p
         role="status"

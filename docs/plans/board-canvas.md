@@ -4141,7 +4141,7 @@ The commit body records what the probe showed, including any warning text.
   ```
   Kept pure and in the state module so the hardest part of the drag is unit-testable without a browser. `onDragEnd` becomes three lines that call it.
 
-- [ ] **Step 1: Write the failing test for `dropTarget`**
+- [x] **Step 1: Write the failing test for `dropTarget`**
 
 Append to `lib/board-state.test.ts`:
 
@@ -4196,12 +4196,12 @@ describe('dropTarget', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/board-state.test.ts`
 Expected: FAIL — `dropTarget` is not exported.
 
-- [ ] **Step 3: Write `dropTarget`**
+- [x] **Step 3: Write `dropTarget`**
 
 Append to `lib/board-state.ts`:
 
@@ -4228,12 +4228,12 @@ export function dropTarget(
 }
 ```
 
-- [ ] **Step 4: Run the unit tests and watch them pass**
+- [x] **Step 4: Run the unit tests and watch them pass**
 
 Run: `pnpm test lib/board-state.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Write the failing e2e**
+- [x] **Step 5: Write the failing e2e**
 
 Create `e2e/board-dnd.spec.ts`:
 
@@ -4338,12 +4338,12 @@ test('a viewer cannot drag', async ({ page, context }) => {
 });
 ```
 
-- [ ] **Step 6: Run it and watch it fail**
+- [x] **Step 6: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/board-dnd.spec.ts`
 Expected: FAIL — the card does not move; nothing is draggable yet.
 
-- [ ] **Step 7: Make the card sortable**
+- [x] **Step 7: Make the card sortable**
 
 In `board-card.tsx`:
 
@@ -4358,7 +4358,7 @@ Spread `{...attributes} {...listeners}` on the `<article>`, set `ref={setNodeRef
 
 The `⋯` trigger sits inside a draggable element, so give it `onPointerDown={(event) => event.stopPropagation()}` — otherwise the sensor swallows the press and the menu never opens.
 
-- [ ] **Step 8: Make the column droppable**
+- [x] **Step 8: Make the column droppable**
 
 In `board-column.tsx`, wrap the card list in a `SortableContext` and make the scrollable body the droppable:
 
@@ -4372,7 +4372,7 @@ const { setNodeRef } = useDroppable({ id: column.id });
 
 The droppable ref goes on the scrolling `<div>`, not the `<section>`, so the whole empty area below the cards is a drop target.
 
-- [ ] **Step 9: Wire the context and the move**
+- [x] **Step 9: Wire the context and the move**
 
 In `board-canvas.tsx`:
 
@@ -4413,12 +4413,25 @@ Wrap the board in `<DndContext sensors={sensors} collisionDetection={closestCorn
 
 The optimistic rank and the server's rank are computed independently from the same neighbour pair, so they order identically even when the strings differ — the same property Task 12 relies on.
 
-- [ ] **Step 10: Run the tests and watch them pass**
+**Two corrections to Step 5's e2e, both found by running it.**
+
+The drag test moved to the target column immediately after crossing the activation distance, and the
+drop was silently ignored. dnd-kit had not started the drag yet, so the `pointermove` landed on a
+context that was not dragging. Confirmed by reading dnd-kit's own live region mid-drag: it said
+"was moved over droppable area `<the card's own id>`" rather than the column's. The test now waits for
+the card to carry dnd-kit's `translate3d` transform — a real "the drag is running" signal — before
+moving to the target, rather than sleeping.
+
+Then the same reload race Tasks 11, 12 and 14 hit: the optimistic assertion passed and `page.reload()`
+aborted the in-flight `moveCard`. It waits on `written(page)` first. **Both bugs were in the test, not
+the implementation** — the optimistic move was correct from the first run.
+
+- [x] **Step 10: Run the tests and watch them pass**
 
 Run: `pnpm exec playwright test e2e/board-dnd.spec.ts e2e/cards.spec.ts e2e/columns.spec.ts`
 Expected: PASS. If the drag test is flaky, the cause is almost always the activation distance — add an intermediate `page.mouse.move` step rather than raising the timeout.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
