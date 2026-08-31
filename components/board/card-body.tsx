@@ -113,6 +113,7 @@ export function CardBody({
       <input
         aria-label="Card title"
         value={title}
+        maxLength={200}
         onChange={(event) => setTitle(event.target.value)}
         onBlur={commitTitle}
         onKeyDown={(event) => {
