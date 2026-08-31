@@ -1,5 +1,7 @@
 'use client';
 
+import { useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useState } from 'react';
 
 import { AddCard } from '@/components/board/add-card';
@@ -54,6 +56,7 @@ export function BoardColumn({
   onDeleteColumn: ((column: StateColumn, targetColumnId: string) => void) | null;
 }) {
   const [deleting, setDeleting] = useState(false);
+  const { setNodeRef } = useDroppable({ id: column.id });
 
   // The left neighbour first, so it is the select's default; the first column
   // falls through to its right neighbour, which is the next in natural order.
@@ -67,7 +70,10 @@ export function BoardColumn({
         className="h-[3px] shrink-0"
         style={{ background: `linear-gradient(90deg, ${flowColor(hue)}, ${flowColor(nextHue)})` }}
       />
+      {/* The droppable is the scrolling body, not the section, so the empty
+          area below the last card is a drop target too. */}
       <div
+        ref={setNodeRef}
         className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-4"
         style={{ background: `linear-gradient(${flowColor(hue, 0.06)}, transparent 80px)` }}
       >
@@ -94,20 +100,25 @@ export function BoardColumn({
         {cards.length === 0 ? (
           <p className="px-1.5 pt-6 text-sm text-muted">Nothing here yet</p>
         ) : (
-          <ul className="mt-3 space-y-2 px-1.5">
-            {cards.map((card) => (
-              <li key={card.id}>
-                <BoardCard
-                  card={card}
-                  canWrite={canWrite}
-                  columns={columns}
-                  onRename={(title) => onRenameCard(card, title)}
-                  onDelete={() => onDeleteCard(card)}
-                  onMoveTo={(toColumnId) => onMoveCardTo(card, toColumnId)}
-                />
-              </li>
-            ))}
-          </ul>
+          <SortableContext
+            items={cards.map((card) => card.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <ul className="mt-3 space-y-2 px-1.5">
+              {cards.map((card) => (
+                <li key={card.id}>
+                  <BoardCard
+                    card={card}
+                    canWrite={canWrite}
+                    columns={columns}
+                    onRename={(title) => onRenameCard(card, title)}
+                    onDelete={() => onDeleteCard(card)}
+                    onMoveTo={(toColumnId) => onMoveCardTo(card, toColumnId)}
+                  />
+                </li>
+              ))}
+            </ul>
+          </SortableContext>
         )}
 
         {canWrite ? (

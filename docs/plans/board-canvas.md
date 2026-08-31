@@ -3986,7 +3986,7 @@ The spec records that `@dnd-kit/core` 6.3.1 declares `react >=16.8.0` and has **
 - Modify: `package.json` (dependencies only)
 - Create then **delete**: `app/design/dnd-probe/page.tsx`
 
-- [ ] **Step 1: Install**
+- [x] **Step 1: Install**
 
 ```bash
 pnpm add @dnd-kit/core@6.3.1 @dnd-kit/sortable@10.0.0 @dnd-kit/utilities@3.2.2
@@ -3994,7 +3994,7 @@ pnpm add @dnd-kit/core@6.3.1 @dnd-kit/sortable@10.0.0 @dnd-kit/utilities@3.2.2
 
 Pinned exactly, as `next`, `zod` and `fractional-indexing` already are in this repository.
 
-- [ ] **Step 2: Write the probe**
+- [x] **Step 2: Write the probe**
 
 Create `app/design/dnd-probe/page.tsx` — a throwaway, under the existing `/design` route group so it inherits a layout:
 
@@ -4063,7 +4063,7 @@ export default function DndProbe() {
 }
 ```
 
-- [ ] **Step 3: Run it and observe**
+- [x] **Step 3: Run it and observe**
 
 ```bash
 pnpm dev
@@ -4077,7 +4077,34 @@ Open `http://localhost:3000/design/dnd-probe` and drag `a1` from box A into box 
 - **It works but warns** (a `ref`, `defaultProps` or lifecycle warning under React 19) — note the exact text in the PR body and proceed. A warning is not a blocker; an unrecorded warning is.
 - **It does not work** — stop. Do not proceed to Task 16. Try `@dnd-kit/react@0.5.0` + `@dnd-kit/helpers@0.5.0` in the same probe, whose API is `DragDropProvider` with a `move()` helper rather than `DndContext`. Report which one works, and raise the stack-table change in `CLAUDE.md` before writing any of Task 16 — `CLAUDE.md` names the v1 packages, and changing that is a decision to be taken, not assumed.
 
-- [ ] **Step 4: Stop the server and delete the probe**
+**Observed, 2026-08-31, on React 19.2.8 / Next 16.3.3 with `@dnd-kit/core@6.3.1`,
+`@dnd-kit/sortable@10.0.0`, `@dnd-kit/utilities@3.2.2`.** Outcome: **it works, console clean.** No
+change to `CLAUDE.md`'s stack table is needed and `@dnd-kit/react` was not tried.
+
+The drag was driven through Chromium with real pointer events — press, cross the 5px activation
+distance in steps, move, release — rather than by hand, because the Chrome the devtools MCP uses had
+its profile locked by an earlier session. Same DOM events either way.
+
+- **Cross-container drop works.** Box A `['a1','a2']` and B `[]` became A `['a2']` and B `['a1']`.
+- **Console clean.** Two messages, both benign and both present on every page of this app: React's
+  "Download the React DevTools" info line, and `[HMR] connected`. No React 19 warning about refs,
+  `defaultProps` or lifecycles. No errors, no `pageerror`.
+- **Sortable transforms are applied and animated.** Dragging `a1` down over `a2` inside one list gave
+  the active item `transform: translate3d(0px, 63px, 0px)` and the sibling
+  `transition: transform 200ms; transform: translate3d(0px, -58px, 0px)`.
+- **Accessibility is intact out of the box.** The item carries `aria-roledescription="sortable"` and an
+  `aria-describedby` pointing at dnd-kit's generated description, and its live region announced
+  "Draggable item a1 was moved over droppable area B."
+
+**One finding that changes Task 16 and 17:** the active item gets **no** transform while it is over a
+*different* container — mid-drag its inline style was `""` on the A→B drag, against a real
+`translate3d` on the within-list drag above. So the sortable transform only translates an item within
+its own `SortableContext`, and a card dragged across columns will not follow the cursor on that hook
+output alone. `DragOverlay` is what makes it follow, and Task 17's shadow, `scale(1.02)` and 3° tilt
+belong on the overlay rather than on the card in place. Budget for it there rather than discovering it
+mid-task.
+
+- [x] **Step 4: Stop the server and delete the probe**
 
 ```bash
 rm -rf app/design/dnd-probe
@@ -4085,7 +4112,7 @@ rm -rf app/design/dnd-probe
 
 Stop `pnpm dev`. `CLAUDE.md`: anything you open, you close; clean up temporary files.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -4114,7 +4141,7 @@ The commit body records what the probe showed, including any warning text.
   ```
   Kept pure and in the state module so the hardest part of the drag is unit-testable without a browser. `onDragEnd` becomes three lines that call it.
 
-- [ ] **Step 1: Write the failing test for `dropTarget`**
+- [x] **Step 1: Write the failing test for `dropTarget`**
 
 Append to `lib/board-state.test.ts`:
 
@@ -4169,12 +4196,12 @@ describe('dropTarget', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/board-state.test.ts`
 Expected: FAIL — `dropTarget` is not exported.
 
-- [ ] **Step 3: Write `dropTarget`**
+- [x] **Step 3: Write `dropTarget`**
 
 Append to `lib/board-state.ts`:
 
@@ -4201,12 +4228,12 @@ export function dropTarget(
 }
 ```
 
-- [ ] **Step 4: Run the unit tests and watch them pass**
+- [x] **Step 4: Run the unit tests and watch them pass**
 
 Run: `pnpm test lib/board-state.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Write the failing e2e**
+- [x] **Step 5: Write the failing e2e**
 
 Create `e2e/board-dnd.spec.ts`:
 
@@ -4311,12 +4338,12 @@ test('a viewer cannot drag', async ({ page, context }) => {
 });
 ```
 
-- [ ] **Step 6: Run it and watch it fail**
+- [x] **Step 6: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/board-dnd.spec.ts`
 Expected: FAIL — the card does not move; nothing is draggable yet.
 
-- [ ] **Step 7: Make the card sortable**
+- [x] **Step 7: Make the card sortable**
 
 In `board-card.tsx`:
 
@@ -4331,7 +4358,7 @@ Spread `{...attributes} {...listeners}` on the `<article>`, set `ref={setNodeRef
 
 The `⋯` trigger sits inside a draggable element, so give it `onPointerDown={(event) => event.stopPropagation()}` — otherwise the sensor swallows the press and the menu never opens.
 
-- [ ] **Step 8: Make the column droppable**
+- [x] **Step 8: Make the column droppable**
 
 In `board-column.tsx`, wrap the card list in a `SortableContext` and make the scrollable body the droppable:
 
@@ -4345,7 +4372,7 @@ const { setNodeRef } = useDroppable({ id: column.id });
 
 The droppable ref goes on the scrolling `<div>`, not the `<section>`, so the whole empty area below the cards is a drop target.
 
-- [ ] **Step 9: Wire the context and the move**
+- [x] **Step 9: Wire the context and the move**
 
 In `board-canvas.tsx`:
 
@@ -4386,12 +4413,25 @@ Wrap the board in `<DndContext sensors={sensors} collisionDetection={closestCorn
 
 The optimistic rank and the server's rank are computed independently from the same neighbour pair, so they order identically even when the strings differ — the same property Task 12 relies on.
 
-- [ ] **Step 10: Run the tests and watch them pass**
+**Two corrections to Step 5's e2e, both found by running it.**
+
+The drag test moved to the target column immediately after crossing the activation distance, and the
+drop was silently ignored. dnd-kit had not started the drag yet, so the `pointermove` landed on a
+context that was not dragging. Confirmed by reading dnd-kit's own live region mid-drag: it said
+"was moved over droppable area `<the card's own id>`" rather than the column's. The test now waits for
+the card to carry dnd-kit's `translate3d` transform — a real "the drag is running" signal — before
+moving to the target, rather than sleeping.
+
+Then the same reload race Tasks 11, 12 and 14 hit: the optimistic assertion passed and `page.reload()`
+aborted the in-flight `moveCard`. It waits on `written(page)` first. **Both bugs were in the test, not
+the implementation** — the optimistic move was correct from the first run.
+
+- [x] **Step 10: Run the tests and watch them pass**
 
 Run: `pnpm exec playwright test e2e/board-dnd.spec.ts e2e/cards.spec.ts e2e/columns.spec.ts`
 Expected: PASS. If the drag test is flaky, the cause is almost always the activation distance — add an intermediate `page.mouse.move` step rather than raising the timeout.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -4408,9 +4448,9 @@ git commit -m "feat: drag a card between columns, optimistically"
 
 The one place the interface acknowledges physicality, per the design brief — and the only motion work in the sub-project.
 
-- [ ] **Step 1: Invoke the `frontend-design` skill.**
+- [x] **Step 1: Invoke the `frontend-design` skill.**
 
-- [ ] **Step 2: Write the implementation**
+- [x] **Step 2: Write the implementation**
 
 On the card, while `isDragging`: a real shadow, `scale(1.02)` and a 3° tilt, composed onto dnd-kit's own transform rather than replacing it:
 
@@ -4427,7 +4467,26 @@ The drop settle is 180ms `cubic-bezier(0.2, 0, 0, 1)` on **transform only** — 
 
 Cards arriving in a column fade in over 200ms with a 4px rise. Add a keyframe in `app/globals.css` and apply it to `<article>` on mount.
 
-- [ ] **Step 3: Respect `prefers-reduced-motion`**
+**Correction: this task needs a `DragOverlay`, which the plan does not mention.** Putting the tilt on
+the card behind `isDragging` only works while the card is inside its own `SortableContext`. Measured on
+the real board: dragging within a column gives the card `translate3d(0px, 20px, 0px)`, but with the
+pointer over the next column its inline style is `""` and its box is still at `x: 12` while the pointer
+is at `x: 468`. The card does not follow the cursor across columns, so the shadow, scale and tilt would
+be invisible during exactly the drag they exist for. Task 15's spike predicted this and it is recorded
+there.
+
+So the overlay is what follows the cursor, and it carries the motion. The card left behind takes
+`opacity-40`, which reads as the hole it came from rather than a second copy. The overlay is
+`aria-hidden` and carries **neither** `data-card-id` nor `data-testid="card-title"` — a second element
+with that testid would break `toHaveText([...])` in every existing spec. Verified: three seeded cards
+give three `card-title` elements mid-drag, not four.
+
+Observed with `emulateMedia`: `no-preference` gives the overlay
+`transform: scale(1.02) rotate(3deg)`, `reduce` gives it no transform while the card still follows the
+pointer. `dropAnimation={null}` because the reducer has already moved the card by the time the overlay
+would animate home, so the default animation flies it to the wrong place.
+
+- [x] **Step 3: Respect `prefers-reduced-motion`**
 
 No tilt, no rise. In `globals.css`:
 
@@ -4439,7 +4498,7 @@ No tilt, no rise. In `globals.css`:
 
 and drop the `rotate`/`scale` when the query matches, read once with `useSyncExternalStore` over `matchMedia('(prefers-reduced-motion: reduce)')` so it is not sampled on every render.
 
-- [ ] **Step 4: Verify by eye and by audit**
+- [x] **Step 4: Verify by eye and by audit**
 
 ```bash
 pnpm dev
@@ -4447,7 +4506,7 @@ pnpm dev
 
 Drag a card and watch the tilt and the settle. Then set the OS reduced-motion preference (macOS: System Settings → Accessibility → Display → Reduce motion) and confirm the tilt and the rise are gone while the card still moves. Stop the dev server.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -4459,14 +4518,22 @@ git commit -m "feat: the drag tilt, the settle, and the reduced-motion path"
 
 ### Section E gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
-- [ ] Task 15's probe outcome is recorded in the PR body, including any React 19 console warning, and `app/design/dnd-probe/` is gone.
-- [ ] A card dragged across columns survives a reload, and **exactly one `cards` row changed** — confirmed with a `select` against the dev branch, not inferred from the UI.
-- [ ] **A rejected move puts the card back and says so in the status strip.** Force it — temporarily make `moveCard` return `{ ok: false, error: 'INVALID' }`, observe the revert and the message, then undo the change. Do not skip this because the inverse is unit-tested; the wiring is not.
-- [ ] Keyboard drag works: tab to a card, space, arrow keys, space. dnd-kit's announcements are audible to a screen reader and its `attributes` were not stripped.
-- [ ] A click on a card body does not move it — the 5px activation distance is intact.
-- [ ] Screenshots or a capture of a drag in progress attached to the PR.
-- [ ] Open the PR. Stop. Start Section F in a fresh session.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+      typecheck clean; `pnpm build` clean; eslint 0 errors and the 2 pre-existing `_pending` warnings
+      in `lib/board-state.ts`; vitest 170 passed across 16 files; playwright 49 passed of 49, exit 0.
+      **Read the exit code, not the summary line.** `playwright test | tail -n` reports the exit status
+      of `tail`, so a failing suite looks like a passing one; three failures hid behind an "exited with
+      code 0" that way during this section. Redirect to a file and echo `$?`.
+- [x] Task 15's probe outcome is recorded in the PR body, including any React 19 console warning, and `app/design/dnd-probe/` is gone. There were no React warnings — only the DevTools info line and `[HMR] connected`. `app/design/` holds `layout.tsx`, `page.tsx` and `theme-toggle.tsx` and nothing else.
+- [x] A card dragged across columns survives a reload, and **exactly one `cards` row changed** — confirmed with a `select` against the dev branch, not inferred from the UI. Three cards seeded, all rows selected before and after: exactly one differed on `column_id` or `rank`, it was the dragged one, and its `column_id` was the target column's.
+- [x] **A rejected move puts the card back and says so in the status strip.** Forced, not hoped for: `moveCard` was temporarily made to return `{ ok: false, error: 'INVALID' }`. The card was dragged to In Testing, and afterwards Ready to Work held `["Rejected"]`, In Testing held `[]`, and the strip read "That card could not be moved. Try again." The change is reverted — `git diff` on `lib/actions/cards.ts` is empty.
+- [x] Keyboard drag works: tab to a card, space, arrow keys, space. dnd-kit's announcements are audible to a screen reader and its `attributes` were not stripped. Focus, Space, ArrowRight, Space moved a card to the next column and it survived a reload. The focused element carries `aria-roledescription="sortable"`, and the live region announced the pick-up, each move, the drop, and "Dragging was cancelled" on Escape.
+      **One limitation, found here and worth knowing:** `sortableKeyboardCoordinates` navigates between *sortable items*, so an **empty** column cannot be reached by keyboard — the arrow keys have nothing there to land on. **Move to** in the card menu is the pointer-free path that does reach it, which is also what Section F relies on at 360px.
+- [x] A click on a card body does not move it — the 5px activation distance is intact. `e2e/board-dnd.spec.ts` clicks a card and asserts it is still in its column.
+- [ ] Screenshots or a capture of a drag in progress attached to the PR. Captured mid-drag in both
+      motion settings and described in the PR body, but **not attached** — images cannot be uploaded
+      to GitHub from the CLI.
+- [x] Open the PR. Stop. Start Section F in a fresh session. — PR #48.
 
 ---
 

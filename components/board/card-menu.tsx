@@ -38,6 +38,9 @@ export function CardMenu({
         <DropdownMenuTrigger
           aria-label={`Card actions for ${card.title}`}
           disabled={card.pending}
+          // The trigger sits inside a draggable, so without this the pointer
+          // sensor swallows the press and the menu never opens.
+          onPointerDown={(event) => event.stopPropagation()}
           className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-[var(--radius-control)] text-muted opacity-0 hover:bg-ink/10 hover:text-ink focus-visible:opacity-100 group-hover:opacity-100 disabled:hidden"
         >
           ⋯

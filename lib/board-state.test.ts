@@ -4,6 +4,7 @@ import {
   applyAll,
   boardReducer,
   cardsIn,
+  dropTarget,
   inverse,
   orderedColumns,
   type BoardAction,
@@ -197,5 +198,63 @@ describe('inverses', () => {
       columnId: 'col-1', rank: 'b0',
     });
     expect(reverted.cards.find((c) => c.id === 'card-b')?.title).toBe('Edited while in flight');
+  });
+});
+
+describe('dropTarget', () => {
+  test('dropping on a column with nothing in it appends to it', () => {
+    expect(dropTarget(base(), 'card-a', 'col-2')).toEqual({
+      toColumnId: 'col-2',
+      beforeCardId: null,
+      afterCardId: null,
+    });
+  });
+
+  test('dropping on a card puts the dragged card above it', () => {
+    expect(dropTarget(base(), 'card-b', 'card-a')).toEqual({
+      toColumnId: 'col-1',
+      beforeCardId: null,
+      afterCardId: 'card-a',
+    });
+  });
+
+  // The dragged card is removed from the target list first, so it is never its
+  // own neighbour — which would ask the server to rank a card against itself.
+  test('never returns the dragged card as its own neighbour', () => {
+    const state: BoardState = {
+      columns: base().columns,
+      cards: [
+        { id: 'k1', columnId: 'col-1', title: '1', rank: 'b0', createdAt: '1' },
+        { id: 'k2', columnId: 'col-1', title: '2', rank: 'b1', createdAt: '2' },
+        { id: 'k3', columnId: 'col-1', title: '3', rank: 'b2', createdAt: '3' },
+      ],
+    };
+
+    const target = dropTarget(state, 'k2', 'k3');
+
+    expect(target).toEqual({ toColumnId: 'col-1', beforeCardId: 'k1', afterCardId: 'k3' });
+  });
+
+  test('dropping a card onto a column that already holds cards appends below them', () => {
+    const state = boardReducer(base(), {
+      type: 'card.move',
+      cardId: 'card-b',
+      toColumnId: 'col-2',
+      rank: 'c0',
+    });
+
+    expect(dropTarget(state, 'card-a', 'col-2')).toEqual({
+      toColumnId: 'col-2',
+      beforeCardId: 'card-b',
+      afterCardId: null,
+    });
+  });
+
+  test('returns null when the drop target is neither a card nor a column', () => {
+    expect(dropTarget(base(), 'card-a', 'nowhere')).toBeNull();
+  });
+
+  test('returns null when a card is dropped on itself', () => {
+    expect(dropTarget(base(), 'card-a', 'card-a')).toBeNull();
   });
 });
