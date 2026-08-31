@@ -54,4 +54,35 @@ describe('resolveMigrateTarget', () => {
   test('nothing anywhere is an error, not a silent default', () => {
     expect(() => resolveMigrateTarget({})).toThrow(/DATABASE_URL_UNPOOLED/);
   });
+
+  // A set-but-empty MIGRATE_URL means the command substitution meant to fill it
+  // failed silently. Falling through to another database here is exactly the
+  // regression MIGRATE_URL exists to eliminate, re-entering through a new door.
+  test('an explicit target that is set but empty is an error, not a fallback', () => {
+    expect(() =>
+      resolveMigrateTarget({ explicit: '', current: DOCKER, envFile: DOCKER, envLocalFile: DEV }),
+    ).toThrow(/MIGRATE_URL/);
+  });
+
+  test('an explicit target that is whitespace-only is an error, not a fallback', () => {
+    expect(() =>
+      resolveMigrateTarget({
+        explicit: '   ',
+        current: DOCKER,
+        envFile: DOCKER,
+        envLocalFile: DEV,
+      }),
+    ).toThrow(/MIGRATE_URL/);
+  });
+
+  test('a genuinely unset explicit target still falls back to .env.local', () => {
+    expect(
+      resolveMigrateTarget({
+        explicit: undefined,
+        current: DOCKER,
+        envFile: DOCKER,
+        envLocalFile: DEV,
+      }),
+    ).toBe(DEV);
+  });
 });
