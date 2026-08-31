@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 
 import { addComment, deleteComment, editComment } from '@/lib/actions/comments';
 import type { CardComment } from '@/lib/cards';
+import { reinsertOrdered } from '@/lib/comment-order';
 
 type Row = CardComment & { pending?: boolean };
 
@@ -77,14 +78,13 @@ export function CardComments({
   };
 
   const remove = (row: Row) => {
-    const index = rows.findIndex((r) => r.id === row.id);
     setRows((current) => current.filter((r) => r.id !== row.id));
     setError(null);
 
     startTransition(async () => {
       const result = await deleteComment({ commentId: row.id });
       if (!result.ok) {
-        setRows((current) => [...current.slice(0, index), row, ...current.slice(index)]);
+        setRows((current) => reinsertOrdered(current, row));
         setError('That comment could not be deleted. Try again.');
       }
     });
