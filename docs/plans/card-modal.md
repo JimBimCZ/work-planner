@@ -589,7 +589,7 @@ The first visible change: a card opens. Title and description edit; due dates an
   - `type CardForView = { id: string; boardId: string; columnId: string; title: string; description: string | null; dueDate: Date | null; comments: CardComment[] }`
   - `getCardForView(cardId: string): Promise<CardForView | null>`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/cards.test.ts`:
 
@@ -656,7 +656,7 @@ describe('getCardForView', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/cards.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/unit.log
@@ -664,7 +664,7 @@ pnpm exec vitest run lib/cards.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tai
 
 Expected: FAIL — cannot resolve `./cards`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `lib/cards.ts`:
 
@@ -717,7 +717,7 @@ export const getCardForView = cache(async (cardId: string): Promise<CardForView 
 });
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 ```bash
 pnpm exec vitest run lib/cards.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -725,7 +725,7 @@ pnpm exec vitest run lib/cards.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tai
 
 Expected: EXIT=0, three tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/cards.ts lib/cards.test.ts
@@ -753,7 +753,7 @@ git commit -m "feat: read a card and its thread for both entry points"
   - `CardBody({ card, canWrite }: { card: CardForView; canWrite: boolean })` — client. `canComment` does not exist: both pages already `notFound()` anyone below `viewer`, so reaching the page at all is the right to comment. Task 10 adds `viewerId: string`.
   - `BoardCard` gains a required `boardId: string` prop.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `e2e/card-modal.spec.ts`:
 
@@ -909,7 +909,7 @@ test('the board keeps client-only state alive behind the modal', async ({ page, 
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/card-modal.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/e2e.log
@@ -917,7 +917,7 @@ pnpm exec playwright test e2e/card-modal.spec.ts --reporter=line > /tmp/e2e.log 
 
 Expected: EXIT=1 — clicking a card navigates nowhere, and the card URL 404s.
 
-- [ ] **Step 3: Write the card body**
+- [x] **Step 3: Write the card body**
 
 Create `components/board/card-body.tsx`. In this task it renders read-only; Task 6 makes the fields editable.
 
@@ -946,7 +946,7 @@ export function CardBody({
 }
 ```
 
-- [ ] **Step 4: Write the modal wrapper**
+- [x] **Step 4: Write the modal wrapper**
 
 Create `components/board/card-modal.tsx`:
 
@@ -983,7 +983,7 @@ export function CardModal({
 }
 ```
 
-- [ ] **Step 5: Write the three route files**
+- [x] **Step 5: Write the three route files**
 
 `app/(app)/(board)/boards/[boardId]/@card/default.tsx` — required; an unmatched slot with no default renders a 404:
 
@@ -1079,7 +1079,7 @@ export default async function CardPage({
 }
 ```
 
-- [ ] **Step 6: Give the layout its slot**
+- [x] **Step 6: Give the layout its slot**
 
 In `app/(app)/(board)/boards/[boardId]/layout.tsx`, add `card` to the destructured props and its type, then render it after the content div:
 
@@ -1100,7 +1100,7 @@ export default async function BoardTitleLayout({
         {card}
 ```
 
-- [ ] **Step 7: Make the card open**
+- [x] **Step 7: Make the card open**
 
 In `components/board/board-card.tsx`, add a `boardId: string` prop and wrap the title in a link. The 5px drag activation is what keeps this from firing on a drag:
 
@@ -1121,7 +1121,7 @@ import Link from 'next/link';
 
 In `components/board/board-canvas.tsx`, pass `boardId={board.id}` wherever `BoardCard` is rendered — including inside the `DragOverlay`, or the overlay will not typecheck.
 
-- [ ] **Step 8: Run the tests and watch them pass**
+- [x] **Step 8: Run the tests and watch them pass**
 
 ```bash
 pnpm exec playwright test e2e/card-modal.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/e2e.log
@@ -1133,7 +1133,7 @@ Expected: EXIT=0, six tests. Then the whole suite, because `board-dnd.spec.ts` a
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e.log
 ```
 
-- [ ] **Step 9: Correct `CLAUDE.md`**
+- [x] **Step 9: Correct `CLAUDE.md`**
 
 The Layout section currently shows `@card/(.)cards/[cardId]` against a canonical page at `/cards/[cardId]`, which cannot intercept. Update the tree to:
 
@@ -1150,7 +1150,7 @@ The Layout section currently shows `@card/(.)cards/[cardId]` against a canonical
 
 and change the prose below it so the canonical URL reads `/boards/[boardId]/cards/[cardId]`, noting that the marker counts route segments — neither slots nor route groups are segments — so keeping both at the same level is what makes `(.)` the documented case.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add app components/board CLAUDE.md e2e/card-modal.spec.ts
@@ -1177,7 +1177,7 @@ marker that could not reach the page it also named."
   - `setCardDescription(input: unknown)` — `{ cardId: string; description: string }`, member.
   - `BoardActionsContext` gains `patchCard: ((cardId: string, patch: { title?: string; dueDate?: string | null }) => void) | null` and `registerPatchCard(handler: PatchCard | null): void`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `lib/actions/cards.test.ts`, following the existing mock harness in that file:
 
@@ -1218,7 +1218,7 @@ describe('setCardDescription', () => {
 
 Add `setCardDescription` to the import from `./cards` at the top of the file.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/cards.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/unit.log
@@ -1226,7 +1226,7 @@ pnpm exec vitest run lib/actions/cards.test.ts > /tmp/unit.log 2>&1; echo "EXIT=
 
 Expected: FAIL — `setCardDescription` is not exported.
 
-- [ ] **Step 3: Write the action**
+- [x] **Step 3: Write the action**
 
 In `lib/actions/cards.ts`, add the schema beside the others:
 
@@ -1269,13 +1269,13 @@ export async function setCardDescription(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 ```bash
 pnpm exec vitest run lib/actions/cards.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
 ```
 
-- [ ] **Step 5: Give the actions context a card patch**
+- [x] **Step 5: Give the actions context a card patch**
 
 Replace the context type and provider body in `components/board/board-actions.tsx`:
 
@@ -1310,7 +1310,7 @@ Inside the provider, beside the existing `addCard` state:
 
 The `setState(() => handler)` wrapper is not decoration — `setState` treats a bare function as an updater and would call it. The file already documents this for `addCard`.
 
-- [ ] **Step 6: Register it from the canvas**
+- [x] **Step 6: Register it from the canvas**
 
 In `components/board/board-canvas.tsx`, take `registerPatchCard` from `useBoardActions()` and register beside the existing `addCard` effect:
 
@@ -1328,7 +1328,7 @@ In `components/board/board-canvas.tsx`, take `registerPatchCard` from `useBoardA
 
 Section 4 extends this handler with `dueDate`.
 
-- [ ] **Step 7: Make the fields editable**
+- [x] **Step 7: Make the fields editable**
 
 Rewrite `components/board/card-body.tsx`:
 
@@ -1447,7 +1447,7 @@ export function CardBody({
 
 The read-only branch renders a real `<h1>`, which is what the viewer test asserts. The editable branch has none: `CardModal` supplies the dialog's accessible name through its own `DialogTitle` now, and a second sr-only heading here would only have duplicated it — the title input's own `aria-label` already names the field.
 
-- [ ] **Step 8: Extend the e2e**
+- [x] **Step 8: Extend the e2e**
 
 **First, fix the cold-load test from Task 5.** `CardBody`'s editable branch no longer has a heading of its own — `CardModal` supplies the dialog's accessible name, and the canonical page (which never mounts `CardModal`) now shows the title only in the input. In `a cold load of the card URL renders a page, not a modal`, replace:
 
@@ -1523,7 +1523,7 @@ test('a description survives a reload', async ({ page, context }) => {
 
 Add `written` to the import from `./support/session`.
 
-- [ ] **Step 9: Run everything**
+- [x] **Step 9: Run everything**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "EXIT=$?"
@@ -1532,7 +1532,7 @@ pnpm test > /tmp/unit.log 2>&1; echo "EXIT=$?"
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e.log
 ```
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add lib/actions components/board e2e/card-modal.spec.ts
@@ -1541,17 +1541,17 @@ git commit -m "feat: edit a card's title and description from the modal"
 
 ### Section 3 gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, exit codes read from redirected logs, count run compared against count collected.
-- [ ] **`pnpm build` passes.** This is the only check that catches a client component importing a value from `lib/permissions.ts`; the other three pass on that code.
-- [ ] Clicking a card opens the modal **and the board is still mounted behind it** — asserted on `[data-column-id]`, not on a screenshot.
-- [ ] A cold load renders the page and **no dialog**, checked in a real browser as well as in Playwright. This is the silent failure the spike existed for.
-- [ ] Browser-back closes the modal and the board still shows its cards.
-- [ ] A card id from another board 404s.
-- [ ] A dragged card still does not open the modal — the 5px activation distance is intact, and `e2e/board-dnd.spec.ts` still passes unchanged.
-- [ ] A card carrying a description at or near the 10,000-character cap scrolls on both surfaces — the modal and the canonical page — checked at 1280×800 and at 360px, and the page itself never scrolls sideways.
-- [ ] `CLAUDE.md`'s Layout section is corrected in this PR, not a later one.
-- [ ] Screenshots of the modal and the canonical page, both themes, in the PR body.
-- [ ] Open the PR. Stop. Start Section 4 in a fresh session.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, exit codes read from redirected logs, count run compared against count collected. Observed, run by the controller at HEAD: `pnpm typecheck` EXIT=0; `pnpm lint` EXIT=0 (2 pre-existing warnings, both `_pending` unused in `lib/board-state.ts`, untouched by this branch); `pnpm test` EXIT=0, 181 passed across 17 files; `pnpm exec playwright test` EXIT=0 — `--list` reported "Total: 67 tests in 12 files" and the run reported "67 passed", so collected equals passed.
+- [x] **`pnpm build` passes.** This is the only check that catches a client component importing a value from `lib/permissions.ts`; the other three pass on that code. Observed: EXIT=0. It matters on this branch specifically — Task 5's fix moved the permission preamble into `lib/cards.ts`, and `components/board/card-body.tsx` is a client component that takes only the derived `canWrite` boolean and imports `CardForView` with `import type`.
+- [x] Clicking a card opens the modal **and the board is still mounted behind it** — asserted on `[data-column-id]`, not on a screenshot. Observed in `e2e/card-modal.spec.ts`, and again in the controller's own gate run: `[data-column-id]` attached with the dialog open.
+- [x] A cold load renders the page and **no dialog**, checked in a real browser as well as in Playwright. This is the silent failure the spike existed for. Observed: a real `page.goto` (a hard navigation, bypassing the client router) to `/boards/<id>/cards/<id>` renders the description field, with `[role="dialog"]` count 0 AND `[data-column-id]` count 0 — so it is genuinely the canonical page and not an intercept that merely looks right.
+- [x] Browser-back closes the modal and the board still shows its cards. Observed: after `page.goBack()`, `[role="dialog"]` count 0 and the card titles are visible again.
+- [x] A card id from another board 404s. Observed in `e2e/card-modal.spec.ts`; the mismatch guard runs before the access check in `getCardForRoute`.
+- [x] A dragged card still does not open the modal — the 5px activation distance is intact, and `e2e/board-dnd.spec.ts` still passes unchanged. Observed: `board-dnd.spec.ts` is untouched by this branch and passes inside the 67/67 run. The card title became a `Link`, and its `onMouseDown` preventDefault does not interfere, because dnd-kit's sensors listen on pointerdown.
+- [x] A card carrying a description at or near the 10,000-character cap scrolls on both surfaces — the modal and the canonical page — checked at 1280×800 and at 360px, and the page itself never scrolls sideways. Observed: a 10,000-character description written through the real action. **It is the `<textarea>` that scrolls, not the dialog** — the dialog stays inside the viewport (`height <= window.innerHeight`) and the field scrolls internally. `document.documentElement.scrollWidth > clientWidth` is false on both surfaces at 1280×800 and at 360px.
+- [x] `CLAUDE.md`'s Layout section is corrected in this PR, not a later one. Observed: corrected in Task 5's commit `7690fe1` — the tree now nests `cards/[cardId]` under `boards/[boardId]/` beside `@card`, and a note explains that `(.)` counts segments while ignoring route groups and slots.
+- [x] Screenshots of the modal and the canonical page, both themes, in the PR body.
+- [x] Open the PR. Stop. Start Section 4 in a fresh session.
 
 ---
 
