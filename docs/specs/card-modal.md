@@ -235,7 +235,10 @@ optimism there buys nothing visible and would cost a rollback path spanning two
 component trees. Nothing a person is watching waits on the network.
 
 Errors surface in a status strip owned by `CardBody`, so the canonical page has
-one of its own rather than depending on the canvas's.
+one of its own rather than depending on the canvas's. The comment thread keeps a
+second strip of its own, beside the composer: a comment that failed to post
+belongs next to the box still holding its text, not at the top of a modal the
+reader may have scrolled away from.
 
 ### The modal, at the level this spec decides
 
