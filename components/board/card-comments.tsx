@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 
 import { addComment, deleteComment, editComment } from '@/lib/actions/comments';
-import type { CardComment } from '@/lib/cards';
+import type { CardComment, Viewer } from '@/lib/cards';
 import { reinsertOrdered } from '@/lib/comment-order';
 
 type Row = CardComment & { pending?: boolean };
@@ -15,7 +15,7 @@ export function CardComments({
 }: {
   cardId: string;
   comments: CardComment[];
-  viewer: { id: string; name: string | null; image: string | null };
+  viewer: Viewer;
 }) {
   const [rows, setRows] = useState<Row[]>(comments);
   const [draft, setDraft] = useState('');
@@ -33,7 +33,7 @@ export function CardComments({
       id: tempId,
       body,
       createdAt: new Date(),
-      author: { id: viewer.id, name: viewer.name, image: viewer.image },
+      author: { id: viewer.id, name: viewer.name, image: null },
       pending: true,
     };
 

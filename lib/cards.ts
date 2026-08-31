@@ -12,6 +12,8 @@ export type CardComment = {
   author: { id: string; name: string | null; image: string | null } | null;
 };
 
+export type Viewer = { id: string; name: string | null };
+
 export type CardForView = {
   id: string;
   boardId: string;
@@ -61,7 +63,7 @@ export async function getCardForRoute(
 ): Promise<{
   card: CardForView;
   canWrite: boolean;
-  viewer: { id: string; name: string | null; image: string | null };
+  viewer: Viewer;
 }> {
   const session = await auth();
   if (!session?.user?.id) redirect('/signin');
@@ -85,7 +87,6 @@ export async function getCardForRoute(
     viewer: {
       id: session.user.id,
       name: session.user.name ?? null,
-      image: session.user.image ?? null,
     },
   };
 }

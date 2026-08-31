@@ -13,7 +13,7 @@ import { CardComments } from '@/components/board/card-comments';
 import { CardDueDate } from '@/components/board/card-due-date';
 import { useCardEscapeGuard } from '@/components/board/card-modal';
 import { renameCard, setCardDescription, setCardDueDate } from '@/lib/actions/cards';
-import type { CardForView } from '@/lib/cards';
+import type { CardForView, Viewer } from '@/lib/cards';
 import { toDateInputValue } from '@/lib/due';
 
 export function CardBody({
@@ -24,7 +24,7 @@ export function CardBody({
 }: {
   card: CardForView;
   canWrite: boolean;
-  viewer: { id: string; name: string | null; image: string | null };
+  viewer: Viewer;
   showHeading?: boolean;
 }) {
   const { patchCard } = useBoardActions();
