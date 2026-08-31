@@ -59,7 +59,7 @@ vi.mock('@/lib/db', () => ({
   db: { query, transaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) },
 }));
 
-const { createCard, deleteCard, renameCard } = await import('./cards');
+const { createCard, deleteCard, moveCard, renameCard } = await import('./cards');
 const { BoardAccessError } = await import('@/lib/permissions');
 
 beforeEach(() => {
@@ -198,6 +198,101 @@ describe('deleteCard', () => {
     await expect(deleteCard({ cardId: 'card-1' })).resolves.toEqual({ ok: true });
 
     expect(ops.filter((op) => op.table === 'cards')).toEqual([{ kind: 'delete', table: 'cards' }]);
+    expect(ops).toContainEqual(expect.objectContaining({ kind: 'update', table: 'boards' }));
+  });
+});
+
+describe('moveCard', () => {
+  beforeEach(() => {
+    columnRow = { id: 'col-2', boardId: 'b1' };
+    cardsInColumn = [
+      { id: 'card-a', rank: 'a0' },
+      { id: 'card-b', rank: 'a1' },
+    ];
+  });
+
+  test('refuses a card that is not there', async () => {
+    cardRow = undefined;
+    await expect(
+      moveCard({ cardId: 'gone', toColumnId: 'col-2', beforeCardId: null, afterCardId: null }),
+    ).resolves.toEqual({ ok: false, error: 'NOT_FOUND' });
+  });
+
+  test('refuses a target column on another board', async () => {
+    columnRow = { id: 'col-2', boardId: 'other-board' };
+    await expect(
+      moveCard({ cardId: 'card-1', toColumnId: 'col-2', beforeCardId: null, afterCardId: null }),
+    ).resolves.toEqual({ ok: false, error: 'INVALID' });
+  });
+
+  test('refuses a neighbour that is not in the target column', async () => {
+    await expect(
+      moveCard({
+        cardId: 'card-1',
+        toColumnId: 'col-2',
+        beforeCardId: 'card-from-elsewhere',
+        afterCardId: null,
+      }),
+    ).resolves.toEqual({ ok: false, error: 'INVALID' });
+  });
+
+  test('refuses neighbours in the wrong order', async () => {
+    await expect(
+      moveCard({
+        cardId: 'card-1',
+        toColumnId: 'col-2',
+        beforeCardId: 'card-b',
+        afterCardId: 'card-a',
+      }),
+    ).resolves.toEqual({ ok: false, error: 'INVALID' });
+  });
+
+  test('refuses a viewer', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await expect(
+      moveCard({ cardId: 'card-1', toColumnId: 'col-2', beforeCardId: null, afterCardId: null }),
+    ).resolves.toEqual({ ok: false, error: 'FORBIDDEN' });
+  });
+
+  test('ranks between the two neighbours it was given', async () => {
+    const result = await moveCard({
+      cardId: 'card-1',
+      toColumnId: 'col-2',
+      beforeCardId: 'card-a',
+      afterCardId: 'card-b',
+    });
+
+    expect(result.ok).toBe(true);
+    const rank = (result as { data: { rank: string } }).data.rank;
+    expect(rank > 'a0' && rank < 'a1').toBe(true);
+  });
+
+  test('ranks before everything when dropped at the top', async () => {
+    const result = await moveCard({
+      cardId: 'card-1',
+      toColumnId: 'col-2',
+      beforeCardId: null,
+      afterCardId: 'card-a',
+    });
+
+    expect((result as { data: { rank: string } }).data.rank < 'a0').toBe(true);
+  });
+
+  // This is the property fractional ranks exist to protect. A move must never
+  // renumber siblings — one card row, plus the board's timestamp.
+  test('writes exactly one card row, and bumps the board', async () => {
+    await moveCard({
+      cardId: 'card-1',
+      toColumnId: 'col-2',
+      beforeCardId: 'card-a',
+      afterCardId: 'card-b',
+    });
+
+    expect(ops.filter((op) => op.table === 'cards')).toHaveLength(1);
+    expect(ops.filter((op) => op.table === 'cards')[0]).toMatchObject({
+      kind: 'update',
+      values: expect.objectContaining({ columnId: 'col-2' }),
+    });
     expect(ops).toContainEqual(expect.objectContaining({ kind: 'update', table: 'boards' }));
   });
 });
