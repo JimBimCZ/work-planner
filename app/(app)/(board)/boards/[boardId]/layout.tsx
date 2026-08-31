@@ -13,9 +13,11 @@ import { assertBoardAccess, atLeast, BoardAccessError } from '@/lib/permissions'
 // is cached per request, so it is one query, not two.
 export default async function BoardTitleLayout({
   children,
+  card,
   params,
 }: {
   children: React.ReactNode;
+  card: React.ReactNode;
   params: Promise<{ boardId: string }>;
 }) {
   const { boardId } = await params;
@@ -45,6 +47,7 @@ export default async function BoardTitleLayout({
           image={session.user.image ?? null}
         />
         <div className="min-h-0 flex-1">{children}</div>
+        {card}
       </div>
     </BoardActionsProvider>
   );

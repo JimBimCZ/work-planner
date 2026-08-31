@@ -75,7 +75,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const columnRefs = useRef(new Map<string, HTMLElement>());
-  const { register } = useBoardActions();
+  const { register, registerPatchCard } = useBoardActions();
 
   const reducedMotion = useSyncExternalStore(
     subscribe,
@@ -94,6 +94,16 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     register(canWrite && firstColumnId ? () => setComposerIn(firstColumnId) : null);
     return () => register(null);
   }, [register, canWrite, firstColumnId]);
+
+  // The modal is a sibling slot, not a child, so this context is the only place
+  // the two trees meet. On the canonical card page nothing registers, and the
+  // modal simply finds null.
+  useEffect(() => {
+    registerPatchCard((cardId, patch) => {
+      if (patch.title !== undefined) dispatch({ type: 'card.rename', cardId, title: patch.title });
+    });
+    return () => registerPatchCard(null);
+  }, [registerPatchCard]);
 
   // Below 700px one column fills the screen, so the tab has to follow a swipe
   // as well as a click. A callback only carries the columns whose visibility
@@ -345,6 +355,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 }}
                 column={column}
                 cards={cardsIn(state, column.id)}
+                boardId={board.id}
                 hue={flowHue(index, total)}
                 nextHue={flowHue(Math.min(index + 1, total - 1), total)}
                 canWrite={canWrite}

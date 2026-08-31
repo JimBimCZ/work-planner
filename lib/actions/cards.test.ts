@@ -59,7 +59,7 @@ vi.mock('@/lib/db', () => ({
   db: { query, transaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) },
 }));
 
-const { createCard, deleteCard, moveCard, renameCard } = await import('./cards');
+const { createCard, deleteCard, moveCard, renameCard, setCardDescription } = await import('./cards');
 const { BoardAccessError } = await import('@/lib/permissions');
 
 beforeEach(() => {
@@ -212,6 +212,39 @@ describe('deleteCard', () => {
 
     expect(ops.filter((op) => op.table === 'cards')).toEqual([{ kind: 'delete', table: 'cards' }]);
     expect(ops).toContainEqual(expect.objectContaining({ kind: 'update', table: 'boards' }));
+  });
+});
+
+describe('setCardDescription', () => {
+  test('refuses a viewer', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await expect(setCardDescription({ cardId: 'card-1', description: 'Why' })).resolves.toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+  });
+
+  test('authorises the board resolved from the card, at member', async () => {
+    await setCardDescription({ cardId: 'card-1', description: 'Why' });
+    expect(assertBoardAccess).toHaveBeenCalledWith('user-1', 'b1', 'member');
+  });
+
+  test('writes the description and bumps the board', async () => {
+    await setCardDescription({ cardId: 'card-1', description: '  Why  ' });
+    expect(ops).toContainEqual({ kind: 'update', table: 'cards', values: { description: 'Why' } });
+    expect(ops.some((op) => op.table === 'boards')).toBe(true);
+  });
+
+  test('an empty description clears it rather than failing', async () => {
+    const result = await setCardDescription({ cardId: 'card-1', description: '' });
+    expect(result).toEqual({ ok: true });
+    expect(ops).toContainEqual({ kind: 'update', table: 'cards', values: { description: null } });
+  });
+
+  test('refuses a description past the cap', async () => {
+    await expect(
+      setCardDescription({ cardId: 'card-1', description: 'x'.repeat(10_001) }),
+    ).resolves.toEqual({ ok: false, error: 'INVALID' });
   });
 });
 

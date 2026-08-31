@@ -41,15 +41,23 @@ test('the board drops the footer but keeps privacy in the account menu', async (
 }) => {
   const { userId } = await seedSession(context);
   const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, { boardId, createdById: userId, title: 'Ship it' });
   try {
-    await page.goto(`/boards/${boardId}`);
+    // The canonical card route nests under the same boardId/layout.tsx as the
+    // board view itself — same fixed-viewport, footer-free treatment, and the
+    // same account-menu escape hatch to privacy.
+    for (const path of [`/boards/${boardId}`, `/boards/${boardId}/cards/${cardId}`]) {
+      await page.goto(path);
 
-    await expect(page.getByRole('contentinfo')).toHaveCount(0);
+      await expect(page.getByRole('contentinfo')).toHaveCount(0);
 
-    // CLAUDE.md requires the privacy link reachable from every route; the board
-    // view locks body scroll, so the account menu is where it lives.
-    await page.getByRole('button', { name: 'Account' }).click();
-    await expect(page.getByRole('menuitem', { name: 'Privacy' })).toBeVisible();
+      // CLAUDE.md requires the privacy link reachable from every route; the board
+      // view locks body scroll, so the account menu is where it lives.
+      await page.getByRole('button', { name: 'Account' }).click();
+      await expect(page.getByRole('menuitem', { name: 'Privacy' })).toBeVisible();
+      await page.keyboard.press('Escape');
+    }
   } finally {
     await removeSeededUser(userId);
   }

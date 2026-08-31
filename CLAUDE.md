@@ -108,9 +108,12 @@ app/
       boards/               # board list
     (board)/                # fixed viewport height, no footer
       boards/[boardId]/     # board view — its layout resolves the board title
-        @card/(.)cards/[cardId]/  # intercepted — renders as modal over the board
-    cards/[cardId]/         # canonical card page — the intercept target, and what
-                            # a shared link opens on a cold load
+        @card/
+          default.tsx       # returns null; without it a hard load 404s
+                            # the whole board — the spike proved this
+          (.)cards/[cardId]/  # intercepted — renders as modal over the board
+        cards/[cardId]/     # canonical card page — the intercept target, and
+                            # what a shared link opens on a cold load
   (legal)/
     privacy/page.tsx        # Privacy Policy
     terms/page.tsx          # optional, same layout
@@ -141,7 +144,9 @@ proxy.ts                    # Next 16's renamed middleware: cookie-presence
                             # redirect on /boards/*. Imports nothing from lib/
 ```
 
-The card modal is an intercepting parallel route, so cards have shareable URLs and browser-back closes the modal. Both halves are required: the intercept renders the modal over the board for in-app navigation, and the canonical `/cards/[cardId]` page is what a pasted link opens on a cold load. Do not replace either with local modal state.
+The card modal is an intercepting parallel route, so cards have shareable URLs and browser-back closes the modal. Both halves are required: the intercept renders the modal over the board for in-app navigation, and the canonical `/boards/[boardId]/cards/[cardId]` page is what a pasted link opens on a cold load. Do not replace either with local modal state.
+
+The `(.)` marker counts route segments, and neither a parallel slot (`@card`) nor a route group (`(board)`) is a segment — so the canonical page has to sit at the same segment depth as the intercepting route for `(.)` to be the documented case, which is why both live directly under `boards/[boardId]/`.
 
 ## Data model
 
