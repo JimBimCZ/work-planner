@@ -4807,7 +4807,7 @@ git commit -m "feat: one column at a time below 700px, with a switcher"
 - [ ] Screenshots at 360px and at 1280px, both themes, attached to the PR.
       Captured at 360x720 and 1280x800 in both themes and described in the PR body, but
       **not attached** — images cannot be uploaded to GitHub from the CLI.
-- [ ] Open the PR. Stop.
+- [x] Open the PR. Stop. — PR #50, merged.
 
 ---
 
@@ -4815,14 +4815,70 @@ git commit -m "feat: one column at a time below 700px, with a switcher"
 
 Copied from `docs/specs/board-canvas.md`. Tick these only against observed output, and close them in the final section's PR or a short `docs/` follow-up, as sub-project 3 did.
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass locally.
-- [ ] Deleting a board that holds columns and cards succeeds and leaves no rows in any of the three tables, with the referential action confirmed in `pg_constraint` rather than only in `schema.ts`.
-- [ ] Deleting a column that holds cards, without naming a target, is refused by the database and not only by `deleteColumn`.
-- [ ] A card dragged to another column is in that column after a reload, and exactly one `cards` row changed.
-- [ ] A rejected move puts the card back where it was and says so in the status strip — forced, not hoped for.
-- [ ] A `viewer` sees a board with no create buttons, no `⋯` menus, and cannot drag; and the actions refuse a `viewer` even when called directly.
-- [ ] The board is usable at 360px in a real browser.
-- [ ] `docker compose up --build` still reaches a healthy app container with the new migration applied — confirmed with `\dt` against the container's Postgres, not on `db:migrate`'s success line.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass locally.
+      Each run redirected to its own log with `echo $?` read separately, not piped: typecheck 0,
+      lint 0 (the 2 pre-existing `_pending` warnings in `lib/board-state.ts`, 0 errors), vitest 0
+      with 170 passed across 16 files, playwright 0 with **56 passed of 56 collected**.
+- [x] Deleting a board that holds columns and cards succeeds and leaves no rows in any of the three tables, with the referential action confirmed in `pg_constraint` rather than only in `schema.ts`.
+      `e2e/schema.spec.ts` deletes the board and counts `cards`, `columns` and `board_members` back
+      to zero. `pg_constraint` on the dev branch reads `cards -> boards` **c**, `columns -> boards`
+      **c**, `cards -> columns` **a** — cascade on the board, no action on the column, which is the
+      whole no-orphan design. The same four rows come back from the container's own Postgres after
+      `db:migrate`, so the migration carries them and not just `schema.ts`.
+- [x] Deleting a column that holds cards, without naming a target, is refused by the database and not only by `deleteColumn`.
+      `e2e/schema.spec.ts` issues the raw `delete from columns` and asserts it rejects with
+      `violates foreign key constraint`.
+- [x] A card dragged to another column is in that column after a reload, and exactly one `cards` row changed.
+      Three cards seeded into Ready to Work, all rows selected before and after a real pointer drag
+      of **Bravo** into In Testing: 3 rows before, 3 after, exactly **one** differing on `column_id`
+      or `rank` — `Bravo: Ready to Work -> In Testing, rank a1 -> a0`. It was still there after the
+      reload. The MCP `drag` helper is not enough to prove this: it does not clear dnd-kit's 5px
+      activation distance, so the drop is silently ignored and the board looks unchanged. A stepped
+      pointer path is what a person produces and what the check needs.
+- [x] A rejected move puts the card back where it was and says so in the status strip — forced, not hoped for.
+      `moveCard` was temporarily made to return `{ ok: false, error: 'INVALID' }` before parsing.
+      Bravo was dragged from In Testing back to Ready to Work; afterwards In Testing still held
+      `["Bravo"]`, Ready to Work held `["Alpha","Charlie"]`, the strip read
+      "That card could not be moved. Try again.", and the `cards` rows were unchanged. The change is
+      reverted — `git diff` on `lib/actions/cards.ts` is empty.
+- [x] A `viewer` sees a board with no create buttons, no `⋯` menus, and cannot drag; and the actions refuse a `viewer` even when called directly.
+      Checked in a browser on a board seeded with a second user at `viewer`: the header carries the
+      avatar alone with no "New card", no column has an "Add card" foot, no card or column offers a
+      `⋯`, and every sortable group renders `disabled`. Called directly, nine `refuses a viewer`
+      unit tests cover all eight actions.
+- [x] The board is usable at 360px in a real browser.
+      Chrome emulating 360x720: five columns each measured 360px wide at offsets 0, 360, 720, 1080
+      and 1440, the scroller is `scroll-snap-type: x mandatory`, and
+      `documentElement.scrollWidth === clientWidth` throughout. Clicking the **In Testing** tab put
+      that column on screen at left 0, and scrolling the board by hand to the last column moved the
+      selected tab to **Done** without a click. Note the board scroller is not the first
+      `.overflow-x-auto` in the document — the switcher's tablist is — so a check that queries for
+      one measures the wrong element and reports no snapping.
+- [x] `docker compose up --build` still reaches a healthy app container with the new migration applied — confirmed with `\dt` against the container's Postgres, not on `db:migrate`'s success line.
+      Both containers reached `healthy`, `/api/health` returned `{"ok":true}`, and after
+      `MIGRATE_URL=postgres://kanban:kanban@localhost:5432/kanban pnpm db:migrate`, `\dt` inside the
+      postgres container listed all seven tables including `cards` and `columns`. Stack torn down
+      with `docker compose down -v`.
+
+### One defect this list found
+
+The verification is what turned it up, so it is recorded here rather than in a section gate.
+
+**dnd-kit's drag instructions were unreachable from the cards.** `DndContext` builds the id for its
+screen-reader instructions with `useUniqueId`, which falls back to a module-level counter when the
+context carries no `id`. That counter lives in the server process and climbs with every render, while
+the client's starts fresh — so from the second board render onwards the two disagree, and React does
+not patch a mismatched attribute. Every card was left with `aria-describedby="DndDescribedBy-7"`
+pointing at an element that is not on the page, and the console carried a hydration error on every
+board load. Section E's gate saw the `aria-roledescription` and the announcements and read that as
+the accessibility props surviving; the props did survive, but this reference dangled.
+
+Fixed by giving `DndContext` a stable `id`, and pinned by
+`the drag instructions are still reachable on a second render` in `e2e/board-dnd.spec.ts`, which
+loads a board, reloads it, and polls until each card's `aria-describedby` resolves to the
+instructions text. Watched fail on the unfixed canvas and pass on the fixed one. The test has to
+poll: dnd-kit renders the instructions from a mount effect, so reading once straight after the
+reload finds nothing whether or not the bug is present.
 
 ## What this plan deliberately does not build
 
