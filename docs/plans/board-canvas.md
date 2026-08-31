@@ -91,7 +91,7 @@ Nothing user-visible changes in this section. Say so in the PR rather than imply
 - Consumes: `boards`, `columns`, `users` from `lib/db/schema.ts`.
 - Produces: `cards` (a `PgTable`), and `cardsRelations`. Every later task imports `cards` from `@/lib/db/schema`. Column names on the TypeScript side are `id`, `boardId`, `columnId`, `title`, `description`, `dueDate`, `rank`, `createdById`, `createdAt`, `updatedAt`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `lib/db/schema.test.ts`:
 
@@ -149,12 +149,12 @@ describe('the cards table', () => {
 
 Add `cards` to the import at the top of the file.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/db/schema.test.ts`
 Expected: FAIL — `cards` is not exported from `./schema`.
 
-- [ ] **Step 3: Write the schema**
+- [x] **Step 3: Write the schema**
 
 Append to `lib/db/schema.ts`, after `columns`:
 
@@ -209,21 +209,21 @@ export const cardsRelations = relations(cards, ({ one }) => ({
 
 If `boardsRelations` does not already list `cards`, add `cards: many(cards)` to it.
 
-- [ ] **Step 4: Give the client its schema**
+- [x] **Step 4: Give the client its schema**
 
 `lib/db/index.ts` passes the whole schema module to `drizzle()`. Confirm by reading it that the new tables and relations are picked up without an edit — if it imports named tables rather than `* as schema`, add `cards`, `cardsRelations` and `columnsRelations`.
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm test lib/db/schema.test.ts`
 Expected: PASS, including the four new tests.
 
-- [ ] **Step 6: Generate the migration**
+- [x] **Step 6: Generate the migration**
 
 Run: `pnpm db:generate`
 Expected: a new `lib/db/migrations/0002_*.sql`.
 
-- [ ] **Step 7: Read the generated SQL**
+- [x] **Step 7: Read the generated SQL**
 
 Open the generated file and confirm, by reading rather than assuming:
 
@@ -234,7 +234,7 @@ Open the generated file and confirm, by reading rather than assuming:
 
 If the `column_id` constraint has an `ON DELETE` clause, the schema is wrong — fix `schema.ts`, delete the generated file, and regenerate. Never hand-edit it.
 
-- [ ] **Step 8: Apply it to the dev branch and prove it**
+- [x] **Step 8: Apply it to the dev branch and prove it**
 
 ```bash
 pnpm db:migrate
@@ -243,7 +243,12 @@ psql "$(grep '^DATABASE_URL_UNPOOLED=' .env.local | cut -d= -f2- | tr -d '"')" -
 
 Expected: `\d cards` prints the table, both indexes, and three foreign-key constraints — one of which, `cards_column_id_columns_id_fk`, has no `ON DELETE`. **Confirm with `\d`, not with `db:migrate`'s success line** — `CLAUDE.md` records the run where that line lied.
 
-- [ ] **Step 9: Commit**
+Done differently, and the difference is worth recording: `psql` is not installed on the development
+machine, so the catalogue was read through the repository's own `pg` driver instead — `pg_constraint`
+for the delete actions and `pg_indexes` for the indexes. The substitution is for `psql` only. The
+point of the step is that the *database* is asked rather than `db:migrate`'s success line, and it was.
+
+- [x] **Step 9: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -268,7 +273,7 @@ This is the task that can reject the design. The spec's `NO ACTION` choice rests
   - `seedCard(columnId: string, opts: { boardId: string; createdById: string; title?: string; rank?: string }): Promise<string>` — returns the new card id.
   - Every later e2e spec uses both.
 
-- [ ] **Step 1: Write the seed helpers**
+- [x] **Step 1: Write the seed helpers**
 
 Append to `e2e/support/session.ts`:
 
@@ -305,7 +310,7 @@ export async function seedCard(
 
 `generateNKeysBetween` is already imported at the top of the file.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `e2e/schema.spec.ts`. It drives no browser — it is a Playwright test because that is where this repository keeps its real-database tests, and Playwright is what has `DATABASE_URL` pointed at the dev branch.
 
@@ -368,7 +373,7 @@ test('deleting a column that still holds cards is refused by the database', asyn
 });
 ```
 
-- [ ] **Step 3: Run it**
+- [x] **Step 3: Run it**
 
 Run: `pnpm exec playwright test e2e/schema.spec.ts`
 
@@ -376,7 +381,7 @@ Expected: both PASS. **This is a verification step, not a red step** — the sch
 
 **If the first test fails** with a foreign key violation on the board delete, the `NO ACTION` claim is wrong. Stop. Change `columnId` to `.references(() => columns.id, { onDelete: 'cascade' })`, update Task 1's `onDelete: undefined` assertion to `'cascade'`, regenerate the migration, delete the second test above, and record in `docs/specs/board-canvas.md` that the claim did not hold and the rule now lives only in `deleteColumn`. Then continue.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -411,7 +416,7 @@ git commit -m "test: prove the cards table cannot orphan a column's cards"
   the page both already call it, and React's `cache` collapses the duplicate.
   Section C's `BoardCanvas` is seeded from exactly this shape. The function keeps its name — the layout and page both already call it and React's `cache` collapses the duplicate.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/boards.test.ts`:
 
@@ -470,12 +475,12 @@ describe('getBoardWithColumns', () => {
 
 `getBoardWithColumns` is wrapped in React's `cache`, which memoises per request. Vitest has no request scope, so each call runs the query — that is why every test above uses a distinct id or resets `boardRow` first.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/boards.test.ts`
 Expected: FAIL — the returned column has no `cards` property.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Replace `getBoardWithColumns` in `lib/boards.ts`:
 
@@ -515,7 +520,7 @@ export const getBoardWithColumns = cache(async (boardId: string): Promise<BoardW
 
 The three-part `orderBy` is `CLAUDE.md`'s tie-break rule — rank, then `createdAt`, then `id` — pushed into the query so the client never has to apply it to a fresh read.
 
-- [ ] **Step 4: Pass the role down to the page**
+- [x] **Step 4: Pass the role down to the page**
 
 `assertBoardAccess` already returns the caller's role. In `app/(app)/(board)/boards/[boardId]/page.tsx`, capture it:
 
@@ -537,12 +542,12 @@ Leave the rendering alone in this task — `ColumnShell` still renders and `role
 <main className="h-full overflow-x-auto" data-role={role}>
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm test && pnpm exec playwright test e2e/board-view.spec.ts`
 Expected: unit tests PASS; `board-view.spec.ts` still PASS — the five columns still render, because nothing about the shell changed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -554,20 +559,33 @@ git commit -m "feat: read a board's cards and the caller's role"
 
 ### Section A gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed.
-- [ ] `pnpm exec playwright test` passes, output observed.
-- [ ] The generated SQL was **read**, not just generated, and `column_id` has no `ON DELETE` clause.
-- [ ] `\d cards` against the dev branch confirms the table, both indexes and the three foreign keys.
-- [ ] Task 2's two tests were observed passing — or the fallback was taken and the spec updated to say so.
-- [ ] CI is green on the PR. That is what proves the migration applies to an empty database.
-- [ ] **Production is migrated by hand *before* merging, not after:** `getBoardWithColumns` already
+- [x] `pnpm typecheck && pnpm lint && pnpm test` pass, output observed. 88 unit tests across 13 files
+      at `6a80536`; 91 across the same 13 files on `main` today, after `756e18e` added the
+      set-but-empty `MIGRATE_URL` tests.
+- [x] `pnpm exec playwright test` passes, output observed. 30 passed in 17.1s, exit 0, at `6a80536`.
+- [x] The generated SQL was **read**, not just generated, and `column_id` has no `ON DELETE` clause.
+      Also read: `title` and `rank` `NOT NULL`, `description` and `due_date` nullable, both
+      `CREATE INDEX` statements present.
+- [x] `\d cards` against the dev branch confirms the table, both indexes and the three foreign keys.
+      Read through the `pg` driver rather than `psql`, which is not installed — see Task 1 Step 8.
+      `pg_constraint.confdeltype`: `column_id` → `a` (no action), `board_id` → `c`, `created_by_id` → `c`.
+- [x] Task 2's two tests were observed passing — or the fallback was taken and the spec updated to say so.
+      Observed passing, no fallback: a board delete cascades through its columns **and** cards in one
+      statement, and a bare column delete holding cards is refused with a foreign-key violation. That
+      is the `NO ACTION` claim the spec rested on, confirmed behaviourally as well as in the catalogue.
+- [x] CI is green on the PR. That is what proves the migration applies to an empty database.
+      PR #42: `verify` pass in 1m31s, Vercel pass.
+- [x] **Production is migrated by hand *before* merging, not after:** `getBoardWithColumns` already
       joins `cards`, so the usual order would leave a window between Vercel's deploy and the hand-run
       migration where `/boards/[boardId]` throws `relation "cards" does not exist` for every user.
       Migration `0002` is purely additive and no code deployed today references `cards`, so there is
       nothing to lose by running it first: `MIGRATE_URL="$(npx --yes neonctl@4 connection-string main
       --project-id withered-glade-54206401)" pnpm db:migrate`, then `\dt` against production to
       confirm `cards` exists — before merging the PR, not after.
-- [ ] Open the PR, saying plainly that nothing user-visible changed. Stop. Start Section B in a fresh session.
+      Done in that order, and the order is provable: `drizzle.__drizzle_migrations` on production
+      (`ep-plain-truth-b2qok7du`) records the third migration at 2026-08-30T20:40:57Z, and PR #42
+      merged at 2026-08-31T07:55:27Z. `cards` is present in production's `public` schema.
+- [x] Open the PR, saying plainly that nothing user-visible changed. Stop. Start Section B in a fresh session. — PR #42.
 
 ---
 
