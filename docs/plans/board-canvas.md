@@ -565,8 +565,8 @@ git commit -m "feat: read a board's cards and the caller's role"
       migration where `/boards/[boardId]` throws `relation "cards" does not exist` for every user.
       Migration `0002` is purely additive and no code deployed today references `cards`, so there is
       nothing to lose by running it first: `MIGRATE_URL="$(npx neonctl@4 connection-string main
-      --project-id <id>)" pnpm db:migrate`, then `\dt` against production to confirm `cards` exists —
-      before merging the PR, not after.
+      --project-id withered-glade-54206401)" pnpm db:migrate`, then `\dt` against production to
+      confirm `cards` exists — before merging the PR, not after.
 - [ ] Open the PR, saying plainly that nothing user-visible changed. Stop. Start Section B in a fresh session.
 
 ---

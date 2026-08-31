@@ -69,7 +69,7 @@ docker build -t kanban .           # app image only, self-host
 **`MIGRATE_URL` names the database outright, and is how production is migrated:**
 
 ```bash
-MIGRATE_URL="$(npx neonctl@4 connection-string main --project-id <id>)" pnpm db:migrate
+MIGRATE_URL="$(npx neonctl@4 connection-string main --project-id withered-glade-54206401)" pnpm db:migrate
 ```
 
 It exists because provenance cannot be inferred. drizzle-kit loads `.env` into `process.env` before
@@ -85,6 +85,9 @@ matched `.env`, read as "not from the shell", and migrated the Neon dev branch w
 CI relies on — but prefer `MIGRATE_URL` when it matters, and confirm with `\dt` rather than the
 success line. Also note `drizzle-kit migrate` exits 1 with an empty stderr
 when `lib/db/migrations/` does not exist; the first `db:generate` creates it.
+
+`MIGRATE_URL` set but empty — a failed command substitution, most often — is a hard error rather than
+a silent fallback to another database, because a fallback there is this same failure mode again.
 
 Before declaring any task done, run `pnpm typecheck && pnpm lint && pnpm test`. Do not report success on output you have not seen.
 
