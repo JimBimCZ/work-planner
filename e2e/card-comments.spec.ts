@@ -79,3 +79,53 @@ test('a viewer can comment', async ({ page, context }) => {
     await removeSeededUser(owner.userId);
   }
 });
+
+test("the author edits and deletes their own comment", async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, { boardId, createdById: userId });
+  await seedComment(cardId, userId, 'Typo here');
+
+  try {
+    await page.goto(`/boards/${boardId}/cards/${cardId}`);
+
+    await page.getByRole('button', { name: 'Edit comment' }).click();
+    await page.getByRole('textbox', { name: 'Edit comment' }).fill('Fixed now');
+    const edited = written(page);
+    await page.getByRole('button', { name: 'Save changes' }).click();
+    await edited;
+    await page.reload();
+    await expect(page.getByTestId('comment-body')).toHaveText(['Fixed now']);
+
+    const removed = written(page);
+    await page.getByRole('button', { name: 'Delete comment' }).click();
+    await removed;
+    await page.reload();
+    await expect(page.getByTestId('comment-body')).toHaveCount(0);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+test("a member is offered nothing on someone else's comment", async ({ page, context }) => {
+  const owner = await seedSession(context);
+  const boardId = await seedBoard(owner.userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, { boardId, createdById: owner.userId });
+  await seedComment(cardId, owner.userId, 'Mine');
+
+  await context.clearCookies();
+  const other = await seedSession(context);
+  await seedMember(boardId, other.userId, 'member');
+
+  try {
+    await page.goto(`/boards/${boardId}/cards/${cardId}`);
+    await expect(page.getByTestId('comment-body')).toHaveText(['Mine']);
+    await expect(page.getByRole('button', { name: 'Edit comment' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Delete comment' })).toHaveCount(0);
+  } finally {
+    await removeSeededUser(other.userId);
+    await removeSeededUser(owner.userId);
+  }
+});

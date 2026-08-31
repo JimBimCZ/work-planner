@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 
-import { addComment } from '@/lib/actions/comments';
+import { addComment, deleteComment, editComment } from '@/lib/actions/comments';
 import type { CardComment } from '@/lib/cards';
 
 type Row = CardComment & { pending?: boolean };
@@ -20,6 +20,8 @@ export function CardComments({
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
 
   const submit = () => {
     const body = draft.trim();
@@ -54,6 +56,40 @@ export function CardComments({
     });
   };
 
+  const saveEdit = (row: Row) => {
+    const body = editDraft.trim();
+    if (!body || body === row.body) {
+      setEditingId(null);
+      return;
+    }
+    const previous = row.body;
+    setRows((current) => current.map((r) => (r.id === row.id ? { ...r, body } : r)));
+    setEditingId(null);
+    setError(null);
+
+    startTransition(async () => {
+      const result = await editComment({ commentId: row.id, body });
+      if (!result.ok) {
+        setRows((current) => current.map((r) => (r.id === row.id ? { ...r, body: previous } : r)));
+        setError('That comment could not be saved. Try again.');
+      }
+    });
+  };
+
+  const remove = (row: Row) => {
+    const index = rows.findIndex((r) => r.id === row.id);
+    setRows((current) => current.filter((r) => r.id !== row.id));
+    setError(null);
+
+    startTransition(async () => {
+      const result = await deleteComment({ commentId: row.id });
+      if (!result.ok) {
+        setRows((current) => [...current.slice(0, index), row, ...current.slice(index)]);
+        setError('That comment could not be deleted. Try again.');
+      }
+    });
+  };
+
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Comments</h2>
@@ -70,6 +106,48 @@ export function CardComments({
               <p data-testid="comment-body" className="whitespace-pre-wrap text-sm text-ink">
                 {row.body}
               </p>
+              {row.author?.id === viewer.id && !row.pending ? (
+                editingId === row.id ? (
+                  <div className="mt-1 flex flex-col gap-2">
+                    <textarea
+                      aria-label="Edit comment"
+                      rows={3}
+                      value={editDraft}
+                      onChange={(event) => setEditDraft(event.target.value)}
+                      className="rounded-[var(--radius-control)] border border-line bg-surface px-2 py-1.5 text-sm text-ink"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => saveEdit(row)}
+                      className="self-start rounded-[var(--radius-control)] bg-flow-mid px-3 py-1.5 text-sm font-medium text-white"
+                    >
+                      Save changes
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-1 flex gap-3">
+                    <button
+                      type="button"
+                      aria-label="Edit comment"
+                      onClick={() => {
+                        setEditingId(row.id);
+                        setEditDraft(row.body);
+                      }}
+                      className="text-xs text-muted hover:text-ink"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Delete comment"
+                      onClick={() => remove(row)}
+                      className="text-xs text-muted hover:text-time-over"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )
+              ) : null}
             </li>
           ))}
         </ul>
