@@ -3940,9 +3940,7 @@ git commit -m "feat: delete a column into a target that keeps its cards"
 
 ### Section D gate
 
-- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
-      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
-      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
+- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
 - [ ] Adding a sixth column re-interpolates the whole spectrum — confirmed by eye in a browser, not only by the passing test.
 - [ ] A column holding cards cannot be deleted without naming a target, and the cards arrive below the target's existing ones.
 - [ ] The Delete item is not offered on a board with one column.
@@ -4438,9 +4436,7 @@ git commit -m "feat: the drag tilt, the settle, and the reduced-motion path"
 
 ### Section E gate
 
-- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
-      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
-      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
+- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
 - [ ] Task 15's probe outcome is recorded in the PR body, including any React 19 console warning, and `app/design/dnd-probe/` is gone.
 - [ ] A card dragged across columns survives a reload, and **exactly one `cards` row changed** — confirmed with a `select` against the dev branch, not inferred from the UI.
 - [ ] **A rejected move puts the card back and says so in the status strip.** Force it — temporarily make `moveCard` return `{ ok: false, error: 'INVALID' }`, observe the revert and the message, then undo the change. Do not skip this because the inverse is unit-tested; the wiring is not.
@@ -4672,9 +4668,7 @@ git commit -m "feat: one column at a time below 700px, with a switcher"
 
 ### Section F gate
 
-- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
-      typecheck clean; `pnpm build` clean; eslint 0 errors and 2 pre-existing `_pending` warnings in
-      `lib/board-state.ts`; vitest 164 passed across 16 files; playwright 39 passed, exit 0.
+- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
 - [ ] The board is usable at 360px **in a real browser**, not only in Playwright: one column fills the viewport, the switcher reaches every column, and nothing overflows the page sideways.
 - [ ] Dragging a card still works at 360px within the visible column, and **Move to** is how it crosses columns.
 - [ ] The wide board is unchanged — 312px columns, no snapping, no switcher.
