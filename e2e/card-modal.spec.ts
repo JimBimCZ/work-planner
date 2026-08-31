@@ -368,3 +368,35 @@ test.describe('west of Greenwich', () => {
     }
   });
 });
+
+test('clearing a due date empties it, and the empty state survives a reload', async ({
+  page,
+  context,
+}) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: userId,
+    title: 'Ship it',
+    dueDate: '2026-09-10',
+  });
+
+  try {
+    await page.goto(`/boards/${boardId}/cards/${cardId}`);
+    const dueInput = page.locator('input[aria-label="Due date"]');
+    await expect(dueInput).toHaveValue('2026-09-10');
+
+    const saved = written(page);
+    await dueInput.fill('');
+    await dueInput.blur();
+    await saved;
+
+    await page.reload();
+
+    await expect(page.locator('input[aria-label="Due date"]')).toHaveValue('');
+  } finally {
+    await removeSeededUser(userId);
+  }
+});

@@ -119,13 +119,27 @@ async function nextCardRank(columnId: string): Promise<string> {
 
 export async function seedCard(
   columnId: string,
-  opts: { boardId: string; createdById: string; title?: string; rank?: string },
+  opts: {
+    boardId: string;
+    createdById: string;
+    title?: string;
+    rank?: string;
+    dueDate?: string;
+  },
 ): Promise<string> {
   const cardId = crypto.randomUUID();
   const rank = opts.rank ?? (await nextCardRank(columnId));
   await seedPool().query(
-    'insert into cards (id, board_id, column_id, title, rank, created_by_id) values ($1, $2, $3, $4, $5, $6)',
-    [cardId, opts.boardId, columnId, opts.title ?? 'Seeded card', rank, opts.createdById],
+    'insert into cards (id, board_id, column_id, title, rank, created_by_id, due_date) values ($1, $2, $3, $4, $5, $6, $7)',
+    [
+      cardId,
+      opts.boardId,
+      columnId,
+      opts.title ?? 'Seeded card',
+      rank,
+      opts.createdById,
+      opts.dueDate ?? null,
+    ],
   );
   return cardId;
 }
