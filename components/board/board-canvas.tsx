@@ -320,7 +320,12 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   return (
     <main className="flex h-full flex-col">
       <ColumnSwitcher columns={columns} activeId={activeColumnId} onSelect={showColumn} />
+      {/* dnd-kit names the drag instructions with a module-level counter unless
+          it is given an id. That counter lives in the server process and climbs
+          with every render, so the id it ships stops matching the one the client
+          generates, and aria-describedby is left pointing at nothing. */}
       <DndContext
+        id="board"
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={onDragStart}
