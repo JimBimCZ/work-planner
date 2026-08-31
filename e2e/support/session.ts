@@ -129,3 +129,16 @@ export async function seedCard(
   );
   return cardId;
 }
+
+export async function seedComment(
+  cardId: string,
+  authorId: string,
+  body = 'Seeded comment',
+): Promise<string> {
+  const commentId = crypto.randomUUID();
+  await seedPool().query(
+    'insert into comments (id, card_id, author_id, body) values ($1, $2, $3, $4)',
+    [commentId, cardId, authorId, body],
+  );
+  return commentId;
+}
