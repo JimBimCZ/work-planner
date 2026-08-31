@@ -1,6 +1,12 @@
 'use client';
 
-import { type Dispatch, type SetStateAction, useState, useTransition } from 'react';
+import {
+  type Dispatch,
+  type KeyboardEvent,
+  type SetStateAction,
+  useState,
+  useTransition,
+} from 'react';
 
 import { useBoardActions } from '@/components/board/board-actions';
 import { CardDueDate } from '@/components/board/card-due-date';
@@ -124,6 +130,12 @@ export function CardBody({
     });
   };
 
+  const revertDueDate = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape' && draftDueDate !== (dueDate ?? '')) {
+      setDraftDueDate(dueDate ?? '');
+    }
+  };
+
   const commitDescription = () => {
     const next = description.trim();
     commitField({
@@ -142,18 +154,7 @@ export function CardBody({
         {showHeading ? (
           <h2 className="text-sm font-medium leading-5 text-ink">{savedTitle}</h2>
         ) : null}
-        <CardDueDate
-          value={dueDate}
-          draft={draftDueDate}
-          canWrite={canWrite}
-          onDraftChange={setDraftDueDate}
-          onCommit={commitDueDate}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape' && draftDueDate !== (dueDate ?? '')) {
-              setDraftDueDate(dueDate ?? '');
-            }
-          }}
-        />
+        <CardDueDate value={dueDate} canWrite={canWrite} />
         <p className="whitespace-pre-wrap text-[15px] leading-6 text-ink">
           {savedDescription || <span className="text-muted">No description yet</span>}
         </p>
@@ -177,15 +178,11 @@ export function CardBody({
       />
       <CardDueDate
         value={dueDate}
-        draft={draftDueDate}
         canWrite={canWrite}
+        draft={draftDueDate}
         onDraftChange={setDraftDueDate}
         onCommit={commitDueDate}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape' && draftDueDate !== (dueDate ?? '')) {
-            setDraftDueDate(dueDate ?? '');
-          }
-        }}
+        onKeyDown={revertDueDate}
       />
       <textarea
         aria-label="Description"

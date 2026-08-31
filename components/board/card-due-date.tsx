@@ -7,31 +7,35 @@ import { useMounted } from '@/lib/use-mounted';
 
 // A native date input: no dependency, keyboard-accessible without work, and
 // formatted in the viewer's locale by the browser.
-export function CardDueDate({
-  value,
-  draft,
-  canWrite,
-  onDraftChange,
-  onCommit,
-  onKeyDown,
-}: {
-  value: string | null;
-  draft: string;
-  canWrite: boolean;
-  onDraftChange: (value: string) => void;
-  onCommit: (value: string | null) => void;
-  onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
-}) {
+//
+// `canWrite` discriminates the props union rather than making the editing
+// props merely optional: a read-only render has nothing to invoke them with,
+// so the type keeps it that way instead of letting it hold dead callbacks.
+type CardDueDateProps =
+  | { value: string | null; canWrite: false }
+  | {
+      value: string | null;
+      canWrite: true;
+      draft: string;
+      onDraftChange: (value: string) => void;
+      onCommit: (value: string | null) => void;
+      onKeyDown: (event: KeyboardEvent<HTMLInputElement>) => void;
+    };
+
+export function CardDueDate(props: CardDueDateProps) {
   // formatDue resolves Intl's default locale when none is passed — Node's on
   // the server, the browser's on the client — so the read-only label waits
   // for the client, the same reason the card face's DueDate does.
   const mounted = useMounted();
+  const { value, canWrite } = props;
 
   if (!canWrite) {
     if (!value || !mounted) return null;
     const due = fromDateInputValue(value);
     return due ? <p className="font-mono text-xs text-muted">Due {formatDue(due)}</p> : null;
   }
+
+  const { draft, onDraftChange, onCommit, onKeyDown } = props;
 
   return (
     <label className="flex items-center gap-2 text-xs text-muted">
