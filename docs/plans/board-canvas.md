@@ -2395,10 +2395,10 @@ Replaces `ColumnShell` with a client tree. `e2e/board-view.spec.ts` must keep pa
 - Modify: `app/(app)/(board)/boards/[boardId]/page.tsx`
 
 **Interfaces:**
-- Consumes: `BoardWithCards` from `@/lib/boards`; `BoardRole`, `atLeast` from `@/lib/permissions`; `boardReducer`, `orderedColumns`, `cardsIn`, `type BoardState` from `@/lib/board-state`; `flowHue`, `flowColor` from `@/lib/flow`.
+- Consumes: `BoardWithCards` from `@/lib/boards` (**type-only**); `boardReducer`, `orderedColumns`, `cardsIn`, `type BoardState` from `@/lib/board-state`; `flowHue`, `flowColor` from `@/lib/flow`. **Nothing from `@/lib/permissions`** — see below.
 - Produces:
   ```ts
-  export function BoardCanvas(props: { board: BoardWithCards; role: BoardRole }): JSX.Element;
+  export function BoardCanvas(props: { board: BoardWithCards; canWrite: boolean }): JSX.Element;
   export function BoardColumn(props: {
     column: StateColumn; cards: StateCard[]; hue: number; nextHue: number; canWrite: boolean;
   }): JSX.Element;
@@ -2537,7 +2537,6 @@ import { BoardColumn } from '@/components/board/board-column';
 import { boardReducer, cardsIn, orderedColumns, type BoardState } from '@/lib/board-state';
 import type { BoardWithCards } from '@/lib/boards';
 import { flowHue } from '@/lib/flow';
-import { atLeast, type BoardRole } from '@/lib/permissions';
 
 // Seeded once, on mount. There is no realtime in this sub-project, so the
 // reducer is the truth for the session and a reload is what re-reads the server.
@@ -2556,9 +2555,8 @@ function seed(board: BoardWithCards): BoardState {
   };
 }
 
-export function BoardCanvas({ board, role }: { board: BoardWithCards; role: BoardRole }) {
+export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWrite: boolean }) {
   const [state] = useReducer(boardReducer, board, seed);
-  const canWrite = atLeast(role, 'member');
 
   const columns = orderedColumns(state);
   const total = columns.length;
@@ -2589,10 +2587,28 @@ export function BoardCanvas({ board, role }: { board: BoardWithCards; role: Boar
 Replace the render in `app/(app)/(board)/boards/[boardId]/page.tsx`:
 
 ```tsx
-return <BoardCanvas board={board} role={role} />;
+return <BoardCanvas board={board} canWrite={atLeast(role, 'member')} />;
 ```
 
-Remove the `ColumnShell` and `flowHue` imports from the page, add `BoardCanvas`, and delete `components/board/column-shell.tsx`.
+Remove the `ColumnShell` and `flowHue` imports from the page, add `BoardCanvas` and `atLeast`, and delete `components/board/column-shell.tsx`.
+
+**The canvas takes the capability, not the role, and that is not a style preference.** `atLeast` lives
+in `lib/permissions.ts`, which imports `lib/db`, which constructs a `pg` `Pool` at module scope. A
+`'use client'` file that imports *anything* from `lib/permissions.ts` therefore pulls the driver into
+the browser bundle, and the build fails with seven `Module not found` errors for `dns`, `fs`, `net`,
+`tls` and `util/types`. This was written as `atLeast(role, 'member')` inside the canvas and failed
+exactly that way on first execution. Deriving `canWrite` on the server costs nothing: it is the only
+thing the canvas ever wanted, and Tasks 11, 12 and Section E all thread `canWrite` down rather than
+the role. The one surviving `atLeast` call in Task 11 is in the board **layout**, a Server Component,
+where it is fine.
+
+`import type { BoardWithCards } from '@/lib/boards'` is safe for the same reason it looks unsafe:
+`import type` is erased before bundling, so it pulls nothing. The distinction is the value import.
+
+**`pnpm typecheck && pnpm lint && pnpm test` do not catch this** — all three pass on a client
+component that imports the database. CI catches it only because Playwright's `webServer` runs
+`next dev`, which fails to compile. If a task changes what a client component imports, run
+`pnpm build`.
 
 - [ ] **Step 8: Run the tests and watch them pass**
 
