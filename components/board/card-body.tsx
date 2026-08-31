@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { type Dispatch, type SetStateAction, useState, useTransition } from 'react';
 
 import { useBoardActions } from '@/components/board/board-actions';
 import { renameCard, setCardDescription } from '@/lib/actions/cards';
@@ -32,7 +32,7 @@ export function CardBody({
   }: {
     next: string;
     saved: string;
-    setValue: (value: string) => void;
+    setValue: Dispatch<SetStateAction<string>>;
     setSaved: (value: string) => void;
     save: () => Promise<{ ok: boolean }>;
     errorMessage: string;
@@ -45,10 +45,13 @@ export function CardBody({
       const result = await save();
       if (result.ok) {
         setSaved(next);
-        setValue(next);
+        // Only echo the sent value back if the field still holds it — a
+        // faster edit that started after this save and is still in flight
+        // must not be clobbered by this save's own response landing late.
+        setValue((current) => (current.trim() === next ? next : current));
         onSuccess?.();
       } else {
-        setValue(saved);
+        setValue((current) => (current.trim() === next ? saved : current));
         setError(errorMessage);
       }
     });

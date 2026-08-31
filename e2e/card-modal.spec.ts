@@ -237,3 +237,41 @@ test('a pending card is not a link', async ({ page, context }) => {
     await removeSeededUser(userId);
   }
 });
+
+// commitField's success and failure branches both write local state after an
+// await, so a slow save must not clobber whatever the user typed since.
+test('typing after a save starts keeps the newer text once the response lands', async ({
+  page,
+  context,
+}) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, { boardId, createdById: userId, title: 'Ship it' });
+
+  try {
+    await page.goto(`/boards/${boardId}/cards/${cardId}`);
+
+    let releaseSave: () => void = () => {};
+    const saveGate = new Promise<void>((resolve) => {
+      releaseSave = resolve;
+    });
+    await page.route(`**/boards/${boardId}/cards/${cardId}`, async (route) => {
+      if (route.request().method() === 'POST') await saveGate;
+      await route.continue();
+    });
+
+    const title = page.getByRole('textbox', { name: 'Card title' });
+    await title.fill('First save');
+    await title.blur();
+
+    await title.fill('Second edit');
+    const saved = written(page);
+    releaseSave();
+    await saved;
+
+    await expect(title).toHaveValue('Second edit');
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
