@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test';
 import {
+  boardColumns,
   closeSeedPool,
   removeSeededUser,
   seedBoard,
+  seedCard,
   seedMember,
   seedSession,
   written,
@@ -136,5 +138,74 @@ test('a viewer sees no column menu', async ({ page, context }) => {
   } finally {
     await removeSeededUser(owner.userId);
     await removeSeededUser(viewer.userId);
+  }
+});
+
+test('deleting a column moves its cards into the named target', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready, inProgress] = await boardColumns(boardId);
+  await seedCard(inProgress.id, { boardId, createdById: userId, title: 'Rehomed', rank: 'a0' });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+
+    await page.getByRole('button', { name: 'Column actions for In Progress' }).click();
+    await page.getByRole('menuitem', { name: 'Delete…' }).click();
+    await page.getByLabel('Move its cards to').selectOption({ label: 'Ready to Work' });
+    const deleted = written(page);
+    await page.getByRole('button', { name: 'Delete column' }).click();
+
+    await expect(page.getByTestId('column-name')).toHaveText([
+      'Ready to Work',
+      'In Testing',
+      'In Review',
+      'Done',
+    ]);
+    await expect(
+      page.locator(`[data-column-id="${ready.id}"]`).getByTestId('card-title'),
+    ).toHaveText(['Rehomed']);
+
+    await deleted;
+    await page.reload();
+    await expect(page.getByTestId('column-name')).toHaveText([
+      'Ready to Work',
+      'In Testing',
+      'In Review',
+      'Done',
+    ]);
+    await expect(
+      page.locator(`[data-column-id="${ready.id}"]`).getByTestId('card-title'),
+    ).toHaveText(['Rehomed']);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+// Both cards are seeded at rank 'a0', so the order below can only come from the
+// re-rank the delete performs, never from the ranks they arrived with.
+test('arriving cards land below the ones already there', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready, inProgress] = await boardColumns(boardId);
+  await seedCard(ready.id, { boardId, createdById: userId, title: 'Already here', rank: 'a0' });
+  await seedCard(inProgress.id, { boardId, createdById: userId, title: 'Arriving', rank: 'a0' });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+
+    await page.getByRole('button', { name: 'Column actions for In Progress' }).click();
+    await page.getByRole('menuitem', { name: 'Delete…' }).click();
+    await page.getByLabel('Move its cards to').selectOption({ label: 'Ready to Work' });
+    const deleted = written(page);
+    await page.getByRole('button', { name: 'Delete column' }).click();
+
+    await deleted;
+    await page.reload();
+    await expect(
+      page.locator(`[data-column-id="${ready.id}"]`).getByTestId('card-title'),
+    ).toHaveText(['Already here', 'Arriving']);
+  } finally {
+    await removeSeededUser(userId);
   }
 });

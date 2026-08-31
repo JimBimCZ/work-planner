@@ -3771,7 +3771,7 @@ git commit -m "feat: rename, add and reorder a column from its menu"
 
 The target defaults to the neighbour on the left, falling back to the neighbour on the right for the first column. **The dialog asks even when the column is empty** — a dialog that sometimes appears is worse than one that always does, and the answer is simply unused.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `e2e/columns.spec.ts`:
 
@@ -3834,12 +3834,12 @@ test('arriving cards land below the ones already there', async ({ page, context 
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/columns.spec.ts`
 Expected: FAIL — "Delete…" opens nothing.
 
-- [ ] **Step 3: Write the dialog**
+- [x] **Step 3: Write the dialog**
 
 Create `components/board/delete-column-dialog.tsx`:
 
@@ -3914,7 +3914,13 @@ export function DeleteColumnDialog({
 
 The `⋯` menu's Delete item is hidden entirely when the board has one column — the server returns `LAST_COLUMN`, but a control that can only fail should not be offered.
 
-- [ ] **Step 4: Wire the canvas**
+**One correction, made while executing this task.** `BoardColumn`'s `columns` prop widened from
+`{ id, name }[]` to `StateColumn[]`. The dialog's `others` needs the same objects the canvas already
+holds, and a `StateColumn[]` still satisfies the card menu's narrower `{ id, name }[]` by structural
+typing, so nothing downstream changed. The dialog's open state lives in `board-column.tsx` rather than
+in `ColumnMenu`, which keeps the menu ignorant of its siblings.
+
+- [x] **Step 4: Wire the canvas**
 
 ```tsx
 const removeColumn = (column: StateColumn, targetColumnId: string) => {
@@ -3936,12 +3942,12 @@ const removeColumn = (column: StateColumn, targetColumnId: string) => {
 
 The inverse of `column.delete` restores the column and moves every card back, which Task 9 already implements and tested. Nothing extra is needed here for rollback.
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm exec playwright test e2e/columns.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test

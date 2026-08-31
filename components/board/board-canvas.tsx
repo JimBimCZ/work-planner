@@ -5,7 +5,7 @@ import { useEffect, useReducer, useState, useTransition } from 'react';
 import { BoardColumn } from '@/components/board/board-column';
 import { useBoardActions } from '@/components/board/board-actions';
 import { createCard, deleteCard, moveCard, renameCard } from '@/lib/actions/cards';
-import { addColumn, moveColumn, renameColumn } from '@/lib/actions/columns';
+import { addColumn, deleteColumn, moveColumn, renameColumn } from '@/lib/actions/columns';
 import {
   boardReducer,
   cardsIn,
@@ -189,6 +189,24 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     });
   };
 
+  // The inverse of column.delete restores the column and moves every card back,
+  // which the reducer already implements, so rollback needs nothing extra here.
+  const removeColumn = (column: StateColumn, targetColumnId: string) => {
+    const moving = cardsIn(state, column.id);
+    const last = cardsIn(state, targetColumnId).at(-1);
+
+    return run(
+      {
+        type: 'column.delete',
+        columnId: column.id,
+        targetColumnId,
+        ranks: ranksAfter(last?.rank ?? null, moving.length),
+      },
+      () => deleteColumn({ columnId: column.id, targetColumnId }),
+      'That column could not be deleted. Try again.',
+    );
+  };
+
   return (
     <main className="h-full overflow-x-auto">
       <div className="flex h-full min-w-max">
@@ -213,7 +231,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
             onRenameColumn={renameColumnTo}
             onAddColumnAfter={addColumnAfter}
             onMoveColumn={moveColumnBy}
-            onDeleteColumn={null}
+            onDeleteColumn={total > 1 ? removeColumn : null}
           />
         ))}
       </div>

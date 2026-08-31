@@ -1,8 +1,11 @@
 'use client';
 
+import { useState } from 'react';
+
 import { AddCard } from '@/components/board/add-card';
 import { BoardCard } from '@/components/board/board-card';
 import { ColumnMenu } from '@/components/board/column-menu';
+import { DeleteColumnDialog } from '@/components/board/delete-column-dialog';
 import type { StateCard, StateColumn } from '@/lib/board-state';
 import { flowColor } from '@/lib/flow';
 
@@ -39,7 +42,7 @@ export function BoardColumn({
   onOpenComposer: () => void;
   onCloseComposer: () => void;
   onAddCard: (title: string) => void;
-  columns: { id: string; name: string }[];
+  columns: StateColumn[];
   onRenameCard: (card: StateCard, title: string) => void;
   onDeleteCard: (card: StateCard) => void;
   onMoveCardTo: (card: StateCard, toColumnId: string) => void;
@@ -48,8 +51,16 @@ export function BoardColumn({
   onRenameColumn: (column: StateColumn, name: string) => void;
   onAddColumnAfter: (column: StateColumn, name: string) => void;
   onMoveColumn: (column: StateColumn, direction: 'left' | 'right') => void;
-  onDeleteColumn: ((column: StateColumn) => void) | null;
+  onDeleteColumn: ((column: StateColumn, targetColumnId: string) => void) | null;
 }) {
+  const [deleting, setDeleting] = useState(false);
+
+  // The left neighbour first, so it is the select's default; the first column
+  // falls through to its right neighbour, which is the next in natural order.
+  const index = columns.findIndex((c) => c.id === column.id);
+  const left = columns[index - 1];
+  const rest = columns.filter((c) => c.id !== column.id && c.id !== left?.id);
+  const others = left ? [left, ...rest] : rest;
   return (
     <section data-column-id={column.id} className="flex h-full w-[312px] shrink-0 flex-col">
       <div
@@ -75,7 +86,7 @@ export function BoardColumn({
               onRename={(name) => onRenameColumn(column, name)}
               onAddAfter={(name) => onAddColumnAfter(column, name)}
               onMove={(direction) => onMoveColumn(column, direction)}
-              onDelete={onDeleteColumn ? () => onDeleteColumn(column) : null}
+              onDelete={onDeleteColumn ? () => setDeleting(true) : null}
             />
           ) : null}
         </div>
@@ -111,6 +122,16 @@ export function BoardColumn({
           </div>
         ) : null}
       </div>
+
+      {onDeleteColumn ? (
+        <DeleteColumnDialog
+          column={column}
+          others={others}
+          open={deleting}
+          onOpenChange={setDeleting}
+          onConfirm={(targetColumnId) => onDeleteColumn(column, targetColumnId)}
+        />
+      ) : null}
     </section>
   );
 }
