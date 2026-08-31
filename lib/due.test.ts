@@ -53,6 +53,15 @@ describe('west of Greenwich', () => {
   test('and dueState still says soon', () => {
     expect(dueState(due(2026, 9, 1), at(2026, 9, 1, 23))).toBe('soon');
   });
+
+  // Midnight UTC on the 1st is the previous evening in this zone, so a
+  // formatter that used the runner's timezone would say 31 Aug. This is the
+  // assertion that would catch `timeZone: 'UTC'` going missing — it has to
+  // run under a pinned non-UTC zone to fail when it should, and CI runs UTC.
+  test('formatDue formats from the UTC parts, not the runner timezone', () => {
+    const midnightUtc = new Date('2026-09-01T00:00:00.000Z');
+    expect(formatDue(midnightUtc, 'en-GB')).toBe('1 Sept');
+  });
 });
 
 describe('dueState', () => {
@@ -96,13 +105,5 @@ describe('the input round trip', () => {
 describe('formatDue', () => {
   test('formats the date it was given', () => {
     expect(formatDue(due(2026, 9, 1), 'en-GB')).toBe('1 Sept');
-  });
-
-  // Midnight UTC on the 1st is the previous evening in any western zone, so a
-  // formatter that used the runner's timezone would say 31 Aug. This is the
-  // assertion that would catch `timeZone: 'UTC'` going missing.
-  test('formats from the UTC parts, not the runner timezone', () => {
-    const midnightUtc = new Date('2026-09-01T00:00:00.000Z');
-    expect(formatDue(midnightUtc, 'en-GB')).toBe('1 Sept');
   });
 });
