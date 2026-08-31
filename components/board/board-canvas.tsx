@@ -5,6 +5,7 @@ import { useEffect, useReducer, useState, useTransition } from 'react';
 import { BoardColumn } from '@/components/board/board-column';
 import { useBoardActions } from '@/components/board/board-actions';
 import { createCard, deleteCard, moveCard, renameCard } from '@/lib/actions/cards';
+import { addColumn, moveColumn, renameColumn } from '@/lib/actions/columns';
 import {
   boardReducer,
   cardsIn,
@@ -13,10 +14,11 @@ import {
   type BoardAction,
   type BoardState,
   type StateCard,
+  type StateColumn,
 } from '@/lib/board-state';
 import type { BoardWithCards } from '@/lib/boards';
 import { flowHue } from '@/lib/flow';
-import { ranksAfter } from '@/lib/rank';
+import { rankBetween, ranksAfter } from '@/lib/rank';
 
 // Seeded once, on mount. There is no realtime in this sub-project, so the
 // reducer is the truth for the session and a reload is what re-reads the server.
@@ -133,6 +135,60 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     );
   };
 
+  const renameColumnTo = (column: StateColumn, name: string) =>
+    run(
+      { type: 'column.rename', columnId: column.id, name },
+      () => renameColumn({ columnId: column.id, name }),
+      'That column could not be renamed. Try again.',
+    );
+
+  // The menu says a direction; the canvas turns it into the neighbour pair the
+  // action wants. A direction never reaches the server — it is an index in
+  // disguise, and an index is stale the moment someone else moves something.
+  const moveColumnBy = (column: StateColumn, direction: 'left' | 'right') => {
+    const index = columns.findIndex((c) => c.id === column.id);
+    const [before, after] =
+      direction === 'left'
+        ? [columns[index - 2] ?? null, columns[index - 1] ?? null]
+        : [columns[index + 1] ?? null, columns[index + 2] ?? null];
+
+    if (!after && !before) return;
+
+    return run(
+      {
+        type: 'column.move',
+        columnId: column.id,
+        rank: rankBetween(before?.rank ?? null, after?.rank ?? null),
+      },
+      () =>
+        moveColumn({
+          columnId: column.id,
+          beforeColumnId: before?.id ?? null,
+          afterColumnId: after?.id ?? null,
+        }),
+      'That column could not be moved. Try again.',
+    );
+  };
+
+  const addColumnAfter = (column: StateColumn, name: string) => {
+    const index = columns.findIndex((c) => c.id === column.id);
+    const tempId = `tmp-${crypto.randomUUID()}`;
+    const rank = rankBetween(column.rank, columns[index + 1]?.rank ?? null);
+
+    dispatch({ type: 'column.create', column: { id: tempId, name, rank, pending: true } });
+    setError(null);
+
+    startTransition(async () => {
+      const result = await addColumn({ boardId: board.id, name, afterColumnId: column.id });
+      if (!result.ok) {
+        dispatch({ type: 'column.delete', columnId: tempId, targetColumnId: null, ranks: [] });
+        setError('That column could not be added. Try again.');
+        return;
+      }
+      dispatch({ type: 'column.settle', tempId, id: result.data.id, rank: result.data.rank });
+    });
+  };
+
   return (
     <main className="h-full overflow-x-auto">
       <div className="flex h-full min-w-max">
@@ -152,6 +208,12 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
             onRenameCard={renameCardTo}
             onDeleteCard={removeCard}
             onMoveCardTo={moveCardTo}
+            isFirst={index === 0}
+            isLast={index === total - 1}
+            onRenameColumn={renameColumnTo}
+            onAddColumnAfter={addColumnAfter}
+            onMoveColumn={moveColumnBy}
+            onDeleteColumn={null}
           />
         ))}
       </div>

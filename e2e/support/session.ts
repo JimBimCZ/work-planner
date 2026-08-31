@@ -1,4 +1,4 @@
-import type { BrowserContext } from '@playwright/test';
+import type { BrowserContext, Page } from '@playwright/test';
 import { generateNKeysBetween } from 'fractional-indexing';
 import { Pool } from 'pg';
 
@@ -13,6 +13,11 @@ function seedPool(): Pool {
   pool ??= new Pool({ connectionString: process.env.DATABASE_URL });
   return pool;
 }
+
+// A server action is a POST back to the page's own URL, and the optimistic
+// update lands well before it resolves. Reloading in between aborts the write
+// in flight, so every test that reloads waits on the round trip first.
+export const written = (page: Page) => page.waitForResponse((r) => r.request().method() === 'POST');
 
 export type SeededSession = { userId: string; email: string };
 

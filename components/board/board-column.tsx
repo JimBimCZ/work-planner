@@ -2,6 +2,7 @@
 
 import { AddCard } from '@/components/board/add-card';
 import { BoardCard } from '@/components/board/board-card';
+import { ColumnMenu } from '@/components/board/column-menu';
 import type { StateCard, StateColumn } from '@/lib/board-state';
 import { flowColor } from '@/lib/flow';
 
@@ -22,6 +23,12 @@ export function BoardColumn({
   onRenameCard,
   onDeleteCard,
   onMoveCardTo,
+  isFirst,
+  isLast,
+  onRenameColumn,
+  onAddColumnAfter,
+  onMoveColumn,
+  onDeleteColumn,
 }: {
   column: StateColumn;
   cards: StateCard[];
@@ -36,6 +43,12 @@ export function BoardColumn({
   onRenameCard: (card: StateCard, title: string) => void;
   onDeleteCard: (card: StateCard) => void;
   onMoveCardTo: (card: StateCard, toColumnId: string) => void;
+  isFirst: boolean;
+  isLast: boolean;
+  onRenameColumn: (column: StateColumn, name: string) => void;
+  onAddColumnAfter: (column: StateColumn, name: string) => void;
+  onMoveColumn: (column: StateColumn, direction: 'left' | 'right') => void;
+  onDeleteColumn: ((column: StateColumn) => void) | null;
 }) {
   return (
     <section data-column-id={column.id} className="flex h-full w-[312px] shrink-0 flex-col">
@@ -47,12 +60,25 @@ export function BoardColumn({
         className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-4"
         style={{ background: `linear-gradient(${flowColor(hue, 0.06)}, transparent 80px)` }}
       >
-        <h2
-          data-testid="column-name"
-          className="px-1.5 pt-3 text-xs font-semibold uppercase tracking-[0.08em] text-muted"
-        >
-          {column.name}
-        </h2>
+        <div className="flex items-center gap-1 px-1.5 pt-3">
+          <h2
+            data-testid="column-name"
+            className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted"
+          >
+            {column.name}
+          </h2>
+          {canWrite ? (
+            <ColumnMenu
+              column={column}
+              isFirst={isFirst}
+              isLast={isLast}
+              onRename={(name) => onRenameColumn(column, name)}
+              onAddAfter={(name) => onAddColumnAfter(column, name)}
+              onMove={(direction) => onMoveColumn(column, direction)}
+              onDelete={onDeleteColumn ? () => onDeleteColumn(column) : null}
+            />
+          ) : null}
+        </div>
 
         {cards.length === 0 ? (
           <p className="px-1.5 pt-6 text-sm text-muted">Nothing here yet</p>

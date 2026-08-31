@@ -3399,7 +3399,7 @@ git commit -m "feat: rename, move and delete a card from its menu"
 
 **How "move left" becomes neighbours:** the menu says a direction; the canvas turns it into the pair the action wants. For a column at index `i` in rank order, moving left lands it between `columns[i - 2]` and `columns[i - 1]`; moving right, between `columns[i + 1]` and `columns[i + 2]`. A missing neighbour is `null`, which is how the action is told "the far end". The direction never reaches the server — an index is stale the moment someone else moves something, and a direction is an index in disguise.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `e2e/columns.spec.ts`:
 
@@ -3520,12 +3520,12 @@ test('a viewer sees no column menu', async ({ page, context }) => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm exec playwright test e2e/columns.spec.ts`
 Expected: FAIL — no "Column actions for In Testing" button.
 
-- [ ] **Step 3: Write the menu**
+- [x] **Step 3: Write the menu**
 
 Create `components/board/column-menu.tsx`. Same primitives and the same dialog shape as `card-menu.tsx`; the trigger sits in the column header:
 
@@ -3664,11 +3664,24 @@ export function ColumnMenu({
 
 Adding a column re-interpolates every hue, because `flowHue` takes the total. That is the signature behaviour from the design brief and needs no extra code — it falls out of rendering from `orderedColumns(state)`.
 
-- [ ] **Step 4: Render it in the column header**
+**Two corrections, made while executing this task.**
+
+`onDelete` is typed `(() => void) | null` rather than `() => void`, and the Delete item renders only
+when it is non-null. The plan asked for a no-op stub here and for Task 14 to hide the item on a
+one-column board; a stub would have shipped a destructive menu item that silently does nothing for one
+commit, which breaks the rule that every commit leaves the app working. Null expresses both "not wired
+yet" and "not offered on the last column", so Task 14 only has to pass a function.
+
+The trigger is a 24px square, matching `card-menu.tsx`. Unlike that one it is always visible rather
+than revealed on hover: there are a handful of columns, not dozens of cards, and hiding the only way
+to manage a column would make it undiscoverable. The `<h2>` keeps `data-testid="column-name"` and gains
+`min-w-0 flex-1 truncate` so a long name cannot push the trigger out of the header.
+
+- [x] **Step 4: Render it in the column header**
 
 In `board-column.tsx`, wrap the `<h2>` and the menu in a flex row so the trigger sits at the header's right edge. Keep `data-testid="column-name"` on the `<h2>` itself — `e2e/board-view.spec.ts` reads its text and would pick up the `⋯` if the id moved to the wrapper.
 
-- [ ] **Step 5: Wire the canvas**
+- [x] **Step 5: Wire the canvas**
 
 In `board-canvas.tsx`, using the same `run` helper Task 12 introduced:
 
@@ -3721,12 +3734,12 @@ const addColumnAfter = (column: StateColumn, name: string) => {
 };
 ```
 
-- [ ] **Step 6: Run the tests and watch them pass**
+- [x] **Step 6: Run the tests and watch them pass**
 
 Run: `pnpm exec playwright test e2e/columns.spec.ts e2e/board-view.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
