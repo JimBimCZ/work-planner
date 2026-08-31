@@ -3986,7 +3986,7 @@ The spec records that `@dnd-kit/core` 6.3.1 declares `react >=16.8.0` and has **
 - Modify: `package.json` (dependencies only)
 - Create then **delete**: `app/design/dnd-probe/page.tsx`
 
-- [ ] **Step 1: Install**
+- [x] **Step 1: Install**
 
 ```bash
 pnpm add @dnd-kit/core@6.3.1 @dnd-kit/sortable@10.0.0 @dnd-kit/utilities@3.2.2
@@ -3994,7 +3994,7 @@ pnpm add @dnd-kit/core@6.3.1 @dnd-kit/sortable@10.0.0 @dnd-kit/utilities@3.2.2
 
 Pinned exactly, as `next`, `zod` and `fractional-indexing` already are in this repository.
 
-- [ ] **Step 2: Write the probe**
+- [x] **Step 2: Write the probe**
 
 Create `app/design/dnd-probe/page.tsx` — a throwaway, under the existing `/design` route group so it inherits a layout:
 
@@ -4063,7 +4063,7 @@ export default function DndProbe() {
 }
 ```
 
-- [ ] **Step 3: Run it and observe**
+- [x] **Step 3: Run it and observe**
 
 ```bash
 pnpm dev
@@ -4077,7 +4077,34 @@ Open `http://localhost:3000/design/dnd-probe` and drag `a1` from box A into box 
 - **It works but warns** (a `ref`, `defaultProps` or lifecycle warning under React 19) — note the exact text in the PR body and proceed. A warning is not a blocker; an unrecorded warning is.
 - **It does not work** — stop. Do not proceed to Task 16. Try `@dnd-kit/react@0.5.0` + `@dnd-kit/helpers@0.5.0` in the same probe, whose API is `DragDropProvider` with a `move()` helper rather than `DndContext`. Report which one works, and raise the stack-table change in `CLAUDE.md` before writing any of Task 16 — `CLAUDE.md` names the v1 packages, and changing that is a decision to be taken, not assumed.
 
-- [ ] **Step 4: Stop the server and delete the probe**
+**Observed, 2026-08-31, on React 19.2.8 / Next 16.3.3 with `@dnd-kit/core@6.3.1`,
+`@dnd-kit/sortable@10.0.0`, `@dnd-kit/utilities@3.2.2`.** Outcome: **it works, console clean.** No
+change to `CLAUDE.md`'s stack table is needed and `@dnd-kit/react` was not tried.
+
+The drag was driven through Chromium with real pointer events — press, cross the 5px activation
+distance in steps, move, release — rather than by hand, because the Chrome the devtools MCP uses had
+its profile locked by an earlier session. Same DOM events either way.
+
+- **Cross-container drop works.** Box A `['a1','a2']` and B `[]` became A `['a2']` and B `['a1']`.
+- **Console clean.** Two messages, both benign and both present on every page of this app: React's
+  "Download the React DevTools" info line, and `[HMR] connected`. No React 19 warning about refs,
+  `defaultProps` or lifecycles. No errors, no `pageerror`.
+- **Sortable transforms are applied and animated.** Dragging `a1` down over `a2` inside one list gave
+  the active item `transform: translate3d(0px, 63px, 0px)` and the sibling
+  `transition: transform 200ms; transform: translate3d(0px, -58px, 0px)`.
+- **Accessibility is intact out of the box.** The item carries `aria-roledescription="sortable"` and an
+  `aria-describedby` pointing at dnd-kit's generated description, and its live region announced
+  "Draggable item a1 was moved over droppable area B."
+
+**One finding that changes Task 16 and 17:** the active item gets **no** transform while it is over a
+*different* container — mid-drag its inline style was `""` on the A→B drag, against a real
+`translate3d` on the within-list drag above. So the sortable transform only translates an item within
+its own `SortableContext`, and a card dragged across columns will not follow the cursor on that hook
+output alone. `DragOverlay` is what makes it follow, and Task 17's shadow, `scale(1.02)` and 3° tilt
+belong on the overlay rather than on the card in place. Budget for it there rather than discovering it
+mid-task.
+
+- [x] **Step 4: Stop the server and delete the probe**
 
 ```bash
 rm -rf app/design/dnd-probe
@@ -4085,7 +4112,7 @@ rm -rf app/design/dnd-probe
 
 Stop `pnpm dev`. `CLAUDE.md`: anything you open, you close; clean up temporary files.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
