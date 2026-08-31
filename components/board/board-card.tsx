@@ -29,6 +29,12 @@ export function BoardCard({
     // The drop settle, per the design brief. Set through the hook rather than a
     // CSS rule so it applies to the settle and not to the drag itself.
     transition: { duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' },
+    // dnd-kit defaults the draggable to role="button", but the card holds a
+    // real button — its ⋯ trigger — and a button inside a button is neither
+    // valid ARIA nor unambiguous to query. 'group' keeps the card focusable
+    // and keyboard-draggable while letting it contain its own controls;
+    // tabIndex, aria-roledescription and aria-describedby are untouched.
+    attributes: { role: 'group' },
   });
 
   return (

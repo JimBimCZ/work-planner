@@ -332,6 +332,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
       </DndContext>
 
       <p
+        data-testid="board-status"
         role="status"
         aria-live="polite"
         className="pointer-events-none fixed bottom-4 left-4 text-sm text-time-over"

@@ -4518,13 +4518,21 @@ git commit -m "feat: the drag tilt, the settle, and the reduced-motion path"
 
 ### Section E gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
-- [ ] Task 15's probe outcome is recorded in the PR body, including any React 19 console warning, and `app/design/dnd-probe/` is gone.
-- [ ] A card dragged across columns survives a reload, and **exactly one `cards` row changed** — confirmed with a `select` against the dev branch, not inferred from the UI.
-- [ ] **A rejected move puts the card back and says so in the status strip.** Force it — temporarily make `moveCard` return `{ ok: false, error: 'INVALID' }`, observe the revert and the message, then undo the change. Do not skip this because the inverse is unit-tested; the wiring is not.
-- [ ] Keyboard drag works: tab to a card, space, arrow keys, space. dnd-kit's announcements are audible to a screen reader and its `attributes` were not stripped.
-- [ ] A click on a card body does not move it — the 5px activation distance is intact.
-- [ ] Screenshots or a capture of a drag in progress attached to the PR.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm exec playwright test` all pass, output observed.
+      typecheck clean; `pnpm build` clean; eslint 0 errors and the 2 pre-existing `_pending` warnings
+      in `lib/board-state.ts`; vitest 170 passed across 16 files; playwright 49 passed of 49, exit 0.
+      **Read the exit code, not the summary line.** `playwright test | tail -n` reports the exit status
+      of `tail`, so a failing suite looks like a passing one; three failures hid behind an "exited with
+      code 0" that way during this section. Redirect to a file and echo `$?`.
+- [x] Task 15's probe outcome is recorded in the PR body, including any React 19 console warning, and `app/design/dnd-probe/` is gone. There were no React warnings — only the DevTools info line and `[HMR] connected`. `app/design/` holds `layout.tsx`, `page.tsx` and `theme-toggle.tsx` and nothing else.
+- [x] A card dragged across columns survives a reload, and **exactly one `cards` row changed** — confirmed with a `select` against the dev branch, not inferred from the UI. Three cards seeded, all rows selected before and after: exactly one differed on `column_id` or `rank`, it was the dragged one, and its `column_id` was the target column's.
+- [x] **A rejected move puts the card back and says so in the status strip.** Forced, not hoped for: `moveCard` was temporarily made to return `{ ok: false, error: 'INVALID' }`. The card was dragged to In Testing, and afterwards Ready to Work held `["Rejected"]`, In Testing held `[]`, and the strip read "That card could not be moved. Try again." The change is reverted — `git diff` on `lib/actions/cards.ts` is empty.
+- [x] Keyboard drag works: tab to a card, space, arrow keys, space. dnd-kit's announcements are audible to a screen reader and its `attributes` were not stripped. Focus, Space, ArrowRight, Space moved a card to the next column and it survived a reload. The focused element carries `aria-roledescription="sortable"`, and the live region announced the pick-up, each move, the drop, and "Dragging was cancelled" on Escape.
+      **One limitation, found here and worth knowing:** `sortableKeyboardCoordinates` navigates between *sortable items*, so an **empty** column cannot be reached by keyboard — the arrow keys have nothing there to land on. **Move to** in the card menu is the pointer-free path that does reach it, which is also what Section F relies on at 360px.
+- [x] A click on a card body does not move it — the 5px activation distance is intact. `e2e/board-dnd.spec.ts` clicks a card and asserts it is still in its column.
+- [ ] Screenshots or a capture of a drag in progress attached to the PR. Captured mid-drag in both
+      motion settings and described in the PR body, but **not attached** — images cannot be uploaded
+      to GitHub from the CLI.
 - [ ] Open the PR. Stop. Start Section F in a fresh session.
 
 ---
