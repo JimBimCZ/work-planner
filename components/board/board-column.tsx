@@ -1,5 +1,6 @@
 'use client';
 
+import { AddCard } from '@/components/board/add-card';
 import { BoardCard } from '@/components/board/board-card';
 import type { StateCard, StateColumn } from '@/lib/board-state';
 import { flowColor } from '@/lib/flow';
@@ -13,15 +14,23 @@ export function BoardColumn({
   hue,
   nextHue,
   canWrite,
+  composerOpen,
+  onOpenComposer,
+  onCloseComposer,
+  onAddCard,
 }: {
   column: StateColumn;
   cards: StateCard[];
   hue: number;
   nextHue: number;
   canWrite: boolean;
+  composerOpen: boolean;
+  onOpenComposer: () => void;
+  onCloseComposer: () => void;
+  onAddCard: (title: string) => void;
 }) {
   return (
-    <section className="flex h-full w-[312px] shrink-0 flex-col">
+    <section data-column-id={column.id} className="flex h-full w-[312px] shrink-0 flex-col">
       <div
         className="h-[3px] shrink-0"
         style={{ background: `linear-gradient(90deg, ${flowColor(hue)}, ${flowColor(nextHue)})` }}
@@ -48,6 +57,18 @@ export function BoardColumn({
             ))}
           </ul>
         )}
+
+        {canWrite ? (
+          <div className="px-1.5">
+            <AddCard
+              columnName={column.name}
+              open={composerOpen}
+              onOpen={onOpenComposer}
+              onClose={onCloseComposer}
+              onSubmit={onAddCard}
+            />
+          </div>
+        ) : null}
       </div>
     </section>
   );
