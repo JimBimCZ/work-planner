@@ -118,9 +118,7 @@ export const cards = pgTable(
     description: text('description'),
     dueDate: timestamp('due_date', { withTimezone: true }),
     rank: text('rank').notNull(),
-    createdById: text('created_by_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+    createdById: text('created_by_id').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
@@ -131,6 +129,28 @@ export const cards = pgTable(
     index('cards_column_id_rank_idx').on(t.columnId, t.rank),
     index('cards_board_id_idx').on(t.boardId),
   ],
+);
+
+export const comments = pgTable(
+  'comments',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    cardId: text('card_id')
+      .notNull()
+      .references(() => cards.id, { onDelete: 'cascade' }),
+    // Nullable and set null, not cascade: /privacy promises that boards owned
+    // by other people keep your comments when your account is deleted.
+    authorId: text('author_id').references(() => users.id, { onDelete: 'set null' }),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [index('comments_card_id_created_at_idx').on(t.cardId, t.createdAt)],
 );
 
 export const boardsRelations = relations(boards, ({ many }) => ({
@@ -148,7 +168,13 @@ export const columnsRelations = relations(columns, ({ one, many }) => ({
   cards: many(cards),
 }));
 
-export const cardsRelations = relations(cards, ({ one }) => ({
+export const cardsRelations = relations(cards, ({ one, many }) => ({
   board: one(boards, { fields: [cards.boardId], references: [boards.id] }),
   column: one(columns, { fields: [cards.columnId], references: [columns.id] }),
+  comments: many(comments),
+}));
+
+export const commentsRelations = relations(comments, ({ one }) => ({
+  card: one(cards, { fields: [comments.cardId], references: [cards.id] }),
+  author: one(users, { fields: [comments.authorId], references: [users.id] }),
 }));
