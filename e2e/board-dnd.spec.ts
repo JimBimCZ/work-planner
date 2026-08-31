@@ -103,3 +103,36 @@ test('a viewer cannot drag', async ({ page, context }) => {
     await removeSeededUser(viewer.userId);
   }
 });
+
+// dnd-kit names the drag instructions with useUniqueId, which falls back to a
+// module-level counter when DndContext carries no id. The counter lives in the
+// server process and climbs with every render, so the second render of a board
+// ships an id the freshly-started client counter never produces — and React
+// does not patch a mismatched attribute. The card then points aria-describedby
+// at an element that is not on the page.
+test('the drag instructions are still reachable on a second render', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Announced');
+  const [ready] = await boardColumns(boardId);
+  await seedCard(ready.id, { boardId, createdById: userId, title: 'Described', rank: 'a0' });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await page.reload();
+
+    // dnd-kit only renders the instructions after its own mount effect, so the
+    // assertion polls rather than reading once.
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          [...document.querySelectorAll('[data-card-id]')].map((card) => {
+            const id = card.getAttribute('aria-describedby');
+            return id ? (document.getElementById(id)?.textContent?.trim() ?? null) : null;
+          }),
+        ),
+      )
+      .toEqual([expect.stringContaining('press the space bar')]);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
