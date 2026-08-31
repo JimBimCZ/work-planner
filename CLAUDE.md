@@ -307,11 +307,26 @@ Three colour roles, and only three:
 
 1. **Flow** — cool hues, position in the pipeline.
 2. **Accent** — `--flow-mid`. Primary buttons, focus rings, active states. Nothing else is teal.
-3. **Time** — the only warm colour in the entire app, reserved exclusively for due dates. Because nothing else is warm, an overdue card pulls the eye across the whole board with a 2px strip and no badge shouting.
+3. **Warning** — `--time-soon` and `--time-over`, the only warm hues in the app. Two uses, and only
+   two: **due dates**, and **destructive or failed actions** — a Delete menu item, a delete button, an
+   error in the status strip.
+
+   The two coexist because they differ in persistence, not in hue. A due date is *painted on the board
+   surface and stays there*, so an overdue card still pulls the eye across a board nobody is reading
+   closely — that claim was the reason for the rule and it survives. The destructive uses are
+   transient and local: they live inside an open menu or dialog the user is already looking at, or in
+   a status strip that clears. Nothing warm is ever at rest on the board except a due date.
+
+   So the constraint that matters is not "warm means time" but **warm is never decorative, and never
+   at rest on the board**. Do not spend it on a badge, a highlight, a count, or a hover state.
+
+   The tokens keep their `--time-*` names, which predate the second use. Renaming them would touch
+   `globals.css` and every consumer to say the same thing, so the name is stale and the rule above is
+   the authority.
 
 Do not add a fourth role. If something needs emphasis, it needs hierarchy or spacing, not a new hue.
 
-Avatar colours are the one exception, and they are constrained: derive them by hashing the user id onto the **cool** half of the wheel only (180°–300°). They must never stray warm, or they'd compete with the time signal, and they must never land on the accent teal.
+Avatar colours are the one exception, and they are constrained: derive them by hashing the user id onto the **cool** half of the wheel only (180°–300°). They must never stray warm, or they'd compete with the warning signal, and they must never land on the accent teal.
 
 ### Signature: the flow spectrum
 
