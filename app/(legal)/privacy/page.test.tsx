@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, test } from 'vitest';
 import PrivacyPage, { metadata } from './page';
@@ -34,6 +35,22 @@ describe('privacy policy', () => {
 
   test('names the supervisory authority for a Czech controller', () => {
     expect(html()).toMatch(/Úřad pro ochranu osobních údajů/);
+  });
+
+  test('names a real controller and contact address rather than a placeholder', () => {
+    const markup = html();
+    expect(markup).toContain('Vit Busek');
+    expect(markup).toContain('busek.vit@gmail.com');
+    expect(markup).not.toMatch(/not yet set|see note below/i);
+  });
+
+  // The policy names a processing region; vercel.json is what makes that true.
+  test('claims the region vercel.json actually pins', () => {
+    const config = JSON.parse(
+      readFileSync(new URL('../../../vercel.json', import.meta.url), 'utf8'),
+    );
+    expect(config.regions).toEqual(['fra1']);
+    expect(html()).toContain('fra1');
   });
 
   test('carries a last-updated date', () => {
