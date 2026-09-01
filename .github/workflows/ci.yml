@@ -39,6 +39,10 @@ jobs:
       AUTH_GOOGLE_SECRET: ci
       AUTH_GITHUB_ID: ci
       AUTH_GITHUB_SECRET: ci
+      PUSHER_APP_ID: ${{ secrets.PUSHER_APP_ID }}
+      PUSHER_SECRET: ${{ secrets.PUSHER_SECRET }}
+      NEXT_PUBLIC_PUSHER_KEY: ${{ secrets.NEXT_PUBLIC_PUSHER_KEY }}
+      NEXT_PUBLIC_PUSHER_CLUSTER: ${{ secrets.NEXT_PUBLIC_PUSHER_CLUSTER }}
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6

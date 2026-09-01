@@ -17,7 +17,10 @@ function seedPool(): Pool {
 // A server action is a POST back to the page's own URL, and the optimistic
 // update lands well before it resolves. Reloading in between aborts the write
 // in flight, so every test that reloads waits on the round trip first.
-export const written = (page: Page) => page.waitForResponse((r) => r.request().method() === 'POST');
+// /api/pusher/auth is excluded because RealtimeProvider posts there on every
+// board load, and that request would otherwise win the race for "next POST".
+export const written = (page: Page) =>
+  page.waitForResponse((r) => r.request().method() === 'POST' && !r.url().includes('/api/pusher/auth'));
 
 export type SeededSession = { userId: string; email: string };
 

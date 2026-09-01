@@ -16,6 +16,14 @@ ENV AUTH_SECRET=build-only \
     AUTH_GOOGLE_SECRET=build-only \
     AUTH_GITHUB_ID=build-only \
     AUTH_GITHUB_SECRET=build-only
+# NEXT_PUBLIC_* values are inlined into the client bundle at build time, so
+# realtime needs these as build arguments, not just runtime environment — the
+# runner stage never sees them. Both are Pusher's public key/cluster, not
+# secrets; the server-side PUSHER_APP_ID/PUSHER_SECRET stay runtime-only.
+ARG NEXT_PUBLIC_PUSHER_KEY
+ARG NEXT_PUBLIC_PUSHER_CLUSTER
+ENV NEXT_PUBLIC_PUSHER_KEY=${NEXT_PUBLIC_PUSHER_KEY} \
+    NEXT_PUBLIC_PUSHER_CLUSTER=${NEXT_PUBLIC_PUSHER_CLUSTER}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build

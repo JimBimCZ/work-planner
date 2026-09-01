@@ -10,6 +10,12 @@ vi.mock('@/lib/permissions', async () => {
   return { ...actual, assertBoardAccess: (...args: unknown[]) => assertBoardAccess(...args) };
 });
 
+const publish = vi.fn();
+vi.mock('@/lib/events', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/events')>('@/lib/events');
+  return { ...actual, publish: (...args: unknown[]) => publish(...args) };
+});
+
 type Op = { kind: 'insert' | 'update' | 'delete'; table: string; values?: unknown };
 const ops: Op[] = [];
 
@@ -72,6 +78,8 @@ beforeEach(() => {
   assertBoardAccess.mockResolvedValue('member');
   authMock.mockReset();
   authMock.mockResolvedValue({ user: { id: 'user-1' } });
+  publish.mockReset();
+  publish.mockResolvedValue(undefined);
 });
 
 describe('createCard', () => {
@@ -279,6 +287,8 @@ describe('setCardDueDate', () => {
   });
 });
 
+const MUTATION_ID = '11111111-1111-4111-8111-111111111111';
+
 describe('moveCard', () => {
   beforeEach(() => {
     columnRow = { id: 'col-2', boardId: 'b1' };
@@ -288,17 +298,83 @@ describe('moveCard', () => {
     ];
   });
 
+  test('requires a mutationId', async () => {
+    await expect(
+      moveCard({ cardId: 'card-1', toColumnId: 'col-1', beforeCardId: null, afterCardId: null }),
+    ).resolves.toEqual({ ok: false, error: 'INVALID' });
+  });
+
+  // Both call sites mint this with crypto.randomUUID(). Bounding it to a UUID
+  // keeps a client from posting an oversized value that pushes the published
+  // event over PAYLOAD_CEILING, silently dropping it for every other viewer.
+  test('refuses a mutationId that is not a UUID', async () => {
+    await expect(
+      moveCard({
+        cardId: 'card-1',
+        toColumnId: 'col-1',
+        beforeCardId: null,
+        afterCardId: null,
+        mutationId: 'x'.repeat(9_000),
+      }),
+    ).resolves.toEqual({ ok: false, error: 'INVALID' });
+  });
+
+  test('publishes card.moved on the board, carrying the server rank', async () => {
+    await moveCard({
+      cardId: 'card-1',
+      toColumnId: 'col-1',
+      beforeCardId: null,
+      afterCardId: null,
+      mutationId: MUTATION_ID,
+    });
+
+    expect(publish).toHaveBeenCalledWith('b1', {
+      type: 'card.moved',
+      mutationId: MUTATION_ID,
+      actorId: 'user-1',
+      id: 'card-1',
+      columnId: 'col-1',
+      rank: 'a0',
+    });
+  });
+
+  // The event announces a write that happened. Announcing a rejected one puts
+  // every other client into a state the database disagrees with.
+  test('publishes nothing when the move is refused', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await moveCard({
+      cardId: 'card-1',
+      toColumnId: 'col-1',
+      beforeCardId: null,
+      afterCardId: null,
+      mutationId: MUTATION_ID,
+    });
+    expect(publish).not.toHaveBeenCalled();
+  });
+
   test('refuses a card that is not there', async () => {
     cardRow = undefined;
     await expect(
-      moveCard({ cardId: 'gone', toColumnId: 'col-2', beforeCardId: null, afterCardId: null }),
+      moveCard({
+        cardId: 'gone',
+        toColumnId: 'col-2',
+        beforeCardId: null,
+        afterCardId: null,
+        mutationId: MUTATION_ID,
+      }),
     ).resolves.toEqual({ ok: false, error: 'NOT_FOUND' });
   });
 
   test('refuses a target column on another board', async () => {
     columnRow = { id: 'col-2', boardId: 'other-board' };
     await expect(
-      moveCard({ cardId: 'card-1', toColumnId: 'col-2', beforeCardId: null, afterCardId: null }),
+      moveCard({
+        cardId: 'card-1',
+        toColumnId: 'col-2',
+        beforeCardId: null,
+        afterCardId: null,
+        mutationId: MUTATION_ID,
+      }),
     ).resolves.toEqual({ ok: false, error: 'INVALID' });
   });
 
@@ -309,6 +385,7 @@ describe('moveCard', () => {
         toColumnId: 'col-2',
         beforeCardId: 'card-from-elsewhere',
         afterCardId: null,
+        mutationId: MUTATION_ID,
       }),
     ).resolves.toEqual({ ok: false, error: 'INVALID' });
   });
@@ -320,6 +397,7 @@ describe('moveCard', () => {
         toColumnId: 'col-2',
         beforeCardId: 'card-b',
         afterCardId: 'card-a',
+        mutationId: MUTATION_ID,
       }),
     ).resolves.toEqual({ ok: false, error: 'INVALID' });
   });
@@ -327,7 +405,13 @@ describe('moveCard', () => {
   test('refuses a viewer', async () => {
     assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
     await expect(
-      moveCard({ cardId: 'card-1', toColumnId: 'col-2', beforeCardId: null, afterCardId: null }),
+      moveCard({
+        cardId: 'card-1',
+        toColumnId: 'col-2',
+        beforeCardId: null,
+        afterCardId: null,
+        mutationId: MUTATION_ID,
+      }),
     ).resolves.toEqual({ ok: false, error: 'FORBIDDEN' });
   });
 
@@ -338,7 +422,13 @@ describe('moveCard', () => {
     assertBoardAccess.mockRejectedValue(new BoardAccessError('NOT_FOUND'));
 
     await expect(
-      moveCard({ cardId: 'card-1', toColumnId: 'col-2', beforeCardId: null, afterCardId: null }),
+      moveCard({
+        cardId: 'card-1',
+        toColumnId: 'col-2',
+        beforeCardId: null,
+        afterCardId: null,
+        mutationId: MUTATION_ID,
+      }),
     ).resolves.toEqual({ ok: false, error: 'NOT_FOUND' });
   });
 
@@ -348,6 +438,7 @@ describe('moveCard', () => {
       toColumnId: 'col-2',
       beforeCardId: 'card-a',
       afterCardId: 'card-b',
+      mutationId: MUTATION_ID,
     });
 
     expect(result.ok).toBe(true);
@@ -361,6 +452,7 @@ describe('moveCard', () => {
       toColumnId: 'col-2',
       beforeCardId: null,
       afterCardId: 'card-a',
+      mutationId: MUTATION_ID,
     });
 
     expect((result as { data: { rank: string } }).data.rank < 'a0').toBe(true);
@@ -374,6 +466,7 @@ describe('moveCard', () => {
       toColumnId: 'col-2',
       beforeCardId: 'card-a',
       afterCardId: 'card-b',
+      mutationId: MUTATION_ID,
     });
 
     expect(ops.filter((op) => op.table === 'cards')).toHaveLength(1);

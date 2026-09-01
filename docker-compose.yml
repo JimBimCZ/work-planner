@@ -16,7 +16,16 @@ services:
       retries: 10
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        # Optional. Without them the app builds and runs correctly with no
+        # realtime, which is the supported self-hosting configuration.
+        # NEXT_PUBLIC_PUSHER_KEY is inlined at build time, so it must be a
+        # build argument, not just an environment variable below — the
+        # runtime value alone would still ship an undefined key to the client.
+        NEXT_PUBLIC_PUSHER_KEY: ${NEXT_PUBLIC_PUSHER_KEY:-}
+        NEXT_PUBLIC_PUSHER_CLUSTER: ${NEXT_PUBLIC_PUSHER_CLUSTER:-}
     ports:
       - '3000:3000'
     environment:
@@ -24,6 +33,10 @@ services:
       AUTH_SECRET: local-development-only
       AUTH_TRUST_HOST: 'true'
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      # Optional, and server-side only: these are read at runtime, not built
+      # into the image, so they don't need to be build arguments.
+      PUSHER_APP_ID: ${PUSHER_APP_ID:-}
+      PUSHER_SECRET: ${PUSHER_SECRET:-}
     depends_on:
       postgres:
         condition: service_healthy
