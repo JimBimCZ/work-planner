@@ -1800,7 +1800,7 @@ git commit -m "feat: let a client recognise and ignore its own change"
 - [x] **Every action publishes after its transaction and not inside it**, and a refused action publishes nothing — asserted per action, not assumed.
 - [x] No `mutationId: crypto.randomUUID()` survives in `components/`; every one goes through `claim()`.
 - [x] Nothing user-visible changed. Say so in the PR: the events are published but only `card.moved` is consumed, and Section 3 is what consumes the rest.
-- [ ] Open the PR. Stop. Start Section 3 in a fresh session.
+- [x] Open the PR (#60). Stop. Start Section 3 in a fresh session.
 
 ---
 
