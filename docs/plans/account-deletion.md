@@ -795,7 +795,7 @@ it was written: `<R extends boolean = true>(options?: { redirectTo?: string; red
 - [x] The old session cookie does not open `/boards`: the same test navigates there with the stale cookie still in the jar and lands on `/signin`.
 - [x] The `cards.column_id` `NO ACTION` constraint did not fire. The board deleted by the cascade held five columns, a card and a comment, and the delete committed — the constraint is resolved at end of statement, as the spec hoped rather than knew.
 - [x] Screenshots of `/account` and the danger zone in both themes, at 1440px and 390px, committed under `docs/screenshots/account-deletion/` and embedded in the PR body — including the blocked state at 1440px in both themes.
-- [ ] Open the PR. Stop.
+- [x] Open the PR. Stop. — PR #73.
 
 ## Self-review
 
