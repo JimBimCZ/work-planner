@@ -247,7 +247,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   const renameColumnTo = (column: StateColumn, name: string) =>
     run(
       { type: 'column.rename', columnId: column.id, name },
-      () => renameColumn({ columnId: column.id, name }),
+      () => renameColumn({ columnId: column.id, name, mutationId: crypto.randomUUID() }),
       'That column could not be renamed. Try again.',
     );
 
@@ -274,6 +274,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
           columnId: column.id,
           beforeColumnId: before?.id ?? null,
           afterColumnId: after?.id ?? null,
+          mutationId: crypto.randomUUID(),
         }),
       'That column could not be moved. Try again.',
     );
@@ -288,7 +289,12 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     setError(null);
 
     startTransition(async () => {
-      const result = await addColumn({ boardId: board.id, name, afterColumnId: column.id });
+      const result = await addColumn({
+        boardId: board.id,
+        name,
+        afterColumnId: column.id,
+        mutationId: crypto.randomUUID(),
+      });
       if (!result.ok) {
         dispatch({ type: 'column.delete', columnId: tempId, targetColumnId: null, ranks: [] });
         setError('That column could not be added. Try again.');
@@ -311,7 +317,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
         targetColumnId,
         ranks: ranksAfter(last?.rank ?? null, moving.length),
       },
-      () => deleteColumn({ columnId: column.id, targetColumnId }),
+      () => deleteColumn({ columnId: column.id, targetColumnId, mutationId: crypto.randomUUID() }),
       'That column could not be deleted. Try again.',
     );
   };
