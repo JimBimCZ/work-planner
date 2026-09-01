@@ -1,13 +1,13 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { sharedBoardsOwnedBy } from '@/lib/account';
 import { auth, signOut } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { users } from '@/lib/db/schema';
+import { boardInvites, users } from '@/lib/db/schema';
 
 const schema = z.object({ confirmEmail: z.string() });
 
@@ -34,6 +34,10 @@ export async function deleteAccount(input: unknown) {
       return { ok: false, error: 'OWNS_SHARED_BOARDS', boards: shared } as const;
     }
 
+    // board_invites keys on an address, not a user id, so no foreign key removes
+    // these. An invite left behind would keep an email address alive after the
+    // account it names is gone.
+    await tx.delete(boardInvites).where(sql`lower(${boardInvites.email}) = ${typed}`);
     await tx.delete(users).where(eq(users.id, userId));
     return { ok: true } as const;
   });

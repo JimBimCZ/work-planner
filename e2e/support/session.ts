@@ -210,3 +210,11 @@ export async function boardOwnerId(boardId: string): Promise<string | null> {
   );
   return rows[0]?.owner_id ?? null;
 }
+
+export async function pendingInviteCount(boardId: string): Promise<number> {
+  const { rows } = await seedPool().query<{ n: number }>(
+    'select count(*)::int as n from board_invites where board_id = $1',
+    [boardId],
+  );
+  return rows[0].n;
+}

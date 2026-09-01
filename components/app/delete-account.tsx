@@ -27,7 +27,7 @@ export function DeleteAccount({
           result.error === 'EMAIL_MISMATCH'
             ? 'That is not your email address. Type it exactly to delete your account.'
             : result.error === 'OWNS_SHARED_BOARDS'
-              ? 'Delete the boards listed above first.'
+              ? 'Delete the boards listed above, or hand each one to a member from its members dialog, first.'
               : 'Your account could not be deleted. Try again.',
         );
         return;
@@ -59,8 +59,8 @@ export function DeleteAccount({
       {blockedBoards.length > 0 ? (
         <div className="mt-4">
           <p className="text-[15px]/6">
-            You own boards that other people are on. Delete them first, and your account can go with
-            them.
+            You own boards that other people are on. Delete them, or hand each one to a member from
+            its members dialog, and your account can go with them.
           </p>
           <ul className="mt-2 space-y-1">
             {blockedBoards.map((board) => (

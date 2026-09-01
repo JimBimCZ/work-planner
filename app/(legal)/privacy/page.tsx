@@ -54,7 +54,7 @@ export default function PrivacyPage() {
       </Section>
 
       <Section title="What we collect">
-        <p className="text-[15px]/6">Three things, and nothing beyond them:</p>
+        <p className="text-[15px]/6">Four things, and nothing beyond them:</p>
         <ul className="flex list-disc flex-col gap-2 pl-5 text-[15px]/6">
           <li>
             <strong className="font-medium">Your profile from Google or GitHub</strong> — name,
@@ -68,6 +68,14 @@ export default function PrivacyPage() {
           <li>
             <strong className="font-medium">A session cookie</strong> — so the app knows you are
             still signed in between page loads.
+          </li>
+          <li>
+            <strong className="font-medium">Invitations</strong> — if you invite somebody to a
+            board, we store the email address you type. We delete it when the invitation is
+            accepted, declined or withdrawn. An invitation expires 30 days after it is sent and
+            can no longer be accepted, but an expired invitation nobody withdraws stays in the
+            database until that address is invited to that board again, or the board is deleted.
+            If you delete your account, invitations addressed to you go with it.
           </li>
         </ul>
         <p className="text-[15px]/6">
