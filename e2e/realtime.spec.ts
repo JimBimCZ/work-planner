@@ -492,3 +492,63 @@ test('a card deleted elsewhere says so rather than vanishing', async ({ browser 
     await close();
   }
 });
+
+// The same treatment on the other surface. The modal could in principle close
+// itself, so proving the canonical page alone would leave the harder half of
+// the gate untested.
+test('a card deleted elsewhere says so in the modal too', async ({ browser }) => {
+  const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  await seedCard(ready.id, { boardId, createdById: alice.userId, title: 'Ship it' });
+
+  try {
+    await pageB.reload();
+    await subscribed(pageB);
+    await pageB.getByTestId('card-title').filter({ hasText: 'Ship it' }).click();
+    await expect(pageB.getByRole('dialog')).toBeVisible();
+
+    await pageA.reload();
+    await pageA.getByRole('button', { name: 'Card actions for Ship it' }).click();
+    await pageA.getByRole('menuitem', { name: 'Delete' }).click();
+    await pageA.getByRole('button', { name: 'Delete card' }).click();
+
+    // The modal stays open and says what happened rather than vanishing under
+    // the reader, even though the board behind it has dropped the card.
+    await expect(pageB.getByRole('dialog').getByText('This card was deleted')).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      pageB.getByRole('dialog').getByRole('link', { name: 'Back to the board' }),
+    ).toBeVisible();
+  } finally {
+    await close();
+  }
+});
+
+// PAYLOAD_CEILING is 8,192 bytes and publish() drops anything over it, so a
+// description this size could never have travelled in the event. Arriving at
+// all is proof it came back through readCardDescription.
+test('a description over the payload ceiling still arrives', async ({ browser }) => {
+  const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+  const huge = 'x'.repeat(9_000);
+
+  try {
+    await pageA.goto(`/boards/${boardId}/cards/${cardId}`);
+    await pageB.goto(`/boards/${boardId}/cards/${cardId}`);
+    await subscribed(pageA);
+    await subscribed(pageB);
+
+    await pageA.getByLabel('Description').fill(huge);
+    await pageA.getByLabel('Description').blur();
+
+    await expect(pageB.getByLabel('Description')).toHaveValue(huge, { timeout: 15_000 });
+  } finally {
+    await close();
+  }
+});
