@@ -256,15 +256,32 @@ its members dialog — alongside deleting it.
 
 ## Testing
 
-**`lib/actions/members.test.ts`**, against a real database as
-`account.test.ts` is, covering every error row in the action table plus the
-three things that are invariants rather than behaviours:
+Three files, because this repository already splits the work three ways and the
+split is not cosmetic. `lib/actions/*.test.ts` are Vitest units that mock
+`@/lib/db` outright — `account.test.ts` and `comments.test.ts` both do — so they
+prove *branching*: which guard fires first, which error code comes back, which
+rows a transaction would write. Nothing they assert touches Postgres, so no
+constraint and no cascade can be proved there. Those live in Playwright, where
+`e2e/support/session.ts` seeds through a raw `pg` pool.
 
-- the check constraint refuses `role = 'owner'` on a direct insert;
-- an expired invite is invisible to both lists *and* re-invitable, proving the
-  upsert rather than the filter;
-- `transferOwnership` leaves exactly one `owner` row and a `boards.ownerId` that
-  agrees with it.
+**`lib/actions/members.test.ts`** — Vitest, mocking `@/lib/auth`,
+`@/lib/permissions`, `@/lib/events`, `next/cache` and `@/lib/db` exactly as
+`comments.test.ts` does. Every error row in the action table, plus the ordering
+guarantee that suite already tests for: the publish happens after the
+transaction body, not inside it.
+
+**`lib/members.test.ts`** — Vitest, mocking `db.query` and asserting on the
+config each read passes, as `lib/boards.test.ts` does. Its job is the TTL: every
+list and the accept path must carry the 30-day condition, and a query that
+quietly drops it is the failure this file exists to catch.
+
+**`e2e/schema.spec.ts`** — the two invariants that are the database's, added
+beside the cascade tests already there and proved the same way, with a direct
+`pool.query`:
+
+- the check constraint refuses an insert with `role = 'owner'`;
+- the unique `(board_id, email)` pair rejects a second pending invite, which is
+  what makes the upsert necessary rather than decorative.
 
 **`e2e/members.spec.ts`** grows across the sections rather than landing whole.
 Section B drives the owner's dialog against a seeded second member — the way the
@@ -274,8 +291,13 @@ a second `board_members` row through the UI. Section D adds the assertions that
 need two live clients: a demotion that removes the write controls without a
 reload, and a removal that lands the removed user on `/boards`.
 
-**`app/(legal)/privacy/page.test.tsx`** gains an assertion for the invited-address
-disclosure, alongside the region assertion it already makes.
+`transferOwnership` is asserted in both places, because the two files can prove
+different halves: the unit test proves it writes three rows and publishes twice,
+and the e2e test reads `board_members` and `boards.owner_id` back afterwards to
+prove exactly one `owner` row survived.
+
+**`app/(legal)/privacy/page.test.tsx`** gains an assertion for the
+invited-address disclosure, alongside the region assertion it already makes.
 
 ## Sections and pull requests
 
