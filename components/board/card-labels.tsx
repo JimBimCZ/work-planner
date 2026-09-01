@@ -33,6 +33,9 @@ export function CardLabels({
           <label className="flex items-center gap-2 text-sm text-ink">
             <input
               type="checkbox"
+              // The accent, not the browser's default blue: CLAUDE.md gives
+              // active states to --flow-mid and admits no fourth hue.
+              className="accent-flow-mid"
               checked={selected.includes(label.id)}
               onChange={(event) =>
                 onChange(
