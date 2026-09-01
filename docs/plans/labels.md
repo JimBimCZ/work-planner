@@ -1594,7 +1594,7 @@ The board narrows. Branch `feat/labels-filter` from `main` once Section B has la
   export function parseLabelFilter(params: URLSearchParams, labels: BoardLabel[]): string[];
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/board-state.test.ts`:
 
@@ -1660,7 +1660,7 @@ describe('parseLabelFilter', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1668,7 +1668,7 @@ pnpm exec vitest run lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?
 
 Expected: FAIL — `matchesFilter is not a function`.
 
-- [ ] **Step 3: Write them**
+- [x] **Step 3: Write them**
 
 In `lib/board-state.ts`:
 
@@ -1688,7 +1688,7 @@ export function parseLabelFilter(params: URLSearchParams, labels: BoardLabel[]):
 
 `every` over an empty array is `true`, which is exactly the empty-filter case and is why it needs no special branch.
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1696,7 +1696,7 @@ pnpm exec vitest run lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/board-state.ts lib/board-state.test.ts

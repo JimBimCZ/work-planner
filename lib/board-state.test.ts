@@ -6,10 +6,13 @@ import {
   cardsIn,
   dropTarget,
   inverse,
+  matchesFilter,
   orderedColumns,
+  parseLabelFilter,
   toBoardState,
   type BoardAction,
   type BoardState,
+  type StateCard,
 } from './board-state';
 
 const base = (): BoardState => ({
@@ -401,5 +404,65 @@ describe('toBoardState', () => {
     const state = toBoardState(board([], []));
 
     expect(state.cards[0].labelIds).toEqual([]);
+  });
+});
+
+describe('matchesFilter', () => {
+  const card = (labelIds: string[]): StateCard => ({
+    id: 'card-1',
+    columnId: 'col-1',
+    title: 'Card',
+    rank: 'a0',
+    createdAt: '2026-09-01T00:00:00.000Z',
+    dueDate: null,
+    labelIds,
+  });
+
+  test('an empty filter matches everything, including an unlabelled card', () => {
+    expect(matchesFilter(card([]), [])).toBe(true);
+    expect(matchesFilter(card(['l1']), [])).toBe(true);
+  });
+
+  // AND, not OR: the job is narrowing a board too full to read.
+  test('every selected label must be on the card', () => {
+    expect(matchesFilter(card(['l1', 'l2']), ['l1', 'l2'])).toBe(true);
+    expect(matchesFilter(card(['l1']), ['l1', 'l2'])).toBe(false);
+  });
+
+  test('a card may carry labels the filter did not ask for', () => {
+    expect(matchesFilter(card(['l1', 'l2', 'l3']), ['l1'])).toBe(true);
+  });
+
+  test('an unlabelled card never survives a populated filter', () => {
+    expect(matchesFilter(card([]), ['l1'])).toBe(false);
+  });
+});
+
+describe('parseLabelFilter', () => {
+  const labels = [
+    { id: 'l1', name: 'bug' },
+    { id: 'l2', name: 'blocked' },
+  ];
+
+  test('reads every repeated label parameter', () => {
+    expect(parseLabelFilter(new URLSearchParams('label=l1&label=l2'), labels)).toEqual([
+      'l1',
+      'l2',
+    ]);
+  });
+
+  // A deleted label, or one from another board, leaves a URL naming an id
+  // this board does not have. Ignored, so the board renders unfiltered
+  // rather than empty.
+  test('drops an id the board has no label for', () => {
+    expect(parseLabelFilter(new URLSearchParams('label=l1&label=gone'), labels)).toEqual(['l1']);
+  });
+
+  test('deduplicates, so a repeated id cannot narrow twice', () => {
+    expect(parseLabelFilter(new URLSearchParams('label=l1&label=l1'), labels)).toEqual(['l1']);
+  });
+
+  test('no parameter at all is an empty filter', () => {
+    expect(parseLabelFilter(new URLSearchParams(''), labels)).toEqual([]);
   });
 });
