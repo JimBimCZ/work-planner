@@ -34,8 +34,8 @@ Copied from the spec and `CLAUDE.md`. Every task's requirements implicitly inclu
 These are outside the plan's code and block the e2e from being meaningful.
 
 - [x] **Confirm the Pusher app exists and the credentials are real.** `.env` already carries a numeric `PUSHER_APP_ID` with a 20-character key and secret and a 2-character cluster, which look like a provisioned app, but nothing in this repository has ever called Pusher. Prove it with a real trigger before building on it — Task 1's manual check does this.
-- [ ] **Add the four variables to the Vercel project** (Production, Preview and Development): `PUSHER_APP_ID`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER`.
-- [ ] **Add them as GitHub Actions secrets and wire them into `.github/workflows/ci.yml`.** The CI job currently has no Pusher variables at all, so without this every realtime e2e skips itself and the suite is theatre. Note that `NEXT_PUBLIC_PUSHER_KEY` is inlined at build time and Playwright's `webServer` runs `pnpm build && pnpm start`, so it must be present as a **build-time** environment variable in CI, not only at run time.
+- [x] **Add the four variables to the Vercel project** (Production, Preview and Development): `PUSHER_APP_ID`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER`.
+- [x] **Add them as GitHub Actions secrets and wire them into `.github/workflows/ci.yml`.** The CI job currently has no Pusher variables at all, so without this every realtime e2e skips itself and the suite is theatre. Note that `NEXT_PUBLIC_PUSHER_KEY` is inlined at build time and Playwright's `webServer` runs `pnpm build && pnpm start`, so it must be present as a **build-time** environment variable in CI, not only at run time.
 
 ## File structure
 
