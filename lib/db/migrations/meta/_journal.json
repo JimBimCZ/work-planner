@@ -36,6 +36,13 @@
       "when": 1788275935009,
       "tag": "0004_natural_microchip",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788286562544,
+      "tag": "0005_wide_madame_hydra",
+      "breakpoints": true
     }
   ]
 }

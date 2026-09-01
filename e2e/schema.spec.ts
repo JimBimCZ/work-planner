@@ -198,3 +198,57 @@ test('a board cannot hold two pending invites for one address', async ({ context
     await removeSeededUser(userId);
   }
 });
+
+test('a board cannot hold two labels whose names differ only in case', async ({ context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Vocabulary');
+
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    await pool.query('insert into labels (id, board_id, name) values ($1, $2, $3)', [
+      'label-lower',
+      boardId,
+      'bug',
+    ]);
+    await expect(
+      pool.query('insert into labels (id, board_id, name) values ($1, $2, $3)', [
+        'label-upper',
+        boardId,
+        'Bug',
+      ]),
+    ).rejects.toThrow();
+  } finally {
+    await pool.end();
+    await removeSeededUser(userId);
+  }
+});
+
+test('deleting a label takes it off every card that carried it', async ({ context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Cascading labels');
+  const [first] = await boardColumns(boardId);
+  const cardId = await seedCard(first.id, { boardId, createdById: userId });
+
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    await pool.query('insert into labels (id, board_id, name) values ($1, $2, $3)', [
+      'label-doomed',
+      boardId,
+      'chore',
+    ]);
+    await pool.query('insert into card_labels (card_id, label_id) values ($1, $2)', [
+      cardId,
+      'label-doomed',
+    ]);
+    await pool.query('delete from labels where id = $1', ['label-doomed']);
+
+    const { rows } = await pool.query<{ n: number }>(
+      'select count(*)::int as n from card_labels where card_id = $1',
+      [cardId],
+    );
+    expect(rows[0].n, 'the assignment should have gone with the label').toBe(0);
+  } finally {
+    await pool.end();
+    await removeSeededUser(userId);
+  }
+});
