@@ -2197,7 +2197,7 @@ git commit -m "feat: converge the board canvas on a teammate's changes"
 - [x] Every card and column event has a consumer, proved by a two-context e2e each — **none of which reloads the receiving page.** A reload would make all of them pass with no realtime at all.
 - [x] A column deleted remotely moves its cards rather than dropping them, asserted on the target column.
 - [x] Dragging still works, and `e2e/board-dnd.spec.ts` passes unchanged.
-- [ ] Open the PR with a screen recording or paired screenshots of two windows. Stop. Start Section 4 in a fresh session. **PR #61 was opened and merged, but the visuals were only described in the body — the files stayed local and were "attached separately", so the requirement was not met.** Section 5 solved this two PRs later by committing images under `docs/screenshots/` and linking them with a `?raw=true` GitHub URL; the same is available here retroactively. Open until the paired two-window capture is committed and embedded.
+- [x] Open the PR with a screen recording or paired screenshots of two windows. Stop. Start Section 4 in a fresh session. — PR #61, merged. The paired shots it described were left as local files at the time; they are now committed at `docs/screenshots/realtime-section-3/window-{a-alice,b-bob}.png` and embedded in that PR. Bob's window never reloaded, so both the move and the new card in it arrived over Pusher. Captured at HEAD.
 
 ---
 
