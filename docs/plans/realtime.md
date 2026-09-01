@@ -1040,11 +1040,11 @@ git commit -m "feat: publish card.moved and apply it on another browser board"
 
 ---
 
-## Section 2 — `mutationId` through all twelve actions
+## Section 2 — `mutationId` through the twelve remaining actions
 
 Wide, mechanical and dull, which is exactly why it is its own PR: smeared through the others it would make each one unreviewable. Nothing user-visible changes — every event published here is consumed in Section 3.
 
-Every action takes the same three edits: a `mutationId: id` line in its Zod schema, a `publish(...)` call between `revalidatePath('/boards')` and the return, and `mutationId` added to each of its existing call sites in the test file.
+Every action takes the same three edits: a `mutationId: z.uuid()` line in its Zod schema, a `publish(...)` call between `revalidatePath('/boards')` and the return, and `mutationId` added to each of its existing call sites in the test file.
 
 **Learned in Section 1, and it applies to all eleven remaining actions:** making
 `mutationId` required breaks every *caller* that does not send one, and an action
@@ -1065,7 +1065,7 @@ every call site of the action you just changed, not only the one the task names.
 - Consumes: `publish` from `lib/events.ts`.
 - Produces: `createCard`, `renameCard`, `setCardDescription`, `setCardDueDate` and `deleteCard` all require `mutationId: string` and publish. `createCard` now also returns `createdAt` in its data, which Section 3's `card.created` needs on the client.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `lib/actions/cards.test.ts`, inside the matching `describe` blocks. The `publish` mock and its `beforeEach` reset were added in Section 1, Task 4.
 
@@ -1157,12 +1157,12 @@ let cardRow:
   };
 ```
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `pnpm test lib/actions/cards.test.ts`
 Expected: FAIL — `publish` not called.
 
-- [ ] **Step 3: Add `mutationId` to the schemas**
+- [x] **Step 3: Add `mutationId` to the schemas**
 
 In `lib/actions/cards.ts`:
 
@@ -1178,7 +1178,7 @@ const descriptionSchema = z.object({
 const dueDateSchema = z.object({ cardId: id, dueDate: z.string().nullable(), mutationId: id });
 ```
 
-- [ ] **Step 4: Publish from each action**
+- [x] **Step 4: Publish from each action**
 
 `createCard` — the transaction already `.returning()`s the row, so widen what it returns and publish it:
 
@@ -1290,7 +1290,7 @@ and publish after the transaction:
   return { ok: true } as const;
 ```
 
-- [ ] **Step 5: Fix every call site**
+- [x] **Step 5: Fix every call site**
 
 `components/board/board-canvas.tsx`: `createCard`, `renameCard`, `deleteCard` and the column actions all need `mutationId: crypto.randomUUID()`. `components/board/card-body.tsx`: `renameCard`, `setCardDescription`, `setCardDueDate`. Find them with:
 
@@ -1298,12 +1298,14 @@ and publish after the transaction:
 grep -rn "createCard(\|renameCard(\|deleteCard(\|setCardDescription(\|setCardDueDate(" components/ app/
 ```
 
-- [ ] **Step 6: Run the tests and watch them pass**
+- [x] **Step 6: Run the tests and watch them pass**
 
 Run: `pnpm test lib/actions/cards.test.ts` then `pnpm typecheck`
-Expected: both PASS. `typecheck` is what finds a call site you missed.
+Expected: both PASS. **`typecheck` does not find a missed call site** — every action takes
+`input: unknown`, so a call with no `mutationId` type-checks and fails at runtime with `INVALID`.
+Grep for the call sites instead, as the note at the top of this section says.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/actions/cards.ts lib/actions/cards.test.ts lib/actions/scope.ts components/board
@@ -1318,7 +1320,7 @@ git commit -m "feat: publish every card mutation"
 **Interfaces:**
 - Produces: `addColumn`, `renameColumn`, `moveColumn`, `deleteColumn` require `mutationId` and publish. `deleteColumn`'s transaction now returns the moved cards so the event can carry them.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add the same `publish` mock and reset to `lib/actions/columns.test.ts` as Section 1 added to the cards test, then:
 
@@ -1389,12 +1391,12 @@ Add the same `publish` mock and reset to `lib/actions/columns.test.ts` as Sectio
 
 The last test needs the file's `siblingColumns` fixture set to one column; follow whatever the existing `refuses to delete the last column` test does to arrange that, and mirror it.
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `pnpm test lib/actions/columns.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Add `mutationId` to the schemas**
+- [x] **Step 3: Add `mutationId` to the schemas**
 
 ```ts
 const addSchema = z.object({
@@ -1413,7 +1415,7 @@ const moveSchema = z.object({
 const deleteSchema = z.object({ columnId: id, targetColumnId: id, mutationId: id });
 ```
 
-- [ ] **Step 4: Publish from each action**
+- [x] **Step 4: Publish from each action**
 
 `addColumn`, after `revalidatePath('/boards')`, using whatever the transaction already returns for the new id and rank:
 
@@ -1492,14 +1494,14 @@ const deleteSchema = z.object({ columnId: id, targetColumnId: id, mutationId: id
 
 The two early returns inside the transaction stay as the bare strings `'LAST_COLUMN'` and `'INVALID'`, so the discriminant above works.
 
-- [ ] **Step 5: Fix the call sites and run**
+- [x] **Step 5: Fix the call sites and run**
 
 Add `mutationId: crypto.randomUUID()` to the four column calls in `components/board/board-canvas.tsx`.
 
 Run: `pnpm test lib/actions/columns.test.ts` then `pnpm typecheck`
 Expected: both PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/actions/columns.ts lib/actions/columns.test.ts components/board/board-canvas.tsx
@@ -1514,7 +1516,7 @@ git commit -m "feat: publish every column mutation"
 **Interfaces:**
 - Produces: `addComment`, `editComment`, `deleteComment` require `mutationId` and publish. `addComment` returns `createdAt` alongside `id`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add the `publish` mock and reset to `lib/actions/comments.test.ts`, then:
 
@@ -1571,12 +1573,12 @@ Add the `publish` mock and reset to `lib/actions/comments.test.ts`, then:
   });
 ```
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `pnpm test lib/actions/comments.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Add `mutationId` and publish**
+- [x] **Step 3: Add `mutationId` and publish**
 
 Schemas:
 
@@ -1655,14 +1657,14 @@ Then publish, after each `revalidatePath('/boards')`:
   });
 ```
 
-- [ ] **Step 4: Fix the call sites and run**
+- [x] **Step 4: Fix the call sites and run**
 
 Add `mutationId: crypto.randomUUID()` to the three calls in `components/board/card-comments.tsx`.
 
 Run: `pnpm test lib/actions/comments.test.ts` then `pnpm typecheck`
 Expected: both PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/comments.ts lib/actions/comments.test.ts lib/actions/scope.ts components/board/card-comments.tsx
@@ -1677,7 +1679,7 @@ git commit -m "feat: publish every comment mutation"
 **Interfaces:**
 - Produces: `useRealtime()` gains `claim(): string`, which mints a `mutationId` and records it. A handler passed to `subscribe` is never invoked for an event whose `mutationId` was claimed by this client.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/realtime.spec.ts`:
 
@@ -1717,13 +1719,13 @@ test('a client does not re-apply its own move', async ({ page, context }) => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm exec playwright test realtime --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/e2e.log`
 
 Expected: this test may pass by luck before `claim` exists, because re-applying `card.move` with the server's own rank is idempotent. **That is not a reason to skip the step.** Confirm the mechanism directly instead: temporarily log in the canvas subscription and observe the client receiving its own event.
 
-- [ ] **Step 3: Add `claim` to the provider**
+- [x] **Step 3: Add `claim` to the provider**
 
 In `components/board/realtime.tsx`:
 
@@ -1764,7 +1766,7 @@ and filter in `fanOut`:
 
 Add `claim` to the context type and to the `useMemo` value.
 
-- [ ] **Step 4: Use it at every call site**
+- [x] **Step 4: Use it at every call site**
 
 Replace every `mutationId: crypto.randomUUID()` added in Tasks 5–7 with `mutationId: claim()`, taking `claim` from `useRealtime()` in `board-canvas.tsx`, `card-body.tsx` and `card-comments.tsx`.
 
@@ -1774,7 +1776,7 @@ grep -rn "crypto.randomUUID()" components/board/
 
 Every remaining hit should be a temporary optimistic id (`tmp-${crypto.randomUUID()}`), not a `mutationId`.
 
-- [ ] **Step 5: Run everything**
+- [x] **Step 5: Run everything**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TC=$?"
@@ -1784,7 +1786,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "E2E=$?"; tail -3 /tmp/e2e.log
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/board e2e/realtime.spec.ts
@@ -1793,11 +1795,11 @@ git commit -m "feat: let a client recognise and ignore its own change"
 
 ### Section 2 gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected.
-- [ ] **All twelve actions require a `mutationId`** and every one refuses without it. Confirm by count, not by reading: `grep -c "mutationId: id" lib/actions/*.ts` should total 12 across cards, columns and comments.
-- [ ] **Every action publishes after its transaction and not inside it**, and a refused action publishes nothing — asserted per action, not assumed.
-- [ ] No `mutationId: crypto.randomUUID()` survives in `components/`; every one goes through `claim()`.
-- [ ] Nothing user-visible changed. Say so in the PR: the events are published but only `card.moved` is consumed, and Section 3 is what consumes the rest.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected.
+- [x] **All thirteen actions require a `mutationId`** and every one refuses without it. Confirm by count, not by reading: `grep -c "mutationId: z.uuid()" lib/actions/*.ts` totals 13 across cards, columns and comments — 6 + 4 + 3. The plan said twelve and `mutationId: id`; both were wrong. Twelve counted the actions *remaining* after Section 1 did `moveCard`, and `id` (any non-empty string) would have undone Section 1's own fix, which bound `moveCard`'s to a UUID so an oversized value cannot push the published event over `PAYLOAD_CEILING` and drop it silently. The same reason applies to all thirteen, so all thirteen are `z.uuid()`.
+- [x] **Every action publishes after its transaction and not inside it**, and a refused action publishes nothing — asserted per action, not assumed.
+- [x] No `mutationId: crypto.randomUUID()` survives in `components/`; every one goes through `claim()`.
+- [x] Nothing user-visible changed. Say so in the PR: the events are published but only `card.moved` is consumed, and Section 3 is what consumes the rest.
 - [ ] Open the PR. Stop. Start Section 3 in a fresh session.
 
 ---
