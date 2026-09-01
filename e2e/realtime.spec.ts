@@ -570,7 +570,7 @@ test('a comment posted elsewhere appears in an open thread', async ({ browser })
     await subscribed(pageB);
 
     await pageA.getByRole('textbox', { name: 'Add a comment' }).fill('Looks right');
-    await pageA.getByRole('button', { name: 'Comment' }).click();
+    await pageA.getByRole('button', { name: 'Comment', exact: true }).click();
 
     await expect(pageB.getByTestId('comment-body')).toHaveText(['Looks right'], {
       timeout: 15_000,
@@ -660,7 +660,7 @@ test('a comment too large to publish inline still reaches the thread', async ({ 
     await subscribed(pageB);
 
     await pageA.getByRole('textbox', { name: 'Add a comment' }).fill(huge);
-    await pageA.getByRole('button', { name: 'Comment' }).click();
+    await pageA.getByRole('button', { name: 'Comment', exact: true }).click();
 
     await expect(pageB.getByTestId('comment-body')).toHaveText([huge], { timeout: 15_000 });
   } finally {
