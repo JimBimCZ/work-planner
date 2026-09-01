@@ -64,3 +64,36 @@ test('a viewer sees the labels and is offered no way to change them', async ({
     await removeSeededUser(owner.userId);
   }
 });
+
+test('the filter narrows the board and survives a reload', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Filtered');
+  const [first] = await boardColumns(boardId);
+  const kept = await seedCard(first.id, { boardId, createdById: userId, title: 'Has bug' });
+  await seedCard(first.id, { boardId, createdById: userId, title: 'Has nothing' });
+  const labelId = await seedLabel(boardId, 'bug');
+
+  await assignLabel(kept, labelId);
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await expect(page.getByText('Has nothing')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Filter' }).click();
+    // click, not check: the box is controlled by the URL, so it only flips
+    // once router.replace lands. check() asserts the state synchronously and
+    // would fail on a filter that deliberately has no second source of truth.
+    await page.getByRole('checkbox', { name: /bug/ }).click();
+    await expect(page.getByRole('checkbox', { name: /bug/ })).toBeChecked();
+
+    await expect(page.getByText('Has bug')).toBeVisible();
+    await expect(page.getByText('Has nothing')).toBeHidden();
+    await expect(page).toHaveURL(new RegExp(`label=${labelId}`));
+
+    await page.reload();
+    await expect(page.getByText('Has bug')).toBeVisible();
+    await expect(page.getByText('Has nothing')).toBeHidden();
+  } finally {
+    await removeSeededUser(userId);
+  }
+});

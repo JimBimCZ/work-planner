@@ -12,9 +12,11 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { useSearchParams } from 'next/navigation';
 import {
   useCallback,
   useEffect,
+  useMemo,
   useReducer,
   useRef,
   useState,
@@ -37,6 +39,8 @@ import {
   dropTarget,
   inverse,
   orderedColumns,
+  matchesFilter,
+  parseLabelFilter,
   toBoardState,
   type BoardAction,
   type StateCard,
@@ -65,7 +69,11 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   // Ephemeral UI, so deliberately not in the reducer: lib/board-state.ts is
   // pure and heavily tested, and a ring that expires on a timer is neither.
   const [rings, setRings] = useState<Map<string, number>>(new Map());
-  const { register, registerPatchCard } = useBoardActions();
+  const { register, registerPatchCard, registerLabelCounts } = useBoardActions();
+  // The filter lives in the URL, not in the reducer: it has to survive a
+  // reload and a board.reseed, which replaces the reducer wholesale.
+  const searchParams = useSearchParams();
+  const filter = parseLabelFilter(searchParams, state.labels);
   const { subscribe: subscribeRealtime, claim, reconnected } = useRealtime();
   const catchUpWanted = useRef(false);
 
@@ -94,6 +102,21 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     registerPatchCard((cardId, patch) => dispatch({ type: 'card.patch', cardId, ...patch }));
     return () => registerPatchCard(null);
   }, [registerPatchCard]);
+
+  // The filter popover lives in the layout's top bar, above this tree, and the
+  // count beside a label has to agree with the cards on screen — so it is
+  // counted from the same state that renders them rather than queried.
+  const labelCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const card of state.cards) {
+      for (const labelId of card.labelIds) counts[labelId] = (counts[labelId] ?? 0) + 1;
+    }
+    return counts;
+  }, [state.cards]);
+
+  useEffect(() => {
+    registerLabelCounts(labelCounts);
+  }, [registerLabelCounts, labelCounts]);
 
   // Below 700px one column fills the screen, so the tab has to follow a swipe
   // as well as a click. A callback only carries the columns whose visibility
@@ -477,7 +500,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                   else columnRefs.current.delete(column.id);
                 }}
                 column={column}
-                cards={cardsIn(state, column.id)}
+                cards={cardsIn(state, column.id).filter((card) => matchesFilter(card, filter))}
                 rings={rings}
                 boardId={board.id}
                 hue={flowHue(index, total)}

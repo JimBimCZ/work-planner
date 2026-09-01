@@ -1721,7 +1721,7 @@ git commit -m "feat: match a card against an ANDed label filter"
   }): React.ReactElement;
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/labels.spec.ts`:
 
@@ -1741,7 +1741,11 @@ test('the filter narrows the board and survives a reload', async ({ page, contex
     await expect(page.getByText('Has nothing')).toBeVisible();
 
     await page.getByRole('button', { name: 'Filter' }).click();
-    await page.getByRole('checkbox', { name: /bug/ }).check();
+    // click, not check: the box is controlled by the URL, so it only flips
+    // once router.replace lands. check() asserts the state synchronously and
+    // would fail on a filter that deliberately has no second source of truth.
+    await page.getByRole('checkbox', { name: /bug/ }).click();
+    await expect(page.getByRole('checkbox', { name: /bug/ })).toBeChecked();
 
     await expect(page.getByText('Has bug')).toBeVisible();
     await expect(page.getByText('Has nothing')).toBeHidden();
@@ -1758,7 +1762,7 @@ test('the filter narrows the board and survives a reload', async ({ page, contex
 
 Check `seedCard`'s signature in `e2e/support/session.ts` before writing this: if it does not accept a `title`, add it there rather than working around it in the test.
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -1766,7 +1770,7 @@ pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: FAIL — no button named `Filter`.
 
-- [ ] **Step 3: Build the popover**
+- [x] **Step 3: Build the popover**
 
 Create `components/board/label-filter.tsx`. It is a `'use client'` component; the trigger is a real `<button>` carrying `aria-expanded`, the list is real checkboxes, and toggling one rewrites the URL rather than any local state:
 
@@ -1874,7 +1878,7 @@ const BoardActionsContext = createContext<{
 
 `BoardCanvas` registers the counts it computes from `state.cards`; `LabelFilter` reads `labelCounts` from `useBoardActions()` and falls back to `0` for an unregistered label, so the popover renders correctly on the first paint before the canvas has registered anything. Note `registerLabelCounts` stores a plain object, so unlike `register` it does **not** need the updater-function wrapper that file's comment explains.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e.log
@@ -1884,7 +1888,7 @@ pnpm lint > /tmp/lint.log 2>&1; echo "LINT=$?"; tail -3 /tmp/lint.log
 
 Expected: all `=0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board "app/(app)/(board)/boards/[boardId]/layout.tsx"

@@ -5,12 +5,15 @@ import { createContext, useCallback, useContext, useMemo, useState } from 'react
 type Handler = () => void;
 export type CardPatch = { title?: string; dueDate?: string | null };
 type PatchCard = (cardId: string, patch: CardPatch) => void;
+type LabelCounts = Record<string, number>;
 
 const BoardActionsContext = createContext<{
   addCard: Handler | null;
   register: (handler: Handler | null) => void;
   patchCard: PatchCard | null;
   registerPatchCard: (handler: PatchCard | null) => void;
+  labelCounts: LabelCounts;
+  registerLabelCounts: (counts: LabelCounts) => void;
 } | null>(null);
 
 // A page cannot pass data up into its layout, and the top bar lives in the
@@ -19,6 +22,7 @@ const BoardActionsContext = createContext<{
 export function BoardActionsProvider({ children }: { children: React.ReactNode }) {
   const [addCard, setAddCard] = useState<Handler | null>(null);
   const [patchCard, setPatchCard] = useState<PatchCard | null>(null);
+  const [labelCounts, setLabelCounts] = useState<LabelCounts>({});
 
   // setState treats a bare function as an updater, so the handler is stored
   // behind one — passing it directly would call it instead of keeping it.
@@ -29,9 +33,19 @@ export function BoardActionsProvider({ children }: { children: React.ReactNode }
     [],
   );
 
+  // A plain object, not a handler, so this one takes no updater wrapper.
+  const registerLabelCounts = useCallback((counts: LabelCounts) => setLabelCounts(counts), []);
+
   const value = useMemo(
-    () => ({ addCard, register, patchCard, registerPatchCard }),
-    [addCard, register, patchCard, registerPatchCard],
+    () => ({
+      addCard,
+      register,
+      patchCard,
+      registerPatchCard,
+      labelCounts,
+      registerLabelCounts,
+    }),
+    [addCard, register, patchCard, registerPatchCard, labelCounts, registerLabelCounts],
   );
 
   return <BoardActionsContext.Provider value={value}>{children}</BoardActionsContext.Provider>;
