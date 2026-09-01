@@ -26,6 +26,7 @@ import { BoardColumn } from '@/components/board/board-column';
 import { ColumnSwitcher } from '@/components/board/column-switcher';
 import { useBoardActions } from '@/components/board/board-actions';
 import { useRealtime } from '@/components/board/realtime';
+import { readBoard } from '@/lib/actions/board';
 import { createCard, deleteCard, moveCard, renameCard } from '@/lib/actions/cards';
 import { addColumn, deleteColumn, moveColumn, renameColumn } from '@/lib/actions/columns';
 import {
@@ -34,13 +35,12 @@ import {
   dropTarget,
   inverse,
   orderedColumns,
+  toBoardState,
   type BoardAction,
-  type BoardState,
   type StateCard,
   type StateColumn,
 } from '@/lib/board-state';
 import type { BoardWithCards } from '@/lib/boards';
-import { toDateInputValue } from '@/lib/due';
 import { flowHue } from '@/lib/flow';
 import { rankBetween, ranksAfter } from '@/lib/rank';
 
@@ -52,34 +52,17 @@ function subscribe(onChange: () => void) {
   return () => query.removeEventListener('change', onChange);
 }
 
-// Seeded once, on mount. There is no realtime in this sub-project, so the
-// reducer is the truth for the session and a reload is what re-reads the server.
-function seed(board: BoardWithCards): BoardState {
-  return {
-    columns: board.columns.map(({ id, name, rank }) => ({ id, name, rank })),
-    cards: board.columns.flatMap((column) =>
-      column.cards.map((card) => ({
-        id: card.id,
-        columnId: card.columnId,
-        title: card.title,
-        rank: card.rank,
-        createdAt: card.createdAt.toISOString(),
-        dueDate: card.dueDate ? toDateInputValue(card.dueDate) : null,
-      })),
-    ),
-  };
-}
-
 export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWrite: boolean }) {
-  const [state, dispatch] = useReducer(boardReducer, board, seed);
+  const [state, dispatch] = useReducer(boardReducer, board, toBoardState);
   const [composerIn, setComposerIn] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const columnRefs = useRef(new Map<string, HTMLElement>());
   const { register, registerPatchCard } = useBoardActions();
-  const { subscribe: subscribeRealtime, claim } = useRealtime();
+  const { subscribe: subscribeRealtime, claim, reconnected } = useRealtime();
+  const catchUpWanted = useRef(false);
 
   const reducedMotion = useSyncExternalStore(
     subscribe,
@@ -200,6 +183,32 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
       }),
     [subscribeRealtime],
   );
+
+  useEffect(() => {
+    if (reconnected === 0) return;
+    catchUpWanted.current = true;
+  }, [reconnected]);
+
+  // Deferred while a drag or a write is in flight. Reseeding mid-gesture would
+  // erase an optimistic change the server has not been told about yet; once the
+  // write settles, the server's own read already contains it.
+  useEffect(() => {
+    if (!catchUpWanted.current) return;
+    if (draggingId || isPending) return;
+    catchUpWanted.current = false;
+
+    let cancelled = false;
+    void readBoard({ boardId: board.id }).then((result) => {
+      if (cancelled) return;
+      if (result.ok) dispatch({ type: 'board.reseed', state: result.data });
+      // A failed catch-up leaves the board stale, so it stays wanted rather
+      // than being dropped until the next reconnection.
+      else catchUpWanted.current = true;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [reconnected, draggingId, isPending, board.id]);
 
   const showColumn = (columnId: string) =>
     columnRefs.current.get(columnId)?.scrollIntoView({

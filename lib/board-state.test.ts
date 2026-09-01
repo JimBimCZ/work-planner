@@ -207,6 +207,23 @@ describe('column actions', () => {
   });
 });
 
+describe('board.reseed', () => {
+  const before = (): BoardState => ({
+    columns: [{ id: 'col-1', name: 'Ready', rank: 'a0' }],
+    cards: [],
+  });
+
+  test('replaces the whole state', () => {
+    const after: BoardState = { columns: [{ id: 'col-2', name: 'Doing', rank: 'a1' }], cards: [] };
+    expect(boardReducer(before(), { type: 'board.reseed', state: after })).toEqual(after);
+  });
+
+  test('its inverse restores the state it replaced', () => {
+    const action: BoardAction = { type: 'board.reseed', state: { columns: [], cards: [] } };
+    expect(applyAll(boardReducer(before(), action), inverse(before(), action))).toEqual(before());
+  });
+});
+
 describe('inverses', () => {
   // Compared through the selectors, not with toEqual on the state: raw array
   // position carries no meaning here — orderedColumns and cardsIn both sort by

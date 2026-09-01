@@ -2215,7 +2215,7 @@ Pusher does not replay. A client that was asleep reconnects to a board that has 
 - Consumes: `getBoardWithColumns` from `lib/boards.ts`, which returns `BoardWithCards | null` and is wrapped in React's `cache`. Note the mismatch between the function name and the type name — the function is `getBoardWithColumns`.
 - Produces: `readBoard(input: unknown)` returning `{ ok: true, data: BoardState } | { ok: false, error: ... }`; `BoardAction` gains `{ type: 'board.reseed'; state: BoardState }`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `lib/board-state.test.ts`:
 
@@ -2276,12 +2276,12 @@ test('publishes nothing — it is a read', async () => {
 });
 ```
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `pnpm test lib/board-state.test.ts lib/actions/board.test.ts`
 Expected: FAIL on both.
 
-- [ ] **Step 3: Add `board.reseed`**
+- [x] **Step 3: Add `board.reseed`**
 
 In `lib/board-state.ts`, extend the union with `| { type: 'board.reseed'; state: BoardState }`, add to the reducer:
 
@@ -2297,7 +2297,7 @@ and to `inverse`:
       return [{ type: 'board.reseed', state }];
 ```
 
-- [ ] **Step 4: Write `readBoard`**
+- [x] **Step 4: Write `readBoard`**
 
 Create `lib/actions/board.ts`. Read `lib/boards.ts` first and reuse its existing board read and the shape `components/board/board-canvas.tsx`'s `seed()` builds, so one mapping exists rather than two.
 
@@ -2337,12 +2337,12 @@ export async function readBoard(input: unknown) {
 
 Move `seed()` out of `board-canvas.tsx` into `lib/board-state.ts` as an exported `toBoardState(board)`, so the initial render and the reconnect build the same shape from the same code. Update `board-canvas.tsx`'s `useReducer` to use it, and delete the now-stale comment that says "There is no realtime in this sub-project, so the reducer is the truth for the session".
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm test`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/actions/board.ts lib/actions/board.test.ts lib/board-state.ts lib/board-state.test.ts components/board/board-canvas.tsx
@@ -2357,7 +2357,7 @@ git commit -m "feat: add a permission-checking board read for catching up"
 **Interfaces:**
 - Produces: `useRealtime()` gains `reconnected: number`, a counter that increments on every `connected` **after** the first. Consumers watch it as an effect dependency.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/realtime.spec.ts`. The gap is forced by taking the socket down, changing the board from the other browser while it is down, and bringing it back:
 
@@ -2405,12 +2405,12 @@ test('a client that missed events catches up on reconnect', async ({ browser }) 
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm exec playwright test realtime -g "catches up" --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/e2e.log`
 Expected: FAIL — B stays on the stale column.
 
-- [ ] **Step 3: Signal the reconnection**
+- [x] **Step 3: Signal the reconnection**
 
 In `components/board/realtime.tsx`, inside the effect:
 
@@ -2430,7 +2430,7 @@ In `components/board/realtime.tsx`, inside the effect:
 
 Add `reconnected` to the context type and the `useMemo` value.
 
-- [ ] **Step 4: Refetch on the canvas, deferred while busy**
+- [x] **Step 4: Refetch on the canvas, deferred while busy**
 
 In `components/board/board-canvas.tsx`:
 
@@ -2466,12 +2466,12 @@ Wrap the two places that call actions so they count: increment before `startTran
   }, [reconnected, draggingId, pendingWrites, board.id]);
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm exec playwright test realtime --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log`
 Expected: EXIT=0. This test is slower than the others — a real Pusher reconnection takes seconds — so its generous timeouts are deliberate, not padding.
 
-- [ ] **Step 6: Run everything, then commit**
+- [x] **Step 6: Run everything, then commit**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TC=$?"
@@ -2488,11 +2488,11 @@ git commit -m "feat: catch up on the board after a reconnection"
 
 ### Section 4 gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected.
-- [ ] A client that was genuinely offline converges **without a reload** — proved by `setOffline`, not by a synthetic event, and not by reloading the page.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected.
+- [x] A client that was genuinely offline converges **without a reload** — proved by `setOffline`, not by a synthetic event, and not by reloading the page.
 - [ ] **A reseed does not erase an optimistic change made during the gap.** Check by hand: go offline, add a card, come back online, and confirm the card is still there once the write settles.
 - [ ] A reseed never fires mid-drag.
-- [ ] `readBoard` refuses a board the caller cannot read, asserted by calling it directly.
+- [x] `readBoard` refuses a board the caller cannot read, asserted by calling it directly.
 - [ ] Open the PR. Stop. Start Section 5 in a fresh session.
 
 ---

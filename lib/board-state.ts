@@ -1,3 +1,8 @@
+import { toDateInputValue } from '@/lib/due';
+// import type, not import: lib/boards imports lib/db, which builds a pg pool
+// at module scope, and this module is in the client bundle.
+import type { BoardWithCards } from '@/lib/boards';
+
 export type StateCard = {
   id: string;
   columnId: string;
@@ -11,6 +16,24 @@ export type StateCard = {
 export type StateColumn = { id: string; name: string; rank: string; pending?: boolean };
 
 export type BoardState = { columns: StateColumn[]; cards: StateCard[] };
+
+// The initial render and a reconnect's catch-up build the same shape from the
+// same code, so the two can never disagree about dates or ordering.
+export function toBoardState(board: BoardWithCards): BoardState {
+  return {
+    columns: board.columns.map(({ id, name, rank }) => ({ id, name, rank })),
+    cards: board.columns.flatMap((column) =>
+      column.cards.map((card) => ({
+        id: card.id,
+        columnId: card.columnId,
+        title: card.title,
+        rank: card.rank,
+        createdAt: card.createdAt.toISOString(),
+        dueDate: card.dueDate ? toDateInputValue(card.dueDate) : null,
+      })),
+    ),
+  };
+}
 
 export type BoardAction =
   | { type: 'card.create'; card: StateCard }
@@ -32,7 +55,8 @@ export type BoardAction =
       // slide every rank onto the wrong card.
       moves: { id: string; rank: string }[];
     }
-  | { type: 'column.settle'; tempId: string; id: string; rank: string };
+  | { type: 'column.settle'; tempId: string; id: string; rank: string }
+  | { type: 'board.reseed'; state: BoardState };
 
 const byRank = <T extends { rank: string; id: string }>(a: T, b: T) =>
   a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
@@ -131,6 +155,9 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
       };
     }
 
+    case 'board.reseed':
+      return action.state;
+
     case 'column.settle':
       return {
         ...state,
@@ -211,6 +238,10 @@ export function inverse(state: BoardState, action: BoardAction): BoardAction[] {
         ),
       ];
     }
+
+    // The whole board is replaced, so the whole board is what restores it.
+    case 'board.reseed':
+      return [{ type: 'board.reseed', state }];
 
     case 'card.settle':
     case 'column.settle':
