@@ -3151,7 +3151,7 @@ git commit -m "docs: name every board event, including comment edit and delete"
 - [x] A comment being edited locally is not clobbered by a remote edit of the same comment — `a comment being edited locally is not clobbered`. Note only a comment's author may edit it, so a remote edit of the comment you are editing can only come from **the same account in another session**; the test uses two tabs of one context, which is exactly that. An earlier draft had another user post instead, which would not have exercised the rule at all.
 - [x] An optimistic comment and a remote one do not both appear as duplicates — asserted inside `a comment posted elsewhere appears in an open thread`: the poster's own thread holds exactly one row.
 - [x] Screenshots of a live thread in both themes: `docs/screenshots/realtime-section-6/thread-{light,dark}.png`. The third comment in each arrives over Pusher while the page is open, so it is a live thread rather than a rendered one. Every author reads "Test User" because `seedSession` names them so; that is the fixture, not the UI.
-- [ ] Open the PR. Stop. Start Section 7 in a fresh session.
+- [x] Open the PR. Stop. Start Section 7 in a fresh session. — #64, merged as 9ddd3df.
 
 ---
 
@@ -3170,7 +3170,7 @@ The only purely presentational section. By now every event arrives and is applie
 - Consumes: `avatarHue` from `lib/avatar.ts`.
 - Produces: `BoardCard` takes an optional `ringHue?: number`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 test('a card changed by a teammate is ringed in their colour', async ({ browser }) => {
@@ -3247,11 +3247,11 @@ test('the ring does not transform under reduced motion', async ({ browser }) => 
 
 `twoBrowsers` is not used here because it does not take context options, and the reduced-motion preference has to be set when the context is created.
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail** — both failed on `data-ring-hue` resolving to `null`, which is the attribute under test rather than an incidental error.
 
 Run: `pnpm exec playwright test realtime -g ring --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/e2e.log`
 
-- [ ] **Step 3: Hold ring state on the canvas**
+- [x] **Step 3: Hold ring state on the canvas**
 
 Ring state is deliberately **not** in the reducer: it is ephemeral UI, and `lib/board-state.ts` is pure and heavily tested.
 
@@ -3287,7 +3287,7 @@ In the event subscription, after dispatching, for every event that names a card:
 
 `card.deleted` gets no ring — the card is gone, so there is nothing to ring.
 
-- [ ] **Step 4: Render it**
+- [x] **Step 4: Render it**
 
 Pass `ringHue={rings.get(card.id)}` down to `BoardCard`. In `components/board/board-card.tsx`, add the prop and render the ring as a box-shadow, which does not affect layout and therefore cannot reflow a column mid-drag:
 
@@ -3322,7 +3322,7 @@ Reduced motion needs no separate branch here: `box-shadow` is not a transform, a
 
 Keep it quiet. This is the one moment the board acknowledges someone else, and the design brief says chrome recedes.
 
-- [ ] **Step 5: Run everything, then commit**
+- [x] **Step 5: Run everything, then commit** — TC=0, LINT=0 (the 2 pre-existing `_pending` warnings), TEST=0 with 299 passed, BUILD=0, e2e `Running 105 tests` / `105 passed` / EXIT=0.
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TC=$?"
@@ -3339,12 +3339,17 @@ git commit -m "feat: ring a card a teammate just changed, in their colour"
 
 ### Section 7 gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected.
-- [ ] The ring uses the actor's avatar hue and stays on the cool half of the wheel, asserted numerically rather than by eye.
-- [ ] The ring clears itself; it is an acknowledgement, not a state.
-- [ ] Under `prefers-reduced-motion` there is no transform — checked with `getComputedStyle`, not by watching.
-- [ ] Nothing warm was added anywhere.
-- [ ] Open the PR with a screen recording of the ring. Stop.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected. Observed: TC=0, LINT=0 (2 pre-existing `_pending` warnings in `lib/board-state.ts`), TEST=0 with 299 passed, BUILD=0, e2e `Running 105 tests` / `105 passed` / EXIT=0 — 105 collected against 105 run, up from Section 6's 103 by exactly the two tests added here.
+- [x] The ring uses the actor's avatar hue and stays on the cool half of the wheel, asserted numerically rather than by eye — `a card changed by a teammate is ringed in their colour`. **Stronger than the plan drafted it:** the plan matched `/\d+/` and then range-checked whatever came back, which any hue would satisfy. The test matches `data-ring-hue` against `avatarHue(alice.userId)` exactly, so a ring in the wrong person's colour fails, and range-checks that number — a hue that is not the actor's can no longer pass by being merely cool. Reading the attribute back off the element, as the plan did, also races a ring that lives 1.5s.
+- [x] The ring clears itself; it is an acknowledgement, not a state — the same test waits for `data-ring-hue` to go absent.
+- [x] Under `prefers-reduced-motion` there is no transform — `the ring does not transform under reduced motion` reads `getComputedStyle(node).transform` and asserts `'none'`. It holds because the ring is a `box-shadow`: it needs no reduced-motion branch of its own, and `.card-enter`'s 4px rise is already disabled by the media query in `app/globals.css`. No keyframe was added, so `app/globals.css` is untouched by this section despite the task's file list.
+- [x] Nothing warm was added anywhere. The only colour introduced is `hsl(var(--ring-hue) 55% 55%)` from `avatarHue`, which `lib/avatar.ts` constrains to 180°–300°, and `lib/avatar.test.ts` already asserts that range over 50 ids.
+- [x] Open the PR with a screen recording of the ring. Stop. — `docs/screenshots/realtime-section-7/ring.webm` records the ring appearing and expiring; `ring-{light,dark}.png` are stills of it at rest in both themes.
+
+**Two deviations from the task as written, both because the plan described interactions this codebase does not have:**
+
+- The plan seeded the card *after* both pages had loaded and reached for `pageA.reload()`/`pageB.reload()` to pick it up. `twoBrowsers`'s own comment rules that out — a reload makes every realtime assertion pass with no realtime at all — and the plan's version also never waited for the reloaded pages to re-subscribe. Both tests seed before the pages open, via the `seed` callback the helper already takes.
+- The plan renamed a card with `dblclick` on `card-title` and a bare `getByRole('textbox')`. There is no double-click rename on the board; `card-title` holds a `Link` that would navigate instead, and renaming goes through the card's ⋯ menu. Both tests use the menu flow that `a card renamed in one browser is renamed in the other` already established.
 
 ---
 
@@ -3352,14 +3357,14 @@ git commit -m "feat: ring a card a teammate just changed, in their colour"
 
 Copied from `docs/specs/realtime.md`. Tick these only against observed output, and close them in the final section's PR or a short `docs/` follow-up, as sub-projects 4 and 5 did.
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, each exit code read from its own log, count run compared against count collected.
-- [ ] Two real browsers on one board show each other's changes, observed by hand and not only in Playwright.
-- [ ] A client that is disconnected and reconnected converges without a reload, and does so without erasing an optimistic change made during the gap.
-- [ ] `/api/pusher/auth` refuses a board the caller is not a member of — proved by calling it directly, not by the UI declining to subscribe.
-- [ ] The app runs correctly with **no Pusher credentials at all**, confirmed in the Docker container, which is the configuration that has none. This is deliberately a manual check rather than an e2e: Playwright's `webServer` builds once for the whole suite and `NEXT_PUBLIC_PUSHER_KEY` is inlined at build time, so one run cannot hold both configurations. Run `docker compose up --build` with the four variables unset, confirm the board loads, a card moves, and `[data-realtime]` reads `off`.
-- [ ] No payload exceeds the ceiling, including a 4,000-character comment of multibyte characters.
-- [ ] A teammate's change rings the affected card in their avatar colour, and the ring does not transform under `prefers-reduced-motion`.
-- [ ] **The realtime e2e ran rather than skipped, in CI as well as locally.** Compare the count collected against the count run; a skipped realtime suite is indistinguishable from a passing one in the summary line.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, each exit code read from its own log, count run compared against count collected. TC=0, LINT=0 (2 pre-existing `_pending` warnings), TEST=0 / 299 passed / 23 files, BUILD=0, E2E=0 / `Running 105 tests` / `105 passed`.
+- [ ] Two real browsers on one board show each other's changes, observed by hand and not only in Playwright. **Not done, and not something the agent can close.** Every other line here was observed; this one asks for a human at two windows and is left open deliberately rather than ticked off the Playwright runs that already exist.
+- [x] A client that is disconnected and reconnected converges without a reload, and does so without erasing an optimistic change made during the gap — Section 4's `a client that missed events catches up on reconnect` and `a catch-up does not erase a change made while disconnected`.
+- [x] `/api/pusher/auth` refuses a board the caller is not a member of — proved by calling it directly, not by the UI declining to subscribe. `a board the user cannot read never subscribes` POSTs the route and reads 403, then adds the same caller as a viewer and reads 200, which is what pins the 403 on membership rather than on a cookie that never arrived.
+- [x] The app runs correctly with **no Pusher credentials at all**, confirmed in the Docker container. Built and run as `docker compose --env-file <empty> up --build` so that `.env`'s four Pusher variables could not reach the build arguments, migrated with `MIGRATE_URL=postgres://kanban:kanban@localhost:5432/kanban pnpm db:migrate` and confirmed with `\dt` (8 tables), then driven with a seeded session cookie against `localhost:3000`. Observed: `/api/health` 200, `[data-realtime]` reads `off`, the board renders all five columns and its card, a card moved through the ⋯ menu lands in In Progress **in the container's own database** and not only in the DOM, no page or console errors, and no `<script>` in the document mentions Pusher — the key was not inlined. Containers and volumes were torn down afterwards.
+- [x] No payload exceeds the ceiling, including a 4,000-character comment of multibyte characters — `lib/events.test.ts` drives `publishComment` with 4,000 emoji (8,355 bytes) and asserts the degrade to `comment.created.truncated`, and `a comment too large to publish inline still reaches the thread` proves the reader recovers.
+- [x] A teammate's change rings the affected card in their avatar colour, and the ring does not transform under `prefers-reduced-motion` — Section 7's two tests, above.
+- [x] **The realtime e2e ran rather than skipped, in CI as well as locally.** Locally, 105 collected against 105 run. In CI, run 33500137064 on `9ddd3df` logs `Running 103 tests` and names the realtime tests individually as passing — `realtime.spec.ts:29`, `:47`, `:96`, `:130` and the rest — so the secrets are reaching the job and the suite is not skipping.
 
 ## What this plan deliberately does not build
 

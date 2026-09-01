@@ -29,6 +29,7 @@ import { useRealtime } from '@/components/board/realtime';
 import { readBoard } from '@/lib/actions/board';
 import { createCard, deleteCard, moveCard, renameCard } from '@/lib/actions/cards';
 import { addColumn, deleteColumn, moveColumn, renameColumn } from '@/lib/actions/columns';
+import { avatarHue } from '@/lib/avatar';
 import {
   boardReducer,
   cardsIn,
@@ -60,6 +61,9 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const columnRefs = useRef(new Map<string, HTMLElement>());
+  // Ephemeral UI, so deliberately not in the reducer: lib/board-state.ts is
+  // pure and heavily tested, and a ring that expires on a timer is neither.
+  const [rings, setRings] = useState<Map<string, number>>(new Map());
   const { register, registerPatchCard } = useBoardActions();
   const { subscribe: subscribeRealtime, claim, reconnected } = useRealtime();
   const catchUpWanted = useRef(false);
@@ -121,6 +125,30 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   useEffect(
     () =>
       subscribeRealtime((event) => {
+        // A quiet acknowledgement that something moved and who moved it.
+        // card.deleted gets none — the card is gone, so there is nothing to
+        // ring.
+        const ringed =
+          event.type === 'card.created' ||
+          event.type === 'card.updated' ||
+          event.type === 'card.moved'
+            ? event.id
+            : null;
+
+        if (ringed) {
+          const hue = avatarHue(event.actorId);
+          setRings((current) => new Map(current).set(ringed, hue));
+          window.setTimeout(
+            () =>
+              setRings((current) => {
+                const next = new Map(current);
+                next.delete(ringed);
+                return next;
+              }),
+            1_500,
+          );
+        }
+
         switch (event.type) {
           case 'card.created':
             dispatch({
@@ -445,6 +473,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 }}
                 column={column}
                 cards={cardsIn(state, column.id)}
+                rings={rings}
                 boardId={board.id}
                 hue={flowHue(index, total)}
                 nextHue={flowHue(Math.min(index + 1, total - 1), total)}

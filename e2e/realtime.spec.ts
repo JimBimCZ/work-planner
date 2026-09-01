@@ -9,6 +9,7 @@ import {
   seedMember,
   seedSession,
 } from './support/session';
+import { avatarHue } from '../lib/avatar';
 
 // playwright.config.ts loads .env and .env.local into process.env before this
 // runs. Without credentials the app is correctly non-realtime, so these tests
@@ -714,3 +715,85 @@ test('a comment being edited locally is not clobbered', async ({ browser }) => {
   }
 });
 
+
+// The plan seeded the card after both pages had loaded and reached for a
+// reload to pick it up; twoBrowsers' own comment rules that out, because a
+// reload makes every assertion below pass with no realtime at all. The seed
+// callback runs before either page opens, which is the same thing without the
+// reload.
+test('a card changed by a teammate is ringed in their colour', async ({ browser }) => {
+  let cardId = '';
+  const { alice, pageA, pageB, close } = await twoBrowsers(browser, async (boardId, ownerId) => {
+    const [ready] = await boardColumns(boardId);
+    cardId = await seedCard(ready.id, { boardId, createdById: ownerId, title: 'Ship it' });
+  });
+
+  // Cool half of the wheel only: a warm ring would compete with the due-date
+  // signal, which CLAUDE.md reserves as the only warm thing on the board.
+  const hue = avatarHue(alice.userId);
+  expect(hue).toBeGreaterThanOrEqual(180);
+  expect(hue).toBeLessThanOrEqual(300);
+
+  try {
+    await pageA.getByRole('button', { name: 'Card actions for Ship it' }).click();
+    await pageA.getByRole('menuitem', { name: 'Rename' }).click();
+    await pageA.getByRole('textbox', { name: 'Card title' }).fill('Shipped');
+    await pageA.getByRole('button', { name: 'Save changes' }).click();
+
+    // The actor's hue, not merely some hue. Matched against the value rather
+    // than read back off the element, which a 1.5s ring can outrun.
+    const card = pageB.locator(`[data-card-id="${cardId}"]`);
+    await expect(card).toHaveAttribute('data-ring-hue', String(hue), { timeout: 15_000 });
+
+    // It is a 1.5s acknowledgement, not a persistent state.
+    await expect(card).not.toHaveAttribute('data-ring-hue', /\d+/, { timeout: 10_000 });
+  } finally {
+    await close();
+  }
+});
+
+// twoBrowsers is not used here because it does not take context options, and
+// the reduced-motion preference has to be set when the context is created.
+test('the ring does not transform under reduced motion', async ({ browser }) => {
+  const contextA = await browser.newContext();
+  const contextB = await browser.newContext({ reducedMotion: 'reduce' });
+  const alice = await seedSession(contextA);
+  const boardId = await seedBoard(alice.userId, 'Roadmap');
+  const bob = await seedSession(contextB);
+  await seedMember(boardId, bob.userId, 'member');
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+  const pageA = await contextA.newPage();
+  const pageB = await contextB.newPage();
+
+  try {
+    await pageA.goto(`/boards/${boardId}`);
+    await pageB.goto(`/boards/${boardId}`);
+    await subscribed(pageA);
+    await subscribed(pageB);
+
+    await pageA.getByRole('button', { name: 'Card actions for Ship it' }).click();
+    await pageA.getByRole('menuitem', { name: 'Rename' }).click();
+    await pageA.getByRole('textbox', { name: 'Card title' }).fill('Shipped');
+    await pageA.getByRole('button', { name: 'Save changes' }).click();
+
+    const card = pageB.locator(`[data-card-id="${cardId}"]`);
+    await expect(card).toHaveAttribute('data-ring-hue', /\d+/, { timeout: 15_000 });
+
+    // The ring still appears — reduced motion removes the movement, not the
+    // information. CLAUDE.md: "the ring fades in and out without transform".
+    const transform = await card.evaluate((node) => getComputedStyle(node).transform);
+    expect(transform).toBe('none');
+  } finally {
+    await pageA.close();
+    await pageB.close();
+    await contextA.close();
+    await contextB.close();
+    await removeSeededUser(alice.userId);
+    await removeSeededUser(bob.userId);
+  }
+});

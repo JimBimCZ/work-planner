@@ -18,6 +18,7 @@ export function BoardColumn({
   ref,
   column,
   cards,
+  rings,
   boardId,
   hue,
   nextHue,
@@ -40,6 +41,7 @@ export function BoardColumn({
   ref?: Ref<HTMLElement>;
   column: StateColumn;
   cards: StateCard[];
+  rings: Map<string, number>;
   boardId: string;
   hue: number;
   nextHue: number;
@@ -117,6 +119,7 @@ export function BoardColumn({
                 <li key={card.id}>
                   <BoardCard
                     card={card}
+                    ringHue={rings.get(card.id)}
                     boardId={boardId}
                     canWrite={canWrite}
                     columns={columns}
