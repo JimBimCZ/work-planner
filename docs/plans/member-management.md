@@ -205,7 +205,7 @@ git commit -m "feat: add board_invites, with the one-owner rule in the database"
   export function findPendingInvite(inviteId: string): Promise<FoundInvite | null>;
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/members.test.ts`. It mocks `db.query` and inspects the config each read passes, the way `lib/boards.test.ts` does — the point is that no read may quietly drop the cutoff.
 
@@ -299,7 +299,7 @@ describe('the invite reads', () => {
 
 The `captured!` non-null assertions are the one place this plan permits them: the line above each is an `expect(...).not.toBeNull()`, and a test that has already failed does not continue.
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -307,7 +307,7 @@ pnpm exec vitest run lib/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; t
 
 Expected: FAIL — `Failed to resolve import "./members"`.
 
-- [ ] **Step 3: Write the reads**
+- [x] **Step 3: Write the reads**
 
 Create `lib/members.ts`:
 
@@ -400,7 +400,7 @@ export async function findPendingInvite(inviteId: string): Promise<FoundInvite |
 }
 ```
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run lib/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -408,7 +408,7 @@ pnpm exec vitest run lib/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; t
 
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/members.ts lib/members.test.ts
