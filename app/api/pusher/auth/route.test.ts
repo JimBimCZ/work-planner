@@ -95,6 +95,19 @@ test('refuses a request with no form fields', async () => {
   expect(response.status).toBe(400);
 });
 
+// request.formData() throws on a non-form body instead of returning an empty
+// form, so this has to be caught explicitly or the route 500s.
+test('refuses a non-form body instead of throwing', async () => {
+  const response = await POST(
+    new Request('http://localhost/api/pusher/auth', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    }),
+  );
+  expect(response.status).toBe(400);
+});
+
 // The self-hosting configuration: Pusher credentials are absent from the
 // environment, so pusherServer() returns null even for an otherwise-valid,
 // authorised request.

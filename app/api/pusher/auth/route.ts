@@ -14,7 +14,17 @@ const SOCKET_ID = /^\d+\.\d+$/;
 const forbidden = () => new Response('Forbidden', { status: 403 });
 
 export async function POST(request: Request) {
-  const form = await request.formData();
+  // Pusher always posts a form body, but this is a public endpoint: a
+  // non-form body (JSON, no body at all) throws here rather than parsing to
+  // an empty form, which would otherwise turn a malformed request into a 500
+  // instead of the 400 below.
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return new Response('Bad request', { status: 400 });
+  }
+
   const socketId = form.get('socket_id');
   const channelName = form.get('channel_name');
 
