@@ -7,6 +7,8 @@ vi.mock('@/lib/actions/members', () => ({
   leaveBoard: vi.fn(),
   inviteMember: vi.fn(),
   revokeInvite: vi.fn(),
+  changeRole: vi.fn(),
+  removeMember: vi.fn(),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -75,5 +77,26 @@ describe('MembersPanel, as the owner', () => {
     const html = render({ invites });
     expect(html).not.toMatch(/invite by email/i);
     expect(html).not.toContain('waiting@example.test');
+  });
+});
+
+describe('MembersPanel role controls', () => {
+  test('lets the owner change a member role and remove them', () => {
+    const html = render({ viewerId: 'u1', isOwner: true });
+    expect(html).toContain('aria-label="Role for Grace"');
+    expect(html).toMatch(/remove/i);
+  });
+
+  // One owner row is the invariant the whole design rests on: no control in
+  // this dialog may offer to demote or remove the owner.
+  test('offers no role control and no remove against the owner row', () => {
+    const html = render({ viewerId: 'u1', isOwner: true });
+    expect(html).not.toContain('aria-label="Role for Ada"');
+  });
+
+  test('shows a non-owner no controls at all', () => {
+    const html = render();
+    expect(html).not.toContain('aria-label="Role for Grace"');
+    expect(html).not.toMatch(/remove/i);
   });
 });

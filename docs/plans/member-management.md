@@ -1747,7 +1747,7 @@ git commit -m "feat: invite someone from the members dialog, and withdraw it"
 **Interfaces:**
 - Consumes: `changeRole`, `removeMember` from A5.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `components/board/members-dialog.test.tsx`:
 
@@ -1774,7 +1774,7 @@ describe('MembersDialog role controls', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1782,7 +1782,7 @@ pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>
 
 Expected: FAIL — no `aria-label="Role for Grace"` in the markup.
 
-- [ ] **Step 3: Add the controls**
+- [x] **Step 3: Add the controls**
 
 Import `changeRole` and `removeMember`, and add:
 
@@ -1839,7 +1839,7 @@ In the member list item, replace the plain role label with a conditional. The ow
 )}
 ```
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1847,7 +1847,7 @@ pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>
 
 Expected: PASS, 10 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/members-dialog.tsx components/board/members-dialog.test.tsx

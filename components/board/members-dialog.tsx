@@ -4,7 +4,13 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { inviteMember, leaveBoard, revokeInvite } from '@/lib/actions/members';
+import {
+  changeRole,
+  inviteMember,
+  leaveBoard,
+  removeMember,
+  revokeInvite,
+} from '@/lib/actions/members';
 import { avatarHue, initials } from '@/lib/avatar';
 import type { PendingInvite, VisibleMember } from '@/lib/members';
 
@@ -56,6 +62,28 @@ export function MembersPanel({ boardId, viewerId, isOwner, members, invites }: M
     });
   }
 
+  function setMemberRole(userId: string, next: 'member' | 'viewer') {
+    startTransition(async () => {
+      const result = await changeRole({ boardId, userId, role: next });
+      if (!result.ok) {
+        setError('That role could not be changed. Try again.');
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function remove(userId: string) {
+    startTransition(async () => {
+      const result = await removeMember({ boardId, userId });
+      if (!result.ok) {
+        setError('They could not be removed. Try again.');
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   function revoke(inviteId: string) {
     startTransition(async () => {
       const result = await revokeInvite({ inviteId });
@@ -84,7 +112,30 @@ export function MembersPanel({ boardId, viewerId, isOwner, members, invites }: M
               {member.userId === viewerId && <span className="ml-2 text-xs text-muted">You</span>}
             </span>
             {member.email && <span className="text-xs text-muted">{member.email}</span>}
-            <span className="font-mono text-xs text-muted">{member.role}</span>
+            {isOwner && member.role !== 'owner' ? (
+              <>
+                <select
+                  aria-label={`Role for ${member.name ?? member.email ?? 'this member'}`}
+                  value={member.role}
+                  onChange={(event) =>
+                    setMemberRole(member.userId, event.target.value === 'viewer' ? 'viewer' : 'member')
+                  }
+                  className="rounded-[var(--radius-control)] border border-line bg-canvas px-2 py-1 text-xs"
+                >
+                  <option value="member">Member</option>
+                  <option value="viewer">Viewer</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => remove(member.userId)}
+                  className="text-xs font-medium text-time-over"
+                >
+                  Remove
+                </button>
+              </>
+            ) : (
+              <span className="font-mono text-xs text-muted">{member.role}</span>
+            )}
           </li>
         ))}
       </ul>
