@@ -16,10 +16,21 @@ vi.mock('@/lib/events', async () => {
   return { ...actual, publish: (...args: unknown[]) => publish(...args) };
 });
 
+const MUTATION_ID = '11111111-1111-4111-8111-111111111111';
+
 type Op = { kind: 'insert' | 'update' | 'delete'; table: string; values?: unknown };
 const ops: Op[] = [];
 
-let cardRow: { id: string; boardId: string; columnId: string; rank: string } | undefined;
+let cardRow:
+  | {
+      id: string;
+      boardId: string;
+      columnId: string;
+      rank: string;
+      title: string;
+      dueDate: Date | null;
+    }
+  | undefined;
 let columnRow: { id: string; boardId: string } | undefined;
 let cardsInColumn: { id: string; rank: string }[] = [];
 
@@ -42,7 +53,9 @@ const tx = {
     values: (values: unknown) => {
       ops.push({ kind: 'insert', table: tableName(table), values });
       return {
-        returning: async () => [{ id: 'card-1', ...(values as object) }],
+        returning: async () => [
+          { id: 'card-1', createdAt: new Date('2026-09-01T00:00:00.000Z'), ...(values as object) },
+        ],
         then: (resolve: (v: unknown) => unknown) => Promise.resolve(resolve(undefined)),
       };
     },
@@ -71,7 +84,14 @@ const { BoardAccessError } = await import('@/lib/permissions');
 
 beforeEach(() => {
   ops.length = 0;
-  cardRow = { id: 'card-1', boardId: 'b1', columnId: 'col-1', rank: 'a0' };
+  cardRow = {
+    id: 'card-1',
+    boardId: 'b1',
+    columnId: 'col-1',
+    rank: 'a0',
+    title: 'Ship it',
+    dueDate: null,
+  };
   columnRow = { id: 'col-1', boardId: 'b1' };
   cardsInColumn = [];
   assertBoardAccess.mockReset();
@@ -85,21 +105,27 @@ beforeEach(() => {
 describe('createCard', () => {
   test('refuses without a session', async () => {
     authMock.mockResolvedValue(null);
-    await expect(createCard({ columnId: 'col-1', title: 'Ship it' })).resolves.toEqual({
+    await expect(
+      createCard({ columnId: 'col-1', title: 'Ship it', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({
       ok: false,
       error: 'UNAUTHENTICATED',
     });
   });
 
   test('refuses an empty title', async () => {
-    await expect(createCard({ columnId: 'col-1', title: '   ' })).resolves.toEqual({
+    await expect(
+      createCard({ columnId: 'col-1', title: '   ', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({
       ok: false,
       error: 'INVALID',
     });
   });
 
   test('refuses a title over two hundred characters', async () => {
-    await expect(createCard({ columnId: 'col-1', title: 'x'.repeat(201) })).resolves.toEqual({
+    await expect(
+      createCard({ columnId: 'col-1', title: 'x'.repeat(201), mutationId: MUTATION_ID }),
+    ).resolves.toEqual({
       ok: false,
       error: 'INVALID',
     });
@@ -107,7 +133,9 @@ describe('createCard', () => {
 
   test('refuses a column that is not there', async () => {
     columnRow = undefined;
-    await expect(createCard({ columnId: 'gone', title: 'Ship it' })).resolves.toEqual({
+    await expect(
+      createCard({ columnId: 'gone', title: 'Ship it', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({
       ok: false,
       error: 'NOT_FOUND',
     });
@@ -116,13 +144,15 @@ describe('createCard', () => {
   // The board is never taken from the caller. It is resolved from the column,
   // and that resolved value is what assertBoardAccess is asked about.
   test('authorises the board the column belongs to, at member', async () => {
-    await createCard({ columnId: 'col-1', title: 'Ship it' });
+    await createCard({ columnId: 'col-1', title: 'Ship it', mutationId: MUTATION_ID });
     expect(assertBoardAccess).toHaveBeenCalledWith('user-1', 'b1', 'member');
   });
 
   test('refuses a viewer', async () => {
     assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
-    await expect(createCard({ columnId: 'col-1', title: 'Ship it' })).resolves.toEqual({
+    await expect(
+      createCard({ columnId: 'col-1', title: 'Ship it', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({
       ok: false,
       error: 'FORBIDDEN',
     });
@@ -136,7 +166,11 @@ describe('createCard', () => {
       { id: 'card-1', rank: 'a1' },
     ];
 
-    const result = await createCard({ columnId: 'col-1', title: '  Ship it  ' });
+    const result = await createCard({
+      columnId: 'col-1',
+      title: '  Ship it  ',
+      mutationId: MUTATION_ID,
+    });
 
     expect(result.ok).toBe(true);
     const insert = ops.find((op) => op.kind === 'insert');
@@ -146,23 +180,57 @@ describe('createCard', () => {
   });
 
   test('returns the id and the rank, so the client can settle its temp card', async () => {
-    const result = await createCard({ columnId: 'col-1', title: 'Ship it' });
+    const result = await createCard({
+      columnId: 'col-1',
+      title: 'Ship it',
+      mutationId: MUTATION_ID,
+    });
 
     expect(result).toMatchObject({ ok: true, data: { id: 'card-1' } });
     expect(typeof (result as { data: { rank: string } }).data.rank).toBe('string');
   });
 
   test('bumps the board in the same transaction', async () => {
-    await createCard({ columnId: 'col-1', title: 'Ship it' });
+    await createCard({ columnId: 'col-1', title: 'Ship it', mutationId: MUTATION_ID });
     expect(ops).toContainEqual(
       expect.objectContaining({ kind: 'update', table: 'boards' }),
     );
+  });
+
+  test('requires a mutationId', async () => {
+    await expect(createCard({ columnId: 'col-1', title: 'Ship it' })).resolves.toEqual({
+      ok: false,
+      error: 'INVALID',
+    });
+  });
+
+  test('publishes card.created with the row the server actually wrote', async () => {
+    await createCard({ columnId: 'col-1', title: 'Ship it', mutationId: MUTATION_ID });
+    expect(publish).toHaveBeenCalledWith('b1', {
+      type: 'card.created',
+      mutationId: MUTATION_ID,
+      actorId: 'user-1',
+      id: 'card-1',
+      columnId: 'col-1',
+      title: 'Ship it',
+      rank: expect.any(String),
+      createdAt: expect.any(String),
+      dueDate: null,
+    });
+  });
+
+  test('publishes nothing when the write is refused', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await createCard({ columnId: 'col-1', title: 'Ship it', mutationId: MUTATION_ID });
+    expect(publish).not.toHaveBeenCalled();
   });
 });
 
 describe('renameCard', () => {
   test('refuses an empty title', async () => {
-    await expect(renameCard({ cardId: 'card-1', title: '  ' })).resolves.toEqual({
+    await expect(
+      renameCard({ cardId: 'card-1', title: '  ', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({
       ok: false,
       error: 'INVALID',
     });
@@ -170,39 +238,69 @@ describe('renameCard', () => {
 
   test('refuses a card that is not there', async () => {
     cardRow = undefined;
-    await expect(renameCard({ cardId: 'gone', title: 'Ship it' })).resolves.toEqual({
+    await expect(
+      renameCard({ cardId: 'gone', title: 'Ship it', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({
       ok: false,
       error: 'NOT_FOUND',
     });
   });
 
   test("authorises the card's own board", async () => {
-    await renameCard({ cardId: 'card-1', title: 'Ship it' });
+    await renameCard({ cardId: 'card-1', title: 'Ship it', mutationId: MUTATION_ID });
     expect(assertBoardAccess).toHaveBeenCalledWith('user-1', 'b1', 'member');
   });
 
   test('refuses a viewer', async () => {
     assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
-    await expect(renameCard({ cardId: 'card-1', title: 'Ship it' })).resolves.toEqual({
+    await expect(
+      renameCard({ cardId: 'card-1', title: 'Ship it', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({
       ok: false,
       error: 'FORBIDDEN',
     });
   });
 
   test('writes the trimmed title and bumps the board', async () => {
-    await renameCard({ cardId: 'card-1', title: '  Ship it  ' });
+    await renameCard({ cardId: 'card-1', title: '  Ship it  ', mutationId: MUTATION_ID });
 
     expect(ops.filter((op) => op.table === 'cards')).toEqual([
       { kind: 'update', table: 'cards', values: { title: 'Ship it' } },
     ]);
     expect(ops).toContainEqual(expect.objectContaining({ kind: 'update', table: 'boards' }));
   });
+
+  test('requires a mutationId', async () => {
+    await expect(renameCard({ cardId: 'card-1', title: 'Ship it' })).resolves.toEqual({
+      ok: false,
+      error: 'INVALID',
+    });
+  });
+
+  test('publishes card.updated, and does not claim the description changed', async () => {
+    await renameCard({ cardId: 'card-1', title: 'Shipped', mutationId: MUTATION_ID });
+    expect(publish).toHaveBeenCalledWith('b1', {
+      type: 'card.updated',
+      mutationId: MUTATION_ID,
+      actorId: 'user-1',
+      id: 'card-1',
+      title: 'Shipped',
+      dueDate: null,
+      descriptionChanged: false,
+    });
+  });
+
+  test('publishes nothing when the write is refused', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await renameCard({ cardId: 'card-1', title: 'Shipped', mutationId: MUTATION_ID });
+    expect(publish).not.toHaveBeenCalled();
+  });
 });
 
 describe('deleteCard', () => {
   test('refuses a card that is not there', async () => {
     cardRow = undefined;
-    await expect(deleteCard({ cardId: 'gone' })).resolves.toEqual({
+    await expect(deleteCard({ cardId: 'gone', mutationId: MUTATION_ID })).resolves.toEqual({
       ok: false,
       error: 'NOT_FOUND',
     });
@@ -210,64 +308,127 @@ describe('deleteCard', () => {
 
   test('refuses a viewer', async () => {
     assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
-    await expect(deleteCard({ cardId: 'card-1' })).resolves.toEqual({
+    await expect(deleteCard({ cardId: 'card-1', mutationId: MUTATION_ID })).resolves.toEqual({
       ok: false,
       error: 'FORBIDDEN',
     });
   });
 
   test('deletes exactly one card and bumps the board', async () => {
-    await expect(deleteCard({ cardId: 'card-1' })).resolves.toEqual({ ok: true });
+    await expect(deleteCard({ cardId: 'card-1', mutationId: MUTATION_ID })).resolves.toEqual({
+      ok: true,
+    });
 
     expect(ops.filter((op) => op.table === 'cards')).toEqual([{ kind: 'delete', table: 'cards' }]);
     expect(ops).toContainEqual(expect.objectContaining({ kind: 'update', table: 'boards' }));
+  });
+
+  test('requires a mutationId', async () => {
+    await expect(deleteCard({ cardId: 'card-1' })).resolves.toEqual({
+      ok: false,
+      error: 'INVALID',
+    });
+  });
+
+  test('publishes card.deleted', async () => {
+    await deleteCard({ cardId: 'card-1', mutationId: MUTATION_ID });
+    expect(publish).toHaveBeenCalledWith('b1', {
+      type: 'card.deleted',
+      mutationId: MUTATION_ID,
+      actorId: 'user-1',
+      id: 'card-1',
+    });
+  });
+
+  test('publishes nothing when the write is refused', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await deleteCard({ cardId: 'card-1', mutationId: MUTATION_ID });
+    expect(publish).not.toHaveBeenCalled();
   });
 });
 
 describe('setCardDescription', () => {
   test('refuses a viewer', async () => {
     assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
-    await expect(setCardDescription({ cardId: 'card-1', description: 'Why' })).resolves.toEqual({
+    await expect(
+      setCardDescription({ cardId: 'card-1', description: 'Why', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({
       ok: false,
       error: 'FORBIDDEN',
     });
   });
 
   test('authorises the board resolved from the card, at member', async () => {
-    await setCardDescription({ cardId: 'card-1', description: 'Why' });
+    await setCardDescription({ cardId: 'card-1', description: 'Why', mutationId: MUTATION_ID });
     expect(assertBoardAccess).toHaveBeenCalledWith('user-1', 'b1', 'member');
   });
 
   test('writes the description and bumps the board', async () => {
-    await setCardDescription({ cardId: 'card-1', description: '  Why  ' });
+    await setCardDescription({ cardId: 'card-1', description: '  Why  ', mutationId: MUTATION_ID });
     expect(ops).toContainEqual({ kind: 'update', table: 'cards', values: { description: 'Why' } });
     expect(ops.some((op) => op.table === 'boards')).toBe(true);
   });
 
   test('an empty description clears it rather than failing', async () => {
-    const result = await setCardDescription({ cardId: 'card-1', description: '' });
+    const result = await setCardDescription({
+      cardId: 'card-1',
+      description: '',
+      mutationId: MUTATION_ID,
+    });
     expect(result).toEqual({ ok: true });
     expect(ops).toContainEqual({ kind: 'update', table: 'cards', values: { description: null } });
   });
 
   test('refuses a description past the cap', async () => {
     await expect(
-      setCardDescription({ cardId: 'card-1', description: 'x'.repeat(10_001) }),
+      setCardDescription({
+        cardId: 'card-1',
+        description: 'x'.repeat(10_001),
+        mutationId: MUTATION_ID,
+      }),
     ).resolves.toEqual({ ok: false, error: 'INVALID' });
+  });
+
+  test('requires a mutationId', async () => {
+    await expect(setCardDescription({ cardId: 'card-1', description: 'Why' })).resolves.toEqual({
+      ok: false,
+      error: 'INVALID',
+    });
+  });
+
+  // The flag, not the text: a 10,000-character description cannot fit under
+  // Pusher's 10KB limit in any encoding, so it is never in a payload.
+  test('publishes card.updated with descriptionChanged and no description text', async () => {
+    await setCardDescription({
+      cardId: 'card-1',
+      description: 'x'.repeat(9_000),
+      mutationId: MUTATION_ID,
+    });
+    const [, event] = publish.mock.calls[0];
+    expect(event).toMatchObject({ type: 'card.updated', descriptionChanged: true });
+    expect(JSON.stringify(event)).not.toContain('xxxx');
+  });
+
+  test('publishes nothing when the write is refused', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await setCardDescription({ cardId: 'card-1', description: 'Why', mutationId: MUTATION_ID });
+    expect(publish).not.toHaveBeenCalled();
   });
 });
 
 describe('setCardDueDate', () => {
   test('refuses a viewer', async () => {
     assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
-    await expect(setCardDueDate({ cardId: 'card-1', dueDate: '2026-09-01' })).resolves.toEqual({
+    await expect(
+      setCardDueDate({ cardId: 'card-1', dueDate: '2026-09-01', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({
       ok: false,
       error: 'FORBIDDEN',
     });
   });
 
   test('stores midnight UTC of the chosen day', async () => {
-    await setCardDueDate({ cardId: 'card-1', dueDate: '2026-09-01' });
+    await setCardDueDate({ cardId: 'card-1', dueDate: '2026-09-01', mutationId: MUTATION_ID });
     const write = ops.find((op) => op.kind === 'update' && op.table === 'cards');
     expect((write?.values as { dueDate: Date }).dueDate.toISOString()).toBe(
       '2026-09-01T00:00:00.000Z',
@@ -275,19 +436,45 @@ describe('setCardDueDate', () => {
   });
 
   test('null clears the date', async () => {
-    await setCardDueDate({ cardId: 'card-1', dueDate: null });
+    await setCardDueDate({ cardId: 'card-1', dueDate: null, mutationId: MUTATION_ID });
     expect(ops).toContainEqual({ kind: 'update', table: 'cards', values: { dueDate: null } });
   });
 
   test('refuses anything that is not a plain calendar date', async () => {
-    await expect(setCardDueDate({ cardId: 'card-1', dueDate: '01/09/2026' })).resolves.toEqual({
+    await expect(
+      setCardDueDate({ cardId: 'card-1', dueDate: '01/09/2026', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({
       ok: false,
       error: 'INVALID',
     });
   });
-});
 
-const MUTATION_ID = '11111111-1111-4111-8111-111111111111';
+  test('requires a mutationId', async () => {
+    await expect(setCardDueDate({ cardId: 'card-1', dueDate: '2026-09-10' })).resolves.toEqual({
+      ok: false,
+      error: 'INVALID',
+    });
+  });
+
+  test('publishes card.updated carrying the due date as a calendar date', async () => {
+    await setCardDueDate({ cardId: 'card-1', dueDate: '2026-09-10', mutationId: MUTATION_ID });
+    expect(publish).toHaveBeenCalledWith('b1', {
+      type: 'card.updated',
+      mutationId: MUTATION_ID,
+      actorId: 'user-1',
+      id: 'card-1',
+      title: expect.any(String),
+      dueDate: '2026-09-10',
+      descriptionChanged: false,
+    });
+  });
+
+  test('publishes nothing when the write is refused', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await setCardDueDate({ cardId: 'card-1', dueDate: '2026-09-10', mutationId: MUTATION_ID });
+    expect(publish).not.toHaveBeenCalled();
+  });
+});
 
 describe('moveCard', () => {
   beforeEach(() => {

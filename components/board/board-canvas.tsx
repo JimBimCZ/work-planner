@@ -182,7 +182,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     setError(null);
 
     startTransition(async () => {
-      const result = await createCard({ columnId, title });
+      const result = await createCard({ columnId, title, mutationId: crypto.randomUUID() });
       if (!result.ok) {
         dispatch({ type: 'card.delete', cardId: tempId });
         setError('That card could not be added. Try again.');
@@ -213,14 +213,14 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   const renameCardTo = (card: StateCard, title: string) =>
     run(
       { type: 'card.rename', cardId: card.id, title },
-      () => renameCard({ cardId: card.id, title }),
+      () => renameCard({ cardId: card.id, title, mutationId: crypto.randomUUID() }),
       'That card could not be renamed. Try again.',
     );
 
   const removeCard = (card: StateCard) =>
     run(
       { type: 'card.delete', cardId: card.id },
-      () => deleteCard({ cardId: card.id }),
+      () => deleteCard({ cardId: card.id, mutationId: crypto.randomUUID() }),
       'That card could not be deleted. Try again.',
     );
 

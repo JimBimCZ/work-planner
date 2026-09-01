@@ -7,32 +7,37 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { cards } from '@/lib/db/schema';
-import { fromDateInputValue } from '@/lib/due';
+import { fromDateInputValue, toDateInputValue } from '@/lib/due';
 import { publish } from '@/lib/events';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 import { ranksAfter, rankBetween } from '@/lib/rank';
 
-import { boardIdForCard, boardIdForColumn, touchBoard } from './scope';
+import { boardIdForCard, boardIdForColumn, cardEventScope, touchBoard } from './scope';
 
 const cardTitle = z.string().trim().min(1).max(200);
 const id = z.string().min(1);
 
-const createSchema = z.object({ columnId: id, title: cardTitle });
-const renameSchema = z.object({ cardId: id, title: cardTitle });
-const deleteSchema = z.object({ cardId: id });
+// Every call site mints the mutationId with crypto.randomUUID(). Bounding it to
+// a UUID keeps an oversized value from pushing the published event over
+// PAYLOAD_CEILING and silently dropping it for every other viewer.
+const createSchema = z.object({ columnId: id, title: cardTitle, mutationId: z.uuid() });
+const renameSchema = z.object({ cardId: id, title: cardTitle, mutationId: z.uuid() });
+const deleteSchema = z.object({ cardId: id, mutationId: z.uuid() });
 const descriptionSchema = z.object({
   cardId: id,
   description: z.string().trim().max(10_000),
+  mutationId: z.uuid(),
 });
-const dueDateSchema = z.object({ cardId: id, dueDate: z.string().nullable() });
+const dueDateSchema = z.object({
+  cardId: id,
+  dueDate: z.string().nullable(),
+  mutationId: z.uuid(),
+});
 const moveSchema = z.object({
   cardId: id,
   toColumnId: id,
   beforeCardId: id.nullable(),
   afterCardId: id.nullable(),
-  // Both call sites mint this with crypto.randomUUID(). Bounding it to a UUID
-  // keeps an oversized value from pushing the published event over
-  // PAYLOAD_CEILING and silently dropping it for every other viewer.
   mutationId: z.uuid(),
 });
 
@@ -75,10 +80,21 @@ export async function createCard(input: unknown) {
       .returning();
 
     await touchBoard(tx, boardId);
-    return { id: row.id, rank };
+    return { id: row.id, rank, createdAt: row.createdAt.toISOString() };
   });
 
   revalidatePath('/boards');
+  await publish(boardId, {
+    type: 'card.created',
+    mutationId: parsed.data.mutationId,
+    actorId: createdById,
+    id: created.id,
+    columnId: parsed.data.columnId,
+    title: parsed.data.title,
+    rank: created.rank,
+    createdAt: created.createdAt,
+    dueDate: null,
+  });
   return { ok: true, data: created } as const;
 }
 
@@ -89,8 +105,9 @@ export async function renameCard(input: unknown) {
   const parsed = renameSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
 
-  const boardId = await boardIdForCard(parsed.data.cardId);
-  if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
+  const card = await cardEventScope(parsed.data.cardId);
+  if (!card) return { ok: false, error: 'NOT_FOUND' } as const;
+  const boardId = card.boardId;
 
   try {
     await assertBoardAccess(session.user.id, boardId, 'member');
@@ -104,6 +121,15 @@ export async function renameCard(input: unknown) {
   });
 
   revalidatePath('/boards');
+  await publish(boardId, {
+    type: 'card.updated',
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+    id: parsed.data.cardId,
+    title: parsed.data.title,
+    dueDate: card.dueDate ? toDateInputValue(card.dueDate) : null,
+    descriptionChanged: false,
+  });
   return { ok: true } as const;
 }
 
@@ -114,8 +140,9 @@ export async function setCardDescription(input: unknown) {
   const parsed = descriptionSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
 
-  const boardId = await boardIdForCard(parsed.data.cardId);
-  if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
+  const card = await cardEventScope(parsed.data.cardId);
+  if (!card) return { ok: false, error: 'NOT_FOUND' } as const;
+  const boardId = card.boardId;
 
   try {
     await assertBoardAccess(session.user.id, boardId, 'member');
@@ -132,6 +159,15 @@ export async function setCardDescription(input: unknown) {
   });
 
   revalidatePath('/boards');
+  await publish(boardId, {
+    type: 'card.updated',
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+    id: parsed.data.cardId,
+    title: card.title,
+    dueDate: card.dueDate ? toDateInputValue(card.dueDate) : null,
+    descriptionChanged: true,
+  });
   return { ok: true } as const;
 }
 
@@ -149,8 +185,9 @@ export async function setCardDueDate(input: unknown) {
     return { ok: false, error: 'INVALID' } as const;
   }
 
-  const boardId = await boardIdForCard(parsed.data.cardId);
-  if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
+  const card = await cardEventScope(parsed.data.cardId);
+  if (!card) return { ok: false, error: 'NOT_FOUND' } as const;
+  const boardId = card.boardId;
 
   try {
     await assertBoardAccess(session.user.id, boardId, 'member');
@@ -164,6 +201,15 @@ export async function setCardDueDate(input: unknown) {
   });
 
   revalidatePath('/boards');
+  await publish(boardId, {
+    type: 'card.updated',
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+    id: parsed.data.cardId,
+    title: card.title,
+    dueDate: parsed.data.dueDate,
+    descriptionChanged: false,
+  });
   return { ok: true } as const;
 }
 
@@ -189,6 +235,12 @@ export async function deleteCard(input: unknown) {
   });
 
   revalidatePath('/boards');
+  await publish(boardId, {
+    type: 'card.deleted',
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+    id: parsed.data.cardId,
+  });
   return { ok: true } as const;
 }
 

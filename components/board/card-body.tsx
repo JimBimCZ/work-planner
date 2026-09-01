@@ -104,7 +104,7 @@ export function CardBody({
       saved: savedTitle,
       setValue: setTitle,
       setSaved: setSavedTitle,
-      save: () => renameCard({ cardId: card.id, title: next }),
+      save: () => renameCard({ cardId: card.id, title: next, mutationId: crypto.randomUUID() }),
       errorMessage: 'That card could not be renamed. Try again.',
       onSuccess: () => patchCard?.(card.id, { title: next }),
     });
@@ -123,7 +123,11 @@ export function CardBody({
     setDueDate(next);
     setError(null);
     startTransition(async () => {
-      const result = await setCardDueDate({ cardId: card.id, dueDate: next });
+      const result = await setCardDueDate({
+        cardId: card.id,
+        dueDate: next,
+        mutationId: crypto.randomUUID(),
+      });
       if (result.ok) {
         patchCard?.(card.id, { dueDate: next });
       } else {
@@ -146,7 +150,12 @@ export function CardBody({
       saved: savedDescription,
       setValue: setDescription,
       setSaved: setSavedDescription,
-      save: () => setCardDescription({ cardId: card.id, description: next }),
+      save: () =>
+        setCardDescription({
+          cardId: card.id,
+          description: next,
+          mutationId: crypto.randomUUID(),
+        }),
       errorMessage: 'That description could not be saved. Try again.',
     });
   };
