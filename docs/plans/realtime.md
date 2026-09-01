@@ -2197,7 +2197,7 @@ git commit -m "feat: converge the board canvas on a teammate's changes"
 - [x] Every card and column event has a consumer, proved by a two-context e2e each — **none of which reloads the receiving page.** A reload would make all of them pass with no realtime at all.
 - [x] A column deleted remotely moves its cards rather than dropping them, asserted on the target column.
 - [x] Dragging still works, and `e2e/board-dnd.spec.ts` passes unchanged.
-- [ ] Open the PR with a screen recording or paired screenshots of two windows. Stop. Start Section 4 in a fresh session.
+- [ ] Open the PR with a screen recording or paired screenshots of two windows. Stop. Start Section 4 in a fresh session. **PR #61 was opened and merged, but the visuals were only described in the body — the files stayed local and were "attached separately", so the requirement was not met.** Section 5 solved this two PRs later by committing images under `docs/screenshots/` and linking them with a `?raw=true` GitHub URL; the same is available here retroactively. Open until the paired two-window capture is committed and embedded.
 
 ---
 
@@ -2493,7 +2493,7 @@ git commit -m "feat: catch up on the board after a reconnection"
 - [ ] **A reseed does not erase an optimistic change made during the gap.** Check by hand: go offline, add a card, come back online, and confirm the card is still there once the write settles.
 - [ ] A reseed never fires mid-drag. **Code, not evidence:** `components/board/board-canvas.tsx`'s catch-up effect returns early on `draggingId`, and `draggingId` is in its dependency array, so the reseed lands after the drag instead of during it. No test at any level drives a reconnection while a drag is in progress, so this stays open rather than being ticked off a reading of the source.
 - [x] `readBoard` refuses a board the caller cannot read, asserted by calling it directly.
-- [ ] Open the PR. Stop. Start Section 5 in a fresh session.
+- [x] Open the PR. Stop. Start Section 5 in a fresh session. — PR #62, merged. This gate carries no visual requirement, so nothing but the tick was outstanding.
 
 ---
 
@@ -2809,7 +2809,7 @@ git commit -m "feat: follow a card's remote edits without clobbering a draft"
 - [x] A description over the payload ceiling still arrives, via the refetch and not via the event — `a description over the payload ceiling still arrives` sends 9,000 characters, which `publish` would have dropped at the 8,192-byte `PAYLOAD_CEILING`. Arriving is therefore proof of the refetch.
 - [x] The deleted-card treatment works on **both** surfaces — `a card deleted elsewhere says so rather than vanishing` (canonical page) and `a card deleted elsewhere says so in the modal too` (modal over the board). The modal test was written after the implementation, so it was confirmed red by reverting `card-body.tsx` to the previous commit and re-running it alone: EXIT=1, `1 failed`.
 - [x] Screenshots of the deleted-card state in both themes: `docs/screenshots/realtime-section-5/`, `modal-{light,dark}.png` and `page-{light,dark}.png`. They caught a real defect — the canonical page rendered its chrome "Back to board" directly above the deleted state's "Back to the board" — fixed in `4ca5c06`.
-- [ ] Open the PR. Stop. Start Section 6 in a fresh session.
+- [x] Open the PR. Stop. Start Section 6 in a fresh session. — PR #63, merged, with the deleted-card screenshots embedded in the body from `docs/screenshots/realtime-section-5/`.
 
 ---
 
