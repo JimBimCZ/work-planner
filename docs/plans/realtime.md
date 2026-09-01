@@ -1032,11 +1032,11 @@ git commit -m "feat: publish card.moved and apply it on another browser board"
 
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, each exit code read from its own redirected log, count run compared against count collected.
 - [x] **The realtime e2e ran rather than skipped.** A skipped realtime test is indistinguishable from a passing one in the summary line, and proves nothing. Confirm the count went up.
-- [ ] The Pusher credentials were proved with a real trigger (Task 1, Step 6) and the observed status code is in the PR body.
+- [x] The Pusher credentials were proved with a real trigger (Task 1, Step 6) and the observed status code is in the PR body.
 - [x] `/api/pusher/auth` refuses a board the caller is not a member of, **asserted by calling the route directly**, not by the UI declining to subscribe.
 - [ ] Two real browsers, side by side, show one moving a card the other did not touch — observed by hand as well as in Playwright.
 - [x] With `PUSHER_APP_ID` and `NEXT_PUBLIC_PUSHER_KEY` removed from the environment, the board still loads, still moves cards, and `[data-realtime]` reads `off`. This is the self-hosting configuration.
-- [ ] Open the PR. Stop. Start Section 2 in a fresh session.
+- [x] Open the PR. Stop. Start Section 2 in a fresh session.
 
 ---
 
