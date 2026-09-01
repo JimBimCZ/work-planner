@@ -4,6 +4,7 @@ import {
   boardMemberRoles,
   boardOwnerId,
   closeSeedPool,
+  pendingInviteCount,
   removeSeededUser,
   seedBoard,
   seedMember,
@@ -108,5 +109,80 @@ test('a viewer can see who is on the board and leave it', async ({ page, context
   } finally {
     await removeSeededUser(viewer.userId);
     await removeSeededUser(owner.userId);
+  }
+});
+
+test('an invite sent by the owner is accepted by its addressee', async ({ browser }) => {
+  const ownerContext = await browser.newContext();
+  const inviteeContext = await browser.newContext();
+  const owner = await seedSession(ownerContext);
+  const invitee = await seedSession(inviteeContext);
+  const boardId = await seedBoard(owner.userId, 'Shared work');
+
+  try {
+    const ownerPage = await ownerContext.newPage();
+    await ownerPage.goto(`/boards/${boardId}`);
+    await ownerPage.getByRole('button', { name: 'Members' }).click();
+    await ownerPage.getByLabel('Invite by email').fill(invitee.email);
+
+    const sent = written(ownerPage);
+    await ownerPage.getByRole('button', { name: 'Send invite' }).click();
+    await sent;
+    await expect.poll(async () => pendingInviteCount(boardId)).toBe(1);
+
+    const inviteePage = await inviteeContext.newPage();
+    await inviteePage.goto('/boards');
+    await expect(inviteePage.getByText('Shared work')).toBeVisible();
+
+    const accepted = written(inviteePage);
+    await inviteePage.getByRole('button', { name: 'Accept' }).click();
+    await accepted;
+
+    // The invite is consumed and the membership exists: both halves, because
+    // either one alone would pass with the other broken.
+    await expect.poll(async () => pendingInviteCount(boardId)).toBe(0);
+    await expect
+      .poll(async () => (await boardMemberRoles(boardId)).find((r) => r.user_id === invitee.userId)?.role)
+      .toBe('member');
+
+    await inviteePage.goto(`/boards/${boardId}`);
+    await expect(inviteePage.getByRole('button', { name: 'Members' })).toBeVisible();
+  } finally {
+    await removeSeededUser(invitee.userId);
+    await removeSeededUser(owner.userId);
+    await ownerContext.close();
+    await inviteeContext.close();
+  }
+});
+
+test('declining an invite leaves no membership and no invite', async ({ browser }) => {
+  const ownerContext = await browser.newContext();
+  const inviteeContext = await browser.newContext();
+  const owner = await seedSession(ownerContext);
+  const invitee = await seedSession(inviteeContext);
+  const boardId = await seedBoard(owner.userId, 'Not for me');
+
+  try {
+    const ownerPage = await ownerContext.newPage();
+    await ownerPage.goto(`/boards/${boardId}`);
+    await ownerPage.getByRole('button', { name: 'Members' }).click();
+    await ownerPage.getByLabel('Invite by email').fill(invitee.email);
+    const sent = written(ownerPage);
+    await ownerPage.getByRole('button', { name: 'Send invite' }).click();
+    await sent;
+
+    const inviteePage = await inviteeContext.newPage();
+    await inviteePage.goto('/boards');
+    const declined = written(inviteePage);
+    await inviteePage.getByRole('button', { name: 'Decline' }).click();
+    await declined;
+
+    await expect.poll(async () => pendingInviteCount(boardId)).toBe(0);
+    await expect.poll(async () => (await boardMemberRoles(boardId)).length).toBe(1);
+  } finally {
+    await removeSeededUser(invitee.userId);
+    await removeSeededUser(owner.userId);
+    await ownerContext.close();
+    await inviteeContext.close();
   }
 });
