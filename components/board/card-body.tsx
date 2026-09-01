@@ -28,12 +28,15 @@ export function CardBody({
   card,
   canWrite,
   viewer,
-  showHeading = true,
+  surface = 'page',
 }: {
   card: CardForView;
   canWrite: boolean;
   viewer: Viewer;
-  showHeading?: boolean;
+  // The canonical page has no chrome of its own and no history entry to go
+  // back to, so it carries the heading and the way out; the modal has a title
+  // bar and a close button for both. One flag, because it is one distinction.
+  surface?: 'page' | 'modal';
 }) {
   const { patchCard } = useBoardActions();
   const { claim, subscribe } = useRealtime();
@@ -217,18 +220,21 @@ export function CardBody({
     });
   };
 
+  const backToBoard = (label: string) => (
+    <Link href={`/boards/${card.boardId}`} className="self-start text-sm text-muted hover:text-ink">
+      {label}
+    </Link>
+  );
+
   // Ahead of both returns below: the modal could close itself, but the
   // canonical page is a route and cannot, so both surfaces say it instead.
+  // This is the page's only way back while it stands — rendering the chrome
+  // link above it as well would say the same thing twice.
   if (deleted) {
     return (
       <article className="flex flex-col gap-4">
         <p className="text-[15px] leading-6 text-ink">This card was deleted.</p>
-        <Link
-          href={`/boards/${card.boardId}`}
-          className="self-start text-sm text-muted hover:text-ink"
-        >
-          Back to the board
-        </Link>
+        {backToBoard('Back to the board')}
       </article>
     );
   }
@@ -236,7 +242,8 @@ export function CardBody({
   if (!canWrite) {
     return (
       <article className="flex flex-col gap-4">
-        {showHeading ? (
+        {surface === 'page' ? backToBoard('Back to board') : null}
+        {surface === 'page' ? (
           <h2 className="text-sm font-medium leading-5 text-ink">{savedTitle}</h2>
         ) : null}
         <CardDueDate value={dueDate} canWrite={canWrite} />
@@ -250,6 +257,7 @@ export function CardBody({
 
   return (
     <article className="flex flex-col gap-4">
+      {surface === 'page' ? backToBoard('Back to board') : null}
       <input
         aria-label="Card title"
         value={title}

@@ -60,7 +60,7 @@ export function CardModal({
             and warns about nothing when it isn't, so this is the dialog's
             only accessible name. sr-only because the visible title is the
             editable input for a writer; a viewer's own heading is hidden in
-            the modal (CardBody's `showHeading={false}`) so it is not
+            the modal (CardBody's `surface="modal"`) so it is not
             announced twice. */}
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <CardEscapeGuard.Provider value={guardRef}>{children}</CardEscapeGuard.Provider>
