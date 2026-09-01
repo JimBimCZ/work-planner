@@ -16,7 +16,7 @@ vi.mock('@/lib/events', async () => {
   return { ...actual, publish: (...args: unknown[]) => publish(...args) };
 });
 
-type Op = { kind: 'insert' | 'update' | 'delete'; table: string; values?: unknown };
+type Op = { kind: 'insert' | 'update' | 'delete' | 'query' | 'transaction'; table: string; values?: unknown };
 const ops: Op[] = [];
 
 function tableName(table: unknown): string {
@@ -30,14 +30,35 @@ let insertRejects: Error | undefined;
 let updateRejects: Error | undefined;
 let cardRow: { boardId: string } | undefined;
 let submittedLabels: { id: string; boardId: string }[] = [];
+// Rows the cap query's `where` callback actually has to filter, so a test can
+// tell "no board has fifty" from "this board has fifty" — labelCount alone
+// cannot, since it never varies by board.
+let capLabelRows: { boardId: string }[] | undefined;
+
+type CapQueryArgs = {
+  where?: (
+    row: Record<string, unknown>,
+    helpers: { eq: (a: unknown, b: unknown) => boolean },
+  ) => unknown;
+};
 
 const query = {
   labels: {
     findFirst: async () => labelRow,
-    findMany: async () =>
-      submittedLabels.length > 0
-        ? submittedLabels
-        : Array.from({ length: labelCount }, (_, i) => ({ id: `l${i}` })),
+    findMany: async (args?: CapQueryArgs) => {
+      if (submittedLabels.length > 0) {
+        // Marks where in the op sequence setCardLabels's ownership read
+        // actually runs, so a test can assert it happens after the
+        // transaction has begun rather than before it.
+        ops.push({ kind: 'query', table: 'labels' });
+        return submittedLabels;
+      }
+      if (capLabelRows) {
+        const eq = (a: unknown, b: unknown) => a === b;
+        return args?.where ? capLabelRows.filter((row) => args.where!(row, { eq })) : capLabelRows;
+      }
+      return Array.from({ length: labelCount }, (_, i) => ({ id: `l${i}` }));
+    },
   },
   cards: {
     findFirst: async () => cardRow,
@@ -69,7 +90,13 @@ const writer = {
 };
 
 vi.mock('@/lib/db', () => ({
-  db: { ...writer, transaction: (fn: (t: typeof writer) => Promise<unknown>) => fn(writer) },
+  db: {
+    ...writer,
+    transaction: (fn: (t: typeof writer) => Promise<unknown>) => {
+      ops.push({ kind: 'transaction', table: 'begin' });
+      return fn(writer);
+    },
+  },
 }));
 
 const { createLabel, deleteLabel, renameLabel, setCardLabels } = await import('./labels');
@@ -85,6 +112,7 @@ beforeEach(() => {
   updateRejects = undefined;
   cardRow = undefined;
   submittedLabels = [];
+  capLabelRows = undefined;
   authMock.mockReset();
   assertBoardAccess.mockReset();
   assertBoardAccess.mockResolvedValue('member');
@@ -117,6 +145,19 @@ describe('createLabel', () => {
     });
   });
 
+  // Every call site mints this with crypto.randomUUID(). Bounding it to a UUID
+  // keeps a client from posting an oversized value that pushes card.labelled
+  // (the one new event carrying a variable-length array) over PAYLOAD_CEILING,
+  // silently dropping it for every other viewer.
+  test('refuses a mutationId that is not a UUID', async () => {
+    authMock.mockResolvedValue(signedIn);
+    await expect(createLabel({ ...input, mutationId: 'x'.repeat(9_000) })).resolves.toEqual({
+      ok: false,
+      error: 'INVALID',
+    });
+    expect(ops).toEqual([]);
+  });
+
   // Checks the args a rejected call receives, and that a rejection actually
   // blocks the insert — a mock recorded with the right args proves nothing
   // about ordering on its own.
@@ -134,6 +175,17 @@ describe('createLabel', () => {
     labelCount = 50;
     await expect(createLabel(input)).resolves.toEqual({ ok: false, error: 'LIMIT_REACHED' });
     expect(ops).toEqual([]);
+  });
+
+  // The cap has to scope to this board. Another board sitting at the limit
+  // must never block this one — only a where clause on boardId prevents that.
+  test('counts only this board toward the cap, not every board', async () => {
+    authMock.mockResolvedValue(signedIn);
+    capLabelRows = [
+      ...Array.from({ length: 50 }, () => ({ boardId: 'board-9' })),
+      ...Array.from({ length: 2 }, () => ({ boardId: 'board-1' })),
+    ];
+    await expect(createLabel(input)).resolves.toEqual({ ok: true, data: { id: 'label-new' } });
   });
 
   // The database owns this, not a pre-read: two simultaneous creates would
@@ -249,7 +301,10 @@ describe('setCardLabels', () => {
   });
 
   // The whole reason this action re-reads the labels it was handed. Without
-  // it, a member of board A staples board B's label onto a card by id.
+  // it, a member of board A staples board B's label onto a card by id. The
+  // read now runs inside the transaction (see the ordering test below), so a
+  // rejection here leaves only the transaction-start and the read behind —
+  // never a card_labels or boards write.
   test('refuses a label belonging to another board', async () => {
     authMock.mockResolvedValue(signedIn);
     cardRow = { boardId: 'board-1' };
@@ -258,7 +313,10 @@ describe('setCardLabels', () => {
       { id: 'l2', boardId: 'board-2' },
     ];
     await expect(setCardLabels(input)).resolves.toEqual({ ok: false, error: 'INVALID' });
-    expect(ops).toEqual([]);
+    expect(ops).toEqual([
+      { kind: 'transaction', table: 'begin' },
+      { kind: 'query', table: 'labels' },
+    ]);
   });
 
   test('refuses an id that names no label at all', async () => {
@@ -266,7 +324,27 @@ describe('setCardLabels', () => {
     cardRow = { boardId: 'board-1' };
     submittedLabels = [{ id: 'l1', boardId: 'board-1' }];
     await expect(setCardLabels(input)).resolves.toEqual({ ok: false, error: 'INVALID' });
-    expect(ops).toEqual([]);
+    expect(ops).toEqual([
+      { kind: 'transaction', table: 'begin' },
+      { kind: 'query', table: 'labels' },
+    ]);
+  });
+
+  // Finding 5: the ownership read used to run before db.transaction was ever
+  // called, so a label deleted between the read and the write raised an
+  // unhandled foreign key violation instead of returning INVALID. Reading it
+  // through tx closes that window; this asserts the read happens after the
+  // transaction starts, not before.
+  test('reads label ownership inside the transaction, not before it', async () => {
+    authMock.mockResolvedValue(signedIn);
+    cardRow = { boardId: 'board-1' };
+    submittedLabels = [
+      { id: 'l1', boardId: 'board-1' },
+      { id: 'l2', boardId: 'board-1' },
+    ];
+    await expect(setCardLabels(input)).resolves.toEqual({ ok: true });
+    expect(ops[0]).toEqual({ kind: 'transaction', table: 'begin' });
+    expect(ops[1]).toEqual({ kind: 'query', table: 'labels' });
   });
 
   test('replaces the whole set in one transaction, then announces it', async () => {
@@ -278,6 +356,8 @@ describe('setCardLabels', () => {
     ];
     await expect(setCardLabels(input)).resolves.toEqual({ ok: true });
     expect(ops).toEqual([
+      { kind: 'transaction', table: 'begin' },
+      { kind: 'query', table: 'labels' },
       { kind: 'delete', table: 'card_labels' },
       {
         kind: 'insert',

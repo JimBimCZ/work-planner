@@ -13,7 +13,12 @@ import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 import { boardIdForCard, touchBoard } from './scope';
 
 const id = z.string().min(1);
-const mutationId = z.string().min(1);
+// Every call site mints the mutationId with crypto.randomUUID(). Bounding it to
+// a UUID keeps an oversized value from pushing the published event over
+// PAYLOAD_CEILING and silently dropping it for every other viewer — card.labelled
+// is the worst place to keep a loose schema, since it's the one new event
+// carrying a variable-length array.
+const mutationId = z.uuid();
 
 // Trimmed before validation, not after: a pasted name brings its whitespace,
 // and '   ' must fail the minimum rather than be stored as three spaces.
@@ -88,7 +93,6 @@ export async function createLabel(input: unknown) {
     actorId: session.user.id,
   });
 
-  revalidatePath('/boards');
   return { ok: true, data: { id: created.id } } as const;
 }
 
@@ -124,7 +128,6 @@ export async function renameLabel(input: unknown) {
     actorId: session.user.id,
   });
 
-  revalidatePath('/boards');
   return { ok: true } as const;
 }
 
@@ -155,7 +158,6 @@ export async function deleteLabel(input: unknown) {
     actorId: session.user.id,
   });
 
-  revalidatePath('/boards');
   return { ok: true } as const;
 }
 
@@ -178,25 +180,30 @@ export async function setCardLabels(input: unknown) {
     return boardAccessResult(error);
   }
 
-  // Every submitted id is re-read and checked against this card's own board.
-  // An id from another board would otherwise be written verbatim, which leaks
-  // that board's vocabulary and poisons its counts.
-  if (labelIds.length > 0) {
-    const found = await db.query.labels.findMany({
-      where: (label, { inArray: isIn }) => isIn(label.id, labelIds),
-      columns: { id: true, boardId: true },
-    });
-    const mine = found.filter((label) => label.boardId === boardId);
-    if (mine.length !== labelIds.length) return { ok: false, error: 'INVALID' } as const;
-  }
+  // Every submitted id is re-read and checked against this card's own board,
+  // inside the same transaction that writes them: a label deleted between the
+  // read and the write must fail this check, not raise an unhandled foreign
+  // key violation out of the insert below. An id from another board would
+  // otherwise be written verbatim, which leaks that board's vocabulary and
+  // poisons its counts.
+  const result = await db.transaction(async (tx) => {
+    if (labelIds.length > 0) {
+      const found = await tx.query.labels.findMany({
+        where: (label, { inArray: isIn }) => isIn(label.id, labelIds),
+        columns: { id: true, boardId: true },
+      });
+      const mine = found.filter((label) => label.boardId === boardId);
+      if (mine.length !== labelIds.length) return { ok: false, error: 'INVALID' } as const;
+    }
 
-  await db.transaction(async (tx) => {
     await tx.delete(cardLabels).where(eq(cardLabels.cardId, cardId));
     if (labelIds.length > 0) {
       await tx.insert(cardLabels).values(labelIds.map((labelId) => ({ cardId, labelId })));
     }
     await touchBoard(tx, boardId);
+    return { ok: true } as const;
   });
+  if (!result.ok) return result;
 
   await publish(boardId, {
     type: 'card.labelled',
