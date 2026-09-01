@@ -12,6 +12,9 @@ vi.mock('@/lib/actions/members', () => ({
   transferOwnership: vi.fn(),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock('@/components/board/realtime', () => ({
+  useRealtime: () => ({ claim: () => 'mutation-1', subscribe: () => () => {} }),
+}));
 
 const { MembersPanel } = await import('./members-dialog');
 

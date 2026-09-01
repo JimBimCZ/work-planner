@@ -122,3 +122,30 @@ describe('publishComment', () => {
     );
   });
 });
+
+test('every event the server can publish is one the client binds', async () => {
+  const source = await import('node:fs').then((fs) =>
+    fs.readFileSync('components/board/realtime.tsx', 'utf8'),
+  );
+  const bound = source.slice(source.indexOf('EVENT_NAMES'), source.indexOf('CLAIM_MEMORY'));
+
+  for (const name of [
+    'card.created',
+    'card.updated',
+    'card.moved',
+    'card.deleted',
+    'column.created',
+    'column.updated',
+    'column.moved',
+    'column.deleted',
+    'comment.created',
+    'comment.created.truncated',
+    'comment.updated',
+    'comment.deleted',
+    'member.added',
+    'member.updated',
+    'member.removed',
+  ]) {
+    expect(bound, `${name} is published but never delivered`).toContain(`'${name}'`);
+  }
+});

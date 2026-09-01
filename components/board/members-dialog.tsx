@@ -1,8 +1,9 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 
+import { useRealtime } from '@/components/board/realtime';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import {
   changeRole,
@@ -43,10 +44,21 @@ export function MembersPanel({
   const [confirmName, setConfirmName] = useState('');
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const { claim, subscribe } = useRealtime();
+
+  // A membership that changed under an open dialog would otherwise stay on
+  // screen until it was closed and opened again.
+  useEffect(
+    () =>
+      subscribe((event) => {
+        if (event.type.startsWith('member.')) router.refresh();
+      }),
+    [subscribe, router],
+  );
 
   function leave() {
     startTransition(async () => {
-      const result = await attempt(() => leaveBoard({ boardId }));
+      const result = await attempt(() => leaveBoard({ boardId, mutationId: claim() }));
       if (!result.ok) {
         setError('You could not be taken off this board. Try again.');
         return;
@@ -75,7 +87,9 @@ export function MembersPanel({
 
   function setMemberRole(userId: string, next: 'member' | 'viewer') {
     startTransition(async () => {
-      const result = await attempt(() => changeRole({ boardId, userId, role: next }));
+      const result = await attempt(() =>
+        changeRole({ boardId, userId, role: next, mutationId: claim() }),
+      );
       if (!result.ok) {
         setError('That role could not be changed. Try again.');
         return;
@@ -86,7 +100,7 @@ export function MembersPanel({
 
   function remove(userId: string) {
     startTransition(async () => {
-      const result = await attempt(() => removeMember({ boardId, userId }));
+      const result = await attempt(() => removeMember({ boardId, userId, mutationId: claim() }));
       if (!result.ok) {
         setError('They could not be removed. Try again.');
         return;
@@ -98,7 +112,9 @@ export function MembersPanel({
   function transfer(userId: string) {
     setError(null);
     startTransition(async () => {
-      const result = await attempt(() => transferOwnership({ boardId, userId, confirmName }));
+      const result = await attempt(() =>
+        transferOwnership({ boardId, userId, confirmName, mutationId: claim() }),
+      );
       if (!result.ok) {
         setError(
           result.error === 'NAME_MISMATCH'

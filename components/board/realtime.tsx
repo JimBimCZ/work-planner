@@ -24,6 +24,9 @@ const EVENT_NAMES: BoardEvent['type'][] = [
   'comment.created.truncated',
   'comment.updated',
   'comment.deleted',
+  'member.added',
+  'member.updated',
+  'member.removed',
 ];
 
 // Bounded: an echo arrives within milliseconds of its action resolving, so the
