@@ -164,8 +164,12 @@ existence of B's vocabulary and corrupts B's filter counts. `CLAUDE.md`'s "never
 trust `boardId` or `userId` from the client" extends to label ids for the same
 reason.
 
-The 50-label cap is counted inside `createLabel`'s transaction, not before it,
-so two simultaneous creates cannot both see 49.
+The 50-label cap is a guard rather than an invariant: two simultaneous creates
+can both read 49 and both succeed. A fifty-first label costs nothing — the
+payload maths has an order of magnitude of headroom — and closing the race would
+take a lock or a constraint, neither of which a tunable product limit is worth.
+Uniqueness is the opposite case and is owned by the database, because a
+check-then-insert genuinely does let two callers create `bug` twice.
 
 ### Client state, and where the filter lives
 
