@@ -33,6 +33,7 @@ const dueDateSchema = z.object({
   dueDate: z.string().nullable(),
   mutationId: z.uuid(),
 });
+const readSchema = z.object({ cardId: id });
 const moveSchema = z.object({
   cardId: id,
   toColumnId: id,
@@ -169,6 +170,31 @@ export async function setCardDescription(input: unknown) {
     descriptionChanged: true,
   });
   return { ok: true } as const;
+}
+
+// The one field card.updated cannot carry. A 10,000-character description does
+// not fit under Pusher's 10KB limit in any encoding, so the event says that it
+// changed and the open card asks for it.
+export async function readCardDescription(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = readSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  const card = await db.query.cards.findFirst({
+    where: (c, { eq: is }) => is(c.id, parsed.data.cardId),
+    columns: { boardId: true, description: true },
+  });
+  if (!card) return { ok: false, error: 'NOT_FOUND' } as const;
+
+  try {
+    await assertBoardAccess(session.user.id, card.boardId, 'viewer');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  return { ok: true, data: { description: card.description } } as const;
 }
 
 export async function setCardDueDate(input: unknown) {
