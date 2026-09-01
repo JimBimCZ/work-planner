@@ -52,6 +52,10 @@ export type BoardEvent = Envelope &
     | { type: 'member.added'; userId: string; role: BoardRole }
     | { type: 'member.updated'; userId: string; role: BoardRole }
     | { type: 'member.removed'; userId: string }
+    | { type: 'label.created'; id: string; name: string }
+    | { type: 'label.updated'; id: string; name: string }
+    | { type: 'label.deleted'; id: string }
+    | { type: 'card.labelled'; id: string; labelIds: string[] }
   );
 
 export const channelFor = (boardId: string) => `private-board-${boardId}`;
