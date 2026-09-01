@@ -127,19 +127,21 @@ export function MembersPanel({
     <>
       <ul className="mt-4 space-y-2">
         {members.map((member) => (
-          <li key={member.userId} className="flex items-center gap-3">
+          <li key={member.userId} className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span
               aria-hidden
-              className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-medium text-white"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium text-white"
               style={{ background: `hsl(${avatarHue(member.userId)} 45% 40%)` }}
             >
               {initials(member.name, member.email ?? '')}
             </span>
-            <span className="flex-1 text-sm">
+            <span className="min-w-0 flex-1 truncate text-sm">
               {member.name ?? member.email ?? 'Someone'}
               {member.userId === viewerId && <span className="ml-2 text-xs text-muted">You</span>}
             </span>
-            {member.email && <span className="text-xs text-muted">{member.email}</span>}
+            {member.email && (
+              <span className="min-w-0 max-w-full truncate text-xs text-muted">{member.email}</span>
+            )}
             {isOwner && member.role !== 'owner' ? (
               <>
                 <select
@@ -148,7 +150,7 @@ export function MembersPanel({
                   onChange={(event) =>
                     setMemberRole(member.userId, event.target.value === 'viewer' ? 'viewer' : 'member')
                   }
-                  className="rounded-[var(--radius-control)] border border-line bg-canvas px-2 py-1 text-xs"
+                  className="shrink-0 rounded-[var(--radius-control)] border border-line bg-canvas px-2 py-1 text-xs"
                 >
                   <option value="member">Member</option>
                   <option value="viewer">Viewer</option>
@@ -156,14 +158,14 @@ export function MembersPanel({
                 <button
                   type="button"
                   onClick={() => setHandingTo(member.userId)}
-                  className="text-xs font-medium"
+                  className="shrink-0 text-xs font-medium"
                 >
                   Make owner
                 </button>
                 <button
                   type="button"
                   onClick={() => remove(member.userId)}
-                  className="text-xs font-medium text-time-over"
+                  className="shrink-0 text-xs font-medium text-time-over"
                 >
                   Remove
                 </button>
@@ -203,19 +205,19 @@ export function MembersPanel({
             <label className="block text-sm text-muted" htmlFor="invite-email">
               Invite by email
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <input
                 id="invite-email"
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="flex-1 rounded-[var(--radius-control)] border border-line bg-canvas px-3 py-2 text-[15px]"
+                className="min-w-0 flex-1 rounded-[var(--radius-control)] border border-line bg-canvas px-3 py-2 text-[15px]"
               />
               <select
                 aria-label="Role"
                 value={role}
                 onChange={(event) => setRole(event.target.value === 'viewer' ? 'viewer' : 'member')}
-                className="rounded-[var(--radius-control)] border border-line bg-canvas px-2 text-sm"
+                className="shrink-0 rounded-[var(--radius-control)] border border-line bg-canvas px-2 text-sm"
               >
                 <option value="member">Member</option>
                 <option value="viewer">Viewer</option>
@@ -223,7 +225,7 @@ export function MembersPanel({
               <button
                 type="submit"
                 disabled={pending}
-                className="rounded-[var(--radius-control)] bg-flow-mid px-3 py-1.5 text-sm font-medium text-white"
+                className="shrink-0 rounded-[var(--radius-control)] bg-flow-mid px-3 py-1.5 text-sm font-medium text-white"
               >
                 Send invite
               </button>
@@ -232,13 +234,15 @@ export function MembersPanel({
           {invites.length > 0 && (
             <ul className="mt-4 space-y-2 border-t border-line pt-3">
               {invites.map((invite) => (
-                <li key={invite.id} className="flex items-center gap-3 text-sm">
-                  <span className="flex-1">{invite.email}</span>
-                  <span className="font-mono text-xs text-muted">invited as {invite.role}</span>
+                <li key={invite.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                  <span className="min-w-0 flex-1 truncate">{invite.email}</span>
+                  <span className="shrink-0 font-mono text-xs text-muted">
+                    invited as {invite.role}
+                  </span>
                   <button
                     type="button"
                     onClick={() => revoke(invite.id)}
-                    className="text-xs font-medium text-time-over"
+                    className="shrink-0 text-xs font-medium text-time-over"
                   >
                     Revoke
                   </button>

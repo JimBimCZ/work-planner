@@ -1976,7 +1976,7 @@ git commit -m "feat: hand a board over from the members dialog"
 **Interfaces:**
 - Produces: `boardMemberRoles(boardId): Promise<{ user_id: string; role: string }[]>` and `boardOwnerId(boardId): Promise<string | null>` in `e2e/support/session.ts`, used again in Sections C and D.
 
-- [ ] **Step 1: Add the seed helpers**
+- [x] **Step 1: Add the seed helpers**
 
 In `e2e/support/session.ts`:
 
@@ -2000,7 +2000,7 @@ export async function boardOwnerId(boardId: string): Promise<string | null> {
 }
 ```
 
-- [ ] **Step 2: Write the failing e2e spec**
+- [x] **Step 2: Write the failing e2e spec**
 
 Create `e2e/members.spec.ts`. Section B drives the owner's dialog against a seeded second member — Section C replaces the seeding with the real invite flow.
 
@@ -2105,7 +2105,7 @@ test('a viewer can see who is on the board and leave it', async ({ page, context
 
 `seedSession` gives every user the name "Test User", so `Role for Test User` is the label for the seeded member — the owner's own row has no such control by design.
 
-- [ ] **Step 3: Run it**
+- [x] **Step 3: Run it**
 
 ```bash
 pnpm exec playwright test e2e/members.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -2113,11 +2113,11 @@ pnpm exec playwright test e2e/members.spec.ts --reporter=line > /tmp/e2e.log 2>&
 
 Expected: PASS, 3 tests. **Compare the number that ran against the number collected** — a passing count is not a passing suite.
 
-- [ ] **Step 4: Take the screenshots the PR needs**
+- [x] **Step 4: Take the screenshots the PR needs**
 
 The dialog in both themes at 1440px and 390px, as owner and as viewer. Save under `docs/screenshots/`, matching what the account-deletion PR committed. Close any browser or dev server you opened.
 
-- [ ] **Step 5: Commit and open the Section B pull request**
+- [x] **Step 5: Commit and open the Section B pull request**
 
 ```bash
 git add e2e/members.spec.ts e2e/support/session.ts docs/screenshots docs/plans/member-management.md

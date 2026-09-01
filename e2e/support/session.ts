@@ -192,3 +192,21 @@ export async function commentAuthorId(commentId: string): Promise<string | null 
   );
   return rows.length === 0 ? undefined : rows[0].author_id;
 }
+
+export async function boardMemberRoles(
+  boardId: string,
+): Promise<{ user_id: string; role: string }[]> {
+  const { rows } = await seedPool().query<{ user_id: string; role: string }>(
+    'select user_id, role from board_members where board_id = $1 order by role',
+    [boardId],
+  );
+  return rows;
+}
+
+export async function boardOwnerId(boardId: string): Promise<string | null> {
+  const { rows } = await seedPool().query<{ owner_id: string }>(
+    'select owner_id from boards where id = $1',
+    [boardId],
+  );
+  return rows[0]?.owner_id ?? null;
+}
