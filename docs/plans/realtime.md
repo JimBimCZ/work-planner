@@ -1817,7 +1817,7 @@ Everything published in Section 2 gets a consumer here, so the board itself is f
 **Interfaces:**
 - Produces: `BoardAction` gains `{ type: 'card.patch'; cardId: string; title?: string; dueDate?: string | null }`, handled by `boardReducer` and given a real entry in `inverse`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/board-state.test.ts`:
 
@@ -1866,12 +1866,12 @@ describe('card.patch', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/board-state.test.ts`
 Expected: FAIL — `card.patch` is not in the `BoardAction` union.
 
-- [ ] **Step 3: Add the action**
+- [x] **Step 3: Add the action**
 
 In `lib/board-state.ts`, extend the union:
 
@@ -1904,7 +1904,7 @@ and `inverse`:
     }
 ```
 
-- [ ] **Step 4: Route the modal's patch through it**
+- [x] **Step 4: Route the modal's patch through it**
 
 In `components/board/board-canvas.tsx`, the `registerPatchCard` effect currently dispatches two actions. Collapse it:
 
@@ -1915,12 +1915,12 @@ In `components/board/board-canvas.tsx`, the `registerPatchCard` effect currently
   }, [registerPatchCard]);
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm test lib/board-state.test.ts` then `pnpm test`
 Expected: both PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/board-state.ts lib/board-state.test.ts components/board/board-canvas.tsx

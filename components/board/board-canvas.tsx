@@ -103,12 +103,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   // the two trees meet. On the canonical card page nothing registers, and the
   // modal simply finds null.
   useEffect(() => {
-    registerPatchCard((cardId, patch) => {
-      if (patch.title !== undefined) dispatch({ type: 'card.rename', cardId, title: patch.title });
-      if (patch.dueDate !== undefined) {
-        dispatch({ type: 'card.setDueDate', cardId, dueDate: patch.dueDate });
-      }
-    });
+    registerPatchCard((cardId, patch) => dispatch({ type: 'card.patch', cardId, ...patch }));
     return () => registerPatchCard(null);
   }, [registerPatchCard]);
 
