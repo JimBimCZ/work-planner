@@ -25,6 +25,7 @@ import {
 import { BoardColumn } from '@/components/board/board-column';
 import { ColumnSwitcher } from '@/components/board/column-switcher';
 import { useBoardActions } from '@/components/board/board-actions';
+import { useRealtime } from '@/components/board/realtime';
 import { createCard, deleteCard, moveCard, renameCard } from '@/lib/actions/cards';
 import { addColumn, deleteColumn, moveColumn, renameColumn } from '@/lib/actions/columns';
 import {
@@ -78,6 +79,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const columnRefs = useRef(new Map<string, HTMLElement>());
   const { register, registerPatchCard } = useBoardActions();
+  const { subscribe: subscribeRealtime } = useRealtime();
 
   const reducedMotion = useSyncExternalStore(
     subscribe,
@@ -133,6 +135,23 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     for (const element of columnRefs.current.values()) observer.observe(element);
     return () => observer.disconnect();
   }, [total]);
+
+  // Remote events take the same reducer path a local mutation does. There is
+  // no second state tree, and no second set of rules about ordering.
+  useEffect(
+    () =>
+      subscribeRealtime((event) => {
+        if (event.type === 'card.moved') {
+          dispatch({
+            type: 'card.move',
+            cardId: event.id,
+            toColumnId: event.columnId,
+            rank: event.rank,
+          });
+        }
+      }),
+    [subscribeRealtime],
+  );
 
   const showColumn = (columnId: string) =>
     columnRefs.current.get(columnId)?.scrollIntoView({
@@ -219,6 +238,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
           toColumnId,
           beforeCardId: last?.id ?? null,
           afterCardId: null,
+          mutationId: crypto.randomUUID(),
         }),
       'That card could not be moved. Try again.',
     );
@@ -328,7 +348,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
         toColumnId: target.toColumnId,
         rank: rankBetween(before?.rank ?? null, after?.rank ?? null),
       },
-      () => moveCard({ cardId: String(active.id), ...target }),
+      () => moveCard({ cardId: String(active.id), ...target, mutationId: crypto.randomUUID() }),
       'That card could not be moved. Try again.',
     );
   }

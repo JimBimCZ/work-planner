@@ -43,6 +43,55 @@ test('a board subscribes to its own private channel', async ({ page, context }) 
   }
 });
 
+test('a card moved in one browser moves in another, with no reload', async ({ browser }) => {
+  const contextA = await browser.newContext();
+  const contextB = await browser.newContext();
+  const alice = await seedSession(contextA);
+  const boardId = await seedBoard(alice.userId, 'Roadmap');
+  const bob = await seedSession(contextB);
+  await seedMember(boardId, bob.userId, 'member');
+  const [ready, inProgress] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+
+  const pageA = await contextA.newPage();
+  const pageB = await contextB.newPage();
+
+  try {
+    await pageA.goto(`/boards/${boardId}`);
+    await pageB.goto(`/boards/${boardId}`);
+    // Both must be subscribed before the move, or the test races the socket.
+    for (const page of [pageA, pageB]) {
+      await expect(page.locator('[data-realtime]')).toHaveAttribute('data-realtime', 'subscribed', {
+        timeout: 15_000,
+      });
+    }
+
+    await expect(
+      pageB.locator(`[data-column-id="${ready.id}"] [data-card-id="${cardId}"]`),
+    ).toBeVisible();
+
+    await pageA.getByRole('button', { name: 'Card actions for Ship it' }).click();
+    await pageA.getByRole('menuitem', { name: 'Move to' }).click();
+    await pageA.getByRole('menuitem', { name: inProgress.name }).click();
+
+    // B is never reloaded. If this passes after a reload it proves nothing.
+    await expect(
+      pageB.locator(`[data-column-id="${inProgress.id}"] [data-card-id="${cardId}"]`),
+    ).toBeVisible({ timeout: 15_000 });
+  } finally {
+    await pageA.close();
+    await pageB.close();
+    await contextA.close();
+    await contextB.close();
+    await removeSeededUser(alice.userId);
+    await removeSeededUser(bob.userId);
+  }
+});
+
 test('a board the user cannot read never subscribes', async ({ page, context }) => {
   const owner = await seedSession(context);
   const boardId = await seedBoard(owner.userId, 'Private');

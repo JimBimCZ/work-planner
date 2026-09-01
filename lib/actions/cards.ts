@@ -8,6 +8,7 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { cards } from '@/lib/db/schema';
 import { fromDateInputValue } from '@/lib/due';
+import { publish } from '@/lib/events';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 import { ranksAfter, rankBetween } from '@/lib/rank';
 
@@ -29,6 +30,7 @@ const moveSchema = z.object({
   toColumnId: id,
   beforeCardId: id.nullable(),
   afterCardId: id.nullable(),
+  mutationId: id,
 });
 
 export async function createCard(input: unknown) {
@@ -236,5 +238,15 @@ export async function moveCard(input: unknown) {
   if (rank === null) return { ok: false, error: 'INVALID' } as const;
 
   revalidatePath('/boards');
+  // After the commit, never inside it: a rolled-back write that already
+  // announced itself leaves every other client ahead of the database.
+  await publish(boardId, {
+    type: 'card.moved',
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+    id: cardId,
+    columnId: toColumnId,
+    rank,
+  });
   return { ok: true, data: { rank } } as const;
 }
