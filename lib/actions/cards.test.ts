@@ -36,6 +36,7 @@ let cardRow:
       rank: string;
       title: string;
       dueDate: Date | null;
+      description: string | null;
     }
   | undefined;
 let columnRow: { id: string; boardId: string } | undefined;
@@ -85,8 +86,15 @@ vi.mock('@/lib/db', () => ({
   db: { query, transaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) },
 }));
 
-const { createCard, deleteCard, moveCard, renameCard, setCardDescription, setCardDueDate } =
-  await import('./cards');
+const {
+  createCard,
+  deleteCard,
+  moveCard,
+  readCardDescription,
+  renameCard,
+  setCardDescription,
+  setCardDueDate,
+} = await import('./cards');
 const { BoardAccessError } = await import('@/lib/permissions');
 
 beforeEach(() => {
@@ -98,6 +106,7 @@ beforeEach(() => {
     rank: 'a0',
     title: 'Ship it',
     dueDate: null,
+    description: 'The long version',
   };
   columnRow = { id: 'col-1', boardId: 'b1' };
   cardsInColumn = [];
@@ -678,5 +687,49 @@ describe('moveCard', () => {
       values: expect.objectContaining({ columnId: 'col-2' }),
     });
     expect(ops).toContainEqual(expect.objectContaining({ kind: 'update', table: 'boards' }));
+  });
+});
+
+describe('readCardDescription', () => {
+  test('refuses without a session', async () => {
+    authMock.mockResolvedValue(null);
+    await expect(readCardDescription({ cardId: 'card-1' })).resolves.toEqual({
+      ok: false,
+      error: 'UNAUTHENTICATED',
+    });
+  });
+
+  test('returns the description', async () => {
+    await expect(readCardDescription({ cardId: 'card-1' })).resolves.toEqual({
+      ok: true,
+      data: { description: 'The long version' },
+    });
+  });
+
+  test('refuses a card that does not exist', async () => {
+    cardRow = undefined;
+    await expect(readCardDescription({ cardId: 'card-1' })).resolves.toEqual({
+      ok: false,
+      error: 'NOT_FOUND',
+    });
+  });
+
+  // A viewer may read. This is the floor for a read, not 'member'.
+  test('asks for viewer', async () => {
+    await readCardDescription({ cardId: 'card-1' });
+    expect(assertBoardAccess).toHaveBeenCalledWith('user-1', 'b1', 'viewer');
+  });
+
+  test('refuses a board the caller is not a member of', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await expect(readCardDescription({ cardId: 'card-1' })).resolves.toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+  });
+
+  test('publishes nothing — it is a read', async () => {
+    await readCardDescription({ cardId: 'card-1' });
+    expect(publish).not.toHaveBeenCalled();
   });
 });

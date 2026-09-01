@@ -1,4 +1,4 @@
-import { expect, test, type Browser } from '@playwright/test';
+import { expect, test, type Browser, type Page } from '@playwright/test';
 import {
   boardColumns,
   closeSeedPool,
@@ -373,6 +373,181 @@ test('a client that missed events catches up on reconnect', async ({ browser }) 
     await expect(
       pageB.locator(`[data-column-id="${inProgress.id}"] [data-card-id="${cardId}"]`),
     ).toBeVisible({ timeout: 60_000 });
+  } finally {
+    await close();
+  }
+});
+
+// The card page mounts its own subscription. Waiting for it is not politeness:
+// an event published before B is subscribed is simply never delivered, and the
+// test would fail for a reason that has nothing to do with what it asserts.
+const subscribed = (page: Page) =>
+  expect(page.locator('[data-realtime]')).toHaveAttribute('data-realtime', 'subscribed', {
+    timeout: 15_000,
+  });
+
+const renameOnBoard = async (page: Page, from: string, to: string) => {
+  await page.getByRole('button', { name: `Card actions for ${from}` }).click();
+  await page.getByRole('menuitem', { name: 'Rename' }).click();
+  await page.getByRole('textbox', { name: 'Card title' }).fill(to);
+  await page.getByRole('button', { name: 'Save changes' }).click();
+};
+
+test('a title edited elsewhere lands in a field nobody is typing in', async ({ browser }) => {
+  const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+
+  try {
+    await pageB.goto(`/boards/${boardId}/cards/${cardId}`);
+    await subscribed(pageB);
+    await pageA.reload();
+    await renameOnBoard(pageA, 'Ship it', 'Shipped');
+
+    await expect(pageB.getByLabel('Card title')).toHaveValue('Shipped', { timeout: 15_000 });
+  } finally {
+    await close();
+  }
+});
+
+// The rule this section exists for. Last-write-wins is about stored values; it
+// does not license destroying text someone has not sent yet.
+test('a field being typed in is not overwritten', async ({ browser }) => {
+  const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+
+  try {
+    await pageB.goto(`/boards/${boardId}/cards/${cardId}`);
+    await subscribed(pageB);
+    await pageB.getByLabel('Card title').fill('Half-written thought');
+
+    await pageA.reload();
+    await renameOnBoard(pageA, 'Ship it', 'Shipped');
+
+    await pageB.waitForTimeout(3_000);
+    await expect(pageB.getByLabel('Card title')).toHaveValue('Half-written thought');
+  } finally {
+    await close();
+  }
+});
+
+test('a description edited elsewhere is refetched', async ({ browser }) => {
+  const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+
+  try {
+    await pageA.goto(`/boards/${boardId}/cards/${cardId}`);
+    await pageB.goto(`/boards/${boardId}/cards/${cardId}`);
+    await subscribed(pageA);
+    await subscribed(pageB);
+
+    await pageA.getByLabel('Description').fill('Written by Alice');
+    await pageA.getByLabel('Description').blur();
+
+    await expect(pageB.getByLabel('Description')).toHaveValue('Written by Alice', {
+      timeout: 15_000,
+    });
+  } finally {
+    await close();
+  }
+});
+
+test('a card deleted elsewhere says so rather than vanishing', async ({ browser }) => {
+  const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+
+  try {
+    await pageB.goto(`/boards/${boardId}/cards/${cardId}`);
+    await subscribed(pageB);
+    await pageA.reload();
+
+    await pageA.getByRole('button', { name: 'Card actions for Ship it' }).click();
+    await pageA.getByRole('menuitem', { name: 'Delete' }).click();
+    await pageA.getByRole('button', { name: 'Delete card' }).click();
+
+    await expect(pageB.getByText('This card was deleted')).toBeVisible({ timeout: 15_000 });
+    await expect(pageB.getByRole('link', { name: 'Back to the board' })).toBeVisible();
+    // The canonical page is a route, not an overlay, so it cannot simply close.
+    await expect(pageB.getByLabel('Card title')).toHaveCount(0);
+  } finally {
+    await close();
+  }
+});
+
+// The same treatment on the other surface. The modal could in principle close
+// itself, so proving the canonical page alone would leave the harder half of
+// the gate untested.
+test('a card deleted elsewhere says so in the modal too', async ({ browser }) => {
+  const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  await seedCard(ready.id, { boardId, createdById: alice.userId, title: 'Ship it' });
+
+  try {
+    await pageB.reload();
+    await subscribed(pageB);
+    await pageB.getByTestId('card-title').filter({ hasText: 'Ship it' }).click();
+    await expect(pageB.getByRole('dialog')).toBeVisible();
+
+    await pageA.reload();
+    await pageA.getByRole('button', { name: 'Card actions for Ship it' }).click();
+    await pageA.getByRole('menuitem', { name: 'Delete' }).click();
+    await pageA.getByRole('button', { name: 'Delete card' }).click();
+
+    // The modal stays open and says what happened rather than vanishing under
+    // the reader, even though the board behind it has dropped the card.
+    await expect(pageB.getByRole('dialog').getByText('This card was deleted')).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(
+      pageB.getByRole('dialog').getByRole('link', { name: 'Back to the board' }),
+    ).toBeVisible();
+  } finally {
+    await close();
+  }
+});
+
+// PAYLOAD_CEILING is 8,192 bytes and publish() drops anything over it, so a
+// description this size could never have travelled in the event. Arriving at
+// all is proof it came back through readCardDescription.
+test('a description over the payload ceiling still arrives', async ({ browser }) => {
+  const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+  const huge = 'x'.repeat(9_000);
+
+  try {
+    await pageA.goto(`/boards/${boardId}/cards/${cardId}`);
+    await pageB.goto(`/boards/${boardId}/cards/${cardId}`);
+    await subscribed(pageA);
+    await subscribed(pageB);
+
+    await pageA.getByLabel('Description').fill(huge);
+    await pageA.getByLabel('Description').blur();
+
+    await expect(pageB.getByLabel('Description')).toHaveValue(huge, { timeout: 15_000 });
   } finally {
     await close();
   }
