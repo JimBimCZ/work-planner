@@ -2215,7 +2215,7 @@ Pusher does not replay. A client that was asleep reconnects to a board that has 
 - Consumes: `getBoardWithColumns` from `lib/boards.ts`, which returns `BoardWithCards | null` and is wrapped in React's `cache`. Note the mismatch between the function name and the type name — the function is `getBoardWithColumns`.
 - Produces: `readBoard(input: unknown)` returning `{ ok: true, data: BoardState } | { ok: false, error: ... }`; `BoardAction` gains `{ type: 'board.reseed'; state: BoardState }`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `lib/board-state.test.ts`:
 
@@ -2276,12 +2276,12 @@ test('publishes nothing — it is a read', async () => {
 });
 ```
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `pnpm test lib/board-state.test.ts lib/actions/board.test.ts`
 Expected: FAIL on both.
 
-- [ ] **Step 3: Add `board.reseed`**
+- [x] **Step 3: Add `board.reseed`**
 
 In `lib/board-state.ts`, extend the union with `| { type: 'board.reseed'; state: BoardState }`, add to the reducer:
 
@@ -2297,7 +2297,7 @@ and to `inverse`:
       return [{ type: 'board.reseed', state }];
 ```
 
-- [ ] **Step 4: Write `readBoard`**
+- [x] **Step 4: Write `readBoard`**
 
 Create `lib/actions/board.ts`. Read `lib/boards.ts` first and reuse its existing board read and the shape `components/board/board-canvas.tsx`'s `seed()` builds, so one mapping exists rather than two.
 
@@ -2337,12 +2337,12 @@ export async function readBoard(input: unknown) {
 
 Move `seed()` out of `board-canvas.tsx` into `lib/board-state.ts` as an exported `toBoardState(board)`, so the initial render and the reconnect build the same shape from the same code. Update `board-canvas.tsx`'s `useReducer` to use it, and delete the now-stale comment that says "There is no realtime in this sub-project, so the reducer is the truth for the session".
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm test`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/actions/board.ts lib/actions/board.test.ts lib/board-state.ts lib/board-state.test.ts components/board/board-canvas.tsx

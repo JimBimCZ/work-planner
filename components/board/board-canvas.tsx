@@ -34,13 +34,12 @@ import {
   dropTarget,
   inverse,
   orderedColumns,
+  toBoardState,
   type BoardAction,
-  type BoardState,
   type StateCard,
   type StateColumn,
 } from '@/lib/board-state';
 import type { BoardWithCards } from '@/lib/boards';
-import { toDateInputValue } from '@/lib/due';
 import { flowHue } from '@/lib/flow';
 import { rankBetween, ranksAfter } from '@/lib/rank';
 
@@ -52,26 +51,8 @@ function subscribe(onChange: () => void) {
   return () => query.removeEventListener('change', onChange);
 }
 
-// Seeded once, on mount. There is no realtime in this sub-project, so the
-// reducer is the truth for the session and a reload is what re-reads the server.
-function seed(board: BoardWithCards): BoardState {
-  return {
-    columns: board.columns.map(({ id, name, rank }) => ({ id, name, rank })),
-    cards: board.columns.flatMap((column) =>
-      column.cards.map((card) => ({
-        id: card.id,
-        columnId: card.columnId,
-        title: card.title,
-        rank: card.rank,
-        createdAt: card.createdAt.toISOString(),
-        dueDate: card.dueDate ? toDateInputValue(card.dueDate) : null,
-      })),
-    ),
-  };
-}
-
 export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWrite: boolean }) {
-  const [state, dispatch] = useReducer(boardReducer, board, seed);
+  const [state, dispatch] = useReducer(boardReducer, board, toBoardState);
   const [composerIn, setComposerIn] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
