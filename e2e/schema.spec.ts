@@ -154,3 +154,47 @@ test('deleting a user leaves a card they created elsewhere in place, authorless'
     await removeSeededUser(owner.userId);
   }
 });
+
+test('an invite can never carry the owner role', async ({ context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Guarded');
+
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    await expect(
+      pool.query('insert into board_invites (id, board_id, email, role) values ($1, $2, $3, $4)', [
+        crypto.randomUUID(),
+        boardId,
+        'someone@example.test',
+        'owner',
+      ]),
+    ).rejects.toThrow(/board_invites_role_not_owner/);
+  } finally {
+    await pool.end();
+    await removeSeededUser(userId);
+  }
+});
+
+// This rejection is why inviteMember upserts. An expired invite is filtered out
+// of every read but still holds the pair, so a plain insert would fail against a
+// row nobody can see.
+test('a board cannot hold two pending invites for one address', async ({ context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Once only');
+
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  const insert = () =>
+    pool.query('insert into board_invites (id, board_id, email, role) values ($1, $2, $3, $4)', [
+      crypto.randomUUID(),
+      boardId,
+      'twice@example.test',
+      'member',
+    ]);
+  try {
+    await insert();
+    await expect(insert()).rejects.toThrow(/board_invites_board_id_email_key/);
+  } finally {
+    await pool.end();
+    await removeSeededUser(userId);
+  }
+});

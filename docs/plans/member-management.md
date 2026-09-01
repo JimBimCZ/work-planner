@@ -63,7 +63,7 @@ No UI, no events. Branch `feat/members-actions` from `main`.
 - Consumes: nothing.
 - Produces: `boardInvites` table with columns `id`, `boardId`, `email`, `role`, `invitedById`, `createdAt`; `boardInvitesRelations` exposing `board` and `invitedBy`; `boardMembersRelations` gaining `user`.
 
-- [ ] **Step 1: Add the table and the relations**
+- [x] **Step 1: Add the table and the relations**
 
 In `lib/db/schema.ts`, extend the existing imports — `check` and `unique` come from `drizzle-orm/pg-core`, `sql` from `drizzle-orm` — then add after `boardMembers`:
 
@@ -103,7 +103,7 @@ export const boardInvitesRelations = relations(boardInvites, ({ one }) => ({
 
 Add `user: one(users, { fields: [boardMembers.userId], references: [users.id] })` to the existing `boardMembersRelations`, and `invites: many(boardInvites)` to `boardsRelations`.
 
-- [ ] **Step 2: Generate and apply the migration**
+- [x] **Step 2: Generate and apply the migration**
 
 ```bash
 pnpm db:generate > /tmp/generate.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/generate.log
@@ -118,7 +118,7 @@ Expected: a new `lib/db/migrations/0004_*.sql` creating `board_invites` with the
 psql "$DATABASE_URL_UNPOOLED" -c '\d board_invites'
 ```
 
-- [ ] **Step 3: Write the failing invariant tests**
+- [x] **Step 3: Write the failing invariant tests**
 
 Append to `e2e/schema.spec.ts` (it already imports `Pool`, `seedSession`, `seedBoard`, `removeSeededUser`):
 
@@ -168,7 +168,7 @@ test('a board cannot hold two pending invites for one address', async ({ context
 });
 ```
 
-- [ ] **Step 4: Run them**
+- [x] **Step 4: Run them**
 
 ```bash
 pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e.log
@@ -176,7 +176,7 @@ pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: PASS, and the count that ran equals the count collected. If the check-constraint test fails, the migration in Step 2 did not carry the constraint — fix the schema and regenerate rather than patching SQL.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/db/schema.ts lib/db/migrations e2e/schema.spec.ts
@@ -205,7 +205,7 @@ git commit -m "feat: add board_invites, with the one-owner rule in the database"
   export function findPendingInvite(inviteId: string): Promise<FoundInvite | null>;
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/members.test.ts`. It mocks `db.query` and inspects the config each read passes, the way `lib/boards.test.ts` does — the point is that no read may quietly drop the cutoff.
 
@@ -299,7 +299,7 @@ describe('the invite reads', () => {
 
 The `captured!` non-null assertions are the one place this plan permits them: the line above each is an `expect(...).not.toBeNull()`, and a test that has already failed does not continue.
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -307,7 +307,7 @@ pnpm exec vitest run lib/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; t
 
 Expected: FAIL — `Failed to resolve import "./members"`.
 
-- [ ] **Step 3: Write the reads**
+- [x] **Step 3: Write the reads**
 
 Create `lib/members.ts`:
 
@@ -400,7 +400,7 @@ export async function findPendingInvite(inviteId: string): Promise<FoundInvite |
 }
 ```
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run lib/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -408,7 +408,7 @@ pnpm exec vitest run lib/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; t
 
 Expected: PASS, 5 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/members.ts lib/members.test.ts
@@ -432,7 +432,7 @@ git commit -m "feat: read members and pending invites, expiring at thirty days"
   ```
   Later tasks add to this same file and this same test file.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/actions/members.test.ts`. This preamble is the harness every later task in Section A reuses — write it once, here.
 
@@ -595,7 +595,7 @@ describe('revokeInvite', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -603,7 +603,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: FAIL — `Failed to resolve import "./members"`.
 
-- [ ] **Step 3: Write the two actions**
+- [x] **Step 3: Write the two actions**
 
 Create `lib/actions/members.ts`:
 
@@ -702,7 +702,7 @@ export async function revokeInvite(input: unknown) {
 
 `and` and `eq` are imported now because A5 and A6 use them; if lint complains about an unused import at this step, add the actions in A5 before committing rather than deleting the import.
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -710,7 +710,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: PASS, 8 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/members.ts lib/actions/members.test.ts
@@ -733,7 +733,7 @@ git commit -m "feat: invite someone to a board by email, and take it back"
     -> { ok: true } | { ok: false, error: 'UNAUTHENTICATED' | 'INVALID' | 'NOT_FOUND' }
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/actions/members.test.ts`, and extend the import line to
 `const { acceptInvite, declineInvite, inviteMember, revokeInvite } = await import('./members');`
@@ -819,7 +819,7 @@ describe('declineInvite', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -827,7 +827,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: FAIL — `acceptInvite is not a function`.
 
-- [ ] **Step 3: Write the two actions**
+- [x] **Step 3: Write the two actions**
 
 Add to `lib/actions/members.ts`, extending its imports with `revalidatePath` from `next/cache`, `boardMembers` from the schema, and `findPendingInvite` from `@/lib/members`:
 
@@ -888,7 +888,7 @@ export async function declineInvite(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -896,7 +896,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: PASS, 13 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/members.ts lib/actions/members.test.ts
@@ -920,7 +920,7 @@ git commit -m "feat: accept or decline an invite you were sent"
     -> { ok: true } | { ok: false, error: 'UNAUTHENTICATED' | 'INVALID' | 'NOT_FOUND' | 'FORBIDDEN' | 'OWNER_CANNOT_LEAVE' }
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/actions/members.test.ts`, extending the import line with `changeRole, leaveBoard, removeMember`:
 
@@ -993,7 +993,7 @@ describe('leaveBoard', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1001,7 +1001,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: FAIL — `changeRole is not a function`.
 
-- [ ] **Step 3: Write the three actions**
+- [x] **Step 3: Write the three actions**
 
 Add to `lib/actions/members.ts`:
 
@@ -1099,7 +1099,7 @@ export async function leaveBoard(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1107,7 +1107,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: PASS, 19 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/members.ts lib/actions/members.test.ts
@@ -1129,7 +1129,7 @@ git commit -m "feat: change a role, remove a member, leave a board"
                           | 'NAME_MISMATCH' | 'NOT_A_MEMBER' | 'TARGET_IS_OWNER' }
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/actions/members.test.ts`, extending the import line with `transferOwnership`:
 
@@ -1184,7 +1184,7 @@ describe('transferOwnership', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1192,7 +1192,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: FAIL — `transferOwnership is not a function`.
 
-- [ ] **Step 3: Write the action**
+- [x] **Step 3: Write the action**
 
 Add to `lib/actions/members.ts`, extending its schema import with `boards`:
 
@@ -1245,7 +1245,7 @@ export async function transferOwnership(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the whole gate**
+- [x] **Step 4: Run the whole gate**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TYPECHECK=$?"; tail -3 /tmp/tc.log
@@ -1255,7 +1255,7 @@ pnpm test      > /tmp/unit.log 2>&1; echo "TEST=$?"; tail -5 /tmp/unit.log
 
 Expected: all three `=0`, 23 tests in `lib/actions/members.test.ts`.
 
-- [ ] **Step 5: Commit and open the Section A pull request**
+- [x] **Step 5: Commit and open the Section A pull request**
 
 CLAUDE.md changes in this PR, because these are the section that makes them true — "keep this file current, in the same change":
 
