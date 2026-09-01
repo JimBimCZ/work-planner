@@ -49,7 +49,7 @@ export function CardComments({
     setError(null);
 
     startTransition(async () => {
-      const result = await addComment({ cardId, body });
+      const result = await addComment({ cardId, body, mutationId: crypto.randomUUID() });
       if (result.ok) {
         setRows((current) =>
           current.map((row) =>
@@ -83,7 +83,11 @@ export function CardComments({
     setError(null);
 
     startTransition(async () => {
-      const result = await editComment({ commentId: row.id, body });
+      const result = await editComment({
+        commentId: row.id,
+        body,
+        mutationId: crypto.randomUUID(),
+      });
       if (!result.ok) {
         // Only roll back if the row still holds the value this request sent —
         // a later edit to the same comment that already succeeded must not be
@@ -101,7 +105,7 @@ export function CardComments({
     setError(null);
 
     startTransition(async () => {
-      const result = await deleteComment({ commentId: row.id });
+      const result = await deleteComment({ commentId: row.id, mutationId: crypto.randomUUID() });
       if (!result.ok) {
         setRows((current) => reinsertOrdered(current, row));
         setError('That comment could not be deleted. Try again.');

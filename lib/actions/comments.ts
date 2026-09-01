@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { comments } from '@/lib/db/schema';
+import { publish } from '@/lib/events';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 
 import { boardIdForCard, commentScope, touchBoard } from './scope';
@@ -14,9 +15,12 @@ import { boardIdForCard, commentScope, touchBoard } from './scope';
 const id = z.string().min(1);
 const body = z.string().trim().min(1).max(4_000);
 
-const addSchema = z.object({ cardId: id, body });
-const editSchema = z.object({ commentId: id, body });
-const deleteSchema = z.object({ commentId: id });
+// Every call site mints the mutationId with crypto.randomUUID(). Bounding it to
+// a UUID keeps an oversized value from pushing the published event over
+// PAYLOAD_CEILING and silently dropping it for every other viewer.
+const addSchema = z.object({ cardId: id, body, mutationId: z.uuid() });
+const editSchema = z.object({ commentId: id, body, mutationId: z.uuid() });
+const deleteSchema = z.object({ commentId: id, mutationId: z.uuid() });
 
 export async function addComment(input: unknown) {
   const session = await auth();
@@ -48,10 +52,24 @@ export async function addComment(input: unknown) {
       .returning();
 
     await touchBoard(tx, boardId);
-    return { id: row.id };
+    return { id: row.id, createdAt: row.createdAt.toISOString() };
   });
 
   revalidatePath('/boards');
+  await publish(boardId, {
+    type: 'comment.created',
+    mutationId: parsed.data.mutationId,
+    actorId: authorId,
+    id: created.id,
+    cardId: parsed.data.cardId,
+    body: parsed.data.body,
+    createdAt: created.createdAt,
+    author: {
+      id: authorId,
+      name: session.user.name ?? null,
+      image: session.user.image ?? null,
+    },
+  });
   return { ok: true, data: created } as const;
 }
 
@@ -82,6 +100,15 @@ export async function editComment(input: unknown) {
   });
 
   revalidatePath('/boards');
+  await publish(scope.boardId, {
+    type: 'comment.updated',
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+    id: parsed.data.commentId,
+    cardId: scope.cardId,
+    body: parsed.data.body,
+    updatedAt: new Date().toISOString(),
+  });
   return { ok: true } as const;
 }
 
@@ -109,5 +136,12 @@ export async function deleteComment(input: unknown) {
   });
 
   revalidatePath('/boards');
+  await publish(scope.boardId, {
+    type: 'comment.deleted',
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+    id: parsed.data.commentId,
+    cardId: scope.cardId,
+  });
   return { ok: true } as const;
 }
