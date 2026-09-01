@@ -94,24 +94,42 @@ describe('card actions', () => {
   });
 });
 
-describe('card.setDueDate', () => {
-  const seeded = {
-    columns: [{ id: 'c1', name: 'Ready to Work', rank: 'a0' }],
-    cards: [{ id: 'k1', columnId: 'c1', title: 'Ship it', rank: 'a0', createdAt: '', dueDate: null }],
-  };
-
-  test('sets the date on the named card', () => {
-    const next = boardReducer(seeded, {
-      type: 'card.setDueDate',
-      cardId: 'k1',
-      dueDate: '2026-09-01',
-    });
-    expect(next.cards[0].dueDate).toBe('2026-09-01');
+describe('card.patch', () => {
+  const dated = (): BoardState => ({
+    columns: [{ id: 'col-1', name: 'Ready', rank: 'a0' }],
+    cards: [
+      {
+        id: 'card-1', columnId: 'col-1', title: 'Ship it', rank: 'a0',
+        createdAt: '2026-08-31T00:00:00.000Z', dueDate: '2026-09-10',
+      },
+    ],
   });
 
-  test('inverts back to what was there before, including null', () => {
-    const undo = inverse(seeded, { type: 'card.setDueDate', cardId: 'k1', dueDate: '2026-09-01' });
-    expect(undo).toEqual([{ type: 'card.setDueDate', cardId: 'k1', dueDate: null }]);
+  test('sets the title alone, leaving the due date untouched', () => {
+    const next = boardReducer(dated(), { type: 'card.patch', cardId: 'card-1', title: 'Shipped' });
+    expect(next.cards[0]).toMatchObject({ title: 'Shipped', dueDate: '2026-09-10' });
+  });
+
+  test('sets the due date alone, leaving the title untouched', () => {
+    const next = boardReducer(dated(), { type: 'card.patch', cardId: 'card-1', dueDate: null });
+    expect(next.cards[0]).toMatchObject({ title: 'Ship it', dueDate: null });
+  });
+
+  // An absent key and an explicit null mean different things: one says "leave
+  // it", the other says "clear it". A shallow spread would conflate them.
+  test('an absent key is not a null', () => {
+    const next = boardReducer(dated(), { type: 'card.patch', cardId: 'card-1', title: 'Shipped' });
+    expect(next.cards[0].dueDate).toBe('2026-09-10');
+  });
+
+  test('a card that is not there changes nothing', () => {
+    expect(boardReducer(dated(), { type: 'card.patch', cardId: 'gone', title: 'x' })).toEqual(dated());
+  });
+
+  test('its inverse restores both fields from the pre-state', () => {
+    const action: BoardAction = { type: 'card.patch', cardId: 'card-1', title: 'Shipped' };
+    const undone = applyAll(boardReducer(dated(), action), inverse(dated(), action));
+    expect(undone.cards[0]).toMatchObject({ title: 'Ship it', dueDate: '2026-09-10' });
   });
 });
 
@@ -134,7 +152,13 @@ describe('column actions', () => {
 
   test('delete moves the cards to the target and drops the column', () => {
     const next = boardReducer(base(), {
-      type: 'column.delete', columnId: 'col-1', targetColumnId: 'col-2', ranks: ['e0', 'e1'],
+      type: 'column.delete',
+      columnId: 'col-1',
+      targetColumnId: 'col-2',
+      moves: [
+        { id: 'card-a', rank: 'e0' },
+        { id: 'card-b', rank: 'e1' },
+      ],
     });
 
     expect(next.columns.map((c) => c.id)).toEqual(['col-2']);
@@ -144,9 +168,40 @@ describe('column actions', () => {
     ]);
   });
 
+  // Positional matching would slide the ranks onto the wrong cards whenever
+  // this client's view of the column differs from the sender's — a card still
+  // pending being the obvious case.
+  test('delete places each card by id, not by position', () => {
+    const withPending = boardReducer(base(), {
+      type: 'card.create',
+      card: {
+        id: 'tmp-1', columnId: 'col-1', title: 'Pending', rank: 'b00',
+        createdAt: '2026-01-03', dueDate: null, pending: true,
+      },
+    });
+
+    const next = boardReducer(withPending, {
+      type: 'column.delete',
+      columnId: 'col-1',
+      targetColumnId: 'col-2',
+      moves: [
+        { id: 'card-a', rank: 'e0' },
+        { id: 'card-b', rank: 'e1' },
+      ],
+    });
+
+    // The pending card is not in the moves — the sender has never seen it — so
+    // it travels on its own rank rather than borrowing card-b's.
+    expect(cardsIn(next, 'col-2').map((c) => [c.id, c.rank])).toEqual([
+      ['tmp-1', 'b00'],
+      ['card-a', 'e0'],
+      ['card-b', 'e1'],
+    ]);
+  });
+
   test('delete with no target drops an empty column', () => {
     const next = boardReducer(base(), {
-      type: 'column.delete', columnId: 'col-2', targetColumnId: null, ranks: [],
+      type: 'column.delete', columnId: 'col-2', targetColumnId: null, moves: [],
     });
     expect(next.columns.map((c) => c.id)).toEqual(['col-1']);
   });
@@ -187,13 +242,16 @@ describe('inverses', () => {
   });
 
   test('undo a column delete by restoring it and every card in it', () => {
-    // Annotated rather than `as const`: `as const` makes `ranks` a readonly
-    // tuple, which BoardAction's mutable string[] does not accept.
+    // Annotated rather than `as const`: `as const` makes `moves` readonly,
+    // which BoardAction's mutable array does not accept.
     const action: BoardAction = {
       type: 'column.delete',
       columnId: 'col-1',
       targetColumnId: 'col-2',
-      ranks: ['e0', 'e1'],
+      moves: [
+        { id: 'card-a', rank: 'e0' },
+        { id: 'card-b', rank: 'e1' },
+      ],
     };
     restoresTheBoard(action);
   });

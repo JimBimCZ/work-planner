@@ -15,14 +15,23 @@ export type BoardState = { columns: StateColumn[]; cards: StateCard[] };
 export type BoardAction =
   | { type: 'card.create'; card: StateCard }
   | { type: 'card.rename'; cardId: string; title: string }
+  | { type: 'card.patch'; cardId: string; title?: string; dueDate?: string | null }
   | { type: 'card.delete'; cardId: string }
   | { type: 'card.move'; cardId: string; toColumnId: string; rank: string }
-  | { type: 'card.setDueDate'; cardId: string; dueDate: string | null }
   | { type: 'card.settle'; tempId: string; id: string; rank: string }
   | { type: 'column.create'; column: StateColumn }
   | { type: 'column.rename'; columnId: string; name: string }
   | { type: 'column.move'; columnId: string; rank: string }
-  | { type: 'column.delete'; columnId: string; targetColumnId: string | null; ranks: string[] }
+  | {
+      type: 'column.delete';
+      columnId: string;
+      targetColumnId: string | null;
+      // Keyed by card id rather than by position: a remote delete carries the
+      // ranks the server assigned, and this client's own list of that column
+      // can differ from the server's — a card still pending, say — which would
+      // slide every rank onto the wrong card.
+      moves: { id: string; rank: string }[];
+    }
   | { type: 'column.settle'; tempId: string; id: string; rank: string };
 
 const byRank = <T extends { rank: string; id: string }>(a: T, b: T) =>
@@ -59,6 +68,15 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
     case 'card.rename':
       return mapCard(state, action.cardId, (card) => ({ ...card, title: action.title }));
 
+    // An absent key leaves the field alone; an explicit null clears it. Those
+    // are different instructions, so neither is spread in blindly.
+    case 'card.patch':
+      return mapCard(state, action.cardId, (card) => ({
+        ...card,
+        ...(action.title !== undefined ? { title: action.title } : {}),
+        ...(action.dueDate !== undefined ? { dueDate: action.dueDate } : {}),
+      }));
+
     case 'card.delete':
       return { ...state, cards: state.cards.filter((card) => card.id !== action.cardId) };
 
@@ -68,9 +86,6 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
         columnId: action.toColumnId,
         rank: action.rank,
       }));
-
-    case 'card.setDueDate':
-      return mapCard(state, action.cardId, (card) => ({ ...card, dueDate: action.dueDate }));
 
     case 'card.settle':
       return mapCard(state, action.tempId, ({ pending: _pending, ...card }) => ({
@@ -99,14 +114,18 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
       };
 
     case 'column.delete': {
-      const moving = cardsIn(state, action.columnId);
-      const ranks = new Map(moving.map((card, position) => [card.id, action.ranks[position]]));
+      const { columnId, targetColumnId } = action;
+      const ranks = new Map(action.moves.map((move) => [move.id, move.rank]));
 
       return {
-        columns: state.columns.filter((column) => column.id !== action.columnId),
+        columns: state.columns.filter((column) => column.id !== columnId),
+        // Membership comes from the column, the new rank from the card's id. A
+        // card in the column that the moves do not name is one the sender had
+        // never heard of — a create still in flight — so it travels too, keeping
+        // the rank it has rather than being left on a column that is now gone.
         cards: state.cards.map((card) =>
-          ranks.has(card.id) && action.targetColumnId
-            ? { ...card, columnId: action.targetColumnId, rank: ranks.get(card.id) ?? card.rank }
+          card.columnId === columnId && targetColumnId
+            ? { ...card, columnId: targetColumnId, rank: ranks.get(card.id) ?? card.rank }
             : card,
         ),
       };
@@ -141,6 +160,14 @@ export function inverse(state: BoardState, action: BoardAction): BoardAction[] {
       return card ? [{ type: 'card.rename', cardId: card.id, title: card.title }] : [];
     }
 
+    case 'card.patch': {
+      const card = state.cards.find((c) => c.id === action.cardId);
+      if (!card) return [];
+      return [
+        { type: 'card.patch', cardId: action.cardId, title: card.title, dueDate: card.dueDate },
+      ];
+    }
+
     case 'card.delete': {
       const card = state.cards.find((c) => c.id === action.cardId);
       return card ? [{ type: 'card.create', card }] : [];
@@ -153,14 +180,10 @@ export function inverse(state: BoardState, action: BoardAction): BoardAction[] {
         : [];
     }
 
-    case 'card.setDueDate': {
-      const card = state.cards.find((c) => c.id === action.cardId);
-      return card ? [{ type: 'card.setDueDate', cardId: card.id, dueDate: card.dueDate }] : [];
-    }
 
     case 'column.create':
       return [
-        { type: 'column.delete', columnId: action.column.id, targetColumnId: null, ranks: [] },
+        { type: 'column.delete', columnId: action.column.id, targetColumnId: null, moves: [] },
       ];
 
     case 'column.rename': {

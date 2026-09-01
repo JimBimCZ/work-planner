@@ -103,12 +103,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   // the two trees meet. On the canonical card page nothing registers, and the
   // modal simply finds null.
   useEffect(() => {
-    registerPatchCard((cardId, patch) => {
-      if (patch.title !== undefined) dispatch({ type: 'card.rename', cardId, title: patch.title });
-      if (patch.dueDate !== undefined) {
-        dispatch({ type: 'card.setDueDate', cardId, dueDate: patch.dueDate });
-      }
-    });
+    registerPatchCard((cardId, patch) => dispatch({ type: 'card.patch', cardId, ...patch }));
     return () => registerPatchCard(null);
   }, [registerPatchCard]);
 
@@ -137,17 +132,70 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   }, [total]);
 
   // Remote events take the same reducer path a local mutation does. There is
-  // no second state tree, and no second set of rules about ordering.
+  // no second state tree, and no second set of rules about ordering. Events
+  // this client caused never arrive here — the provider filters them by
+  // mutationId.
   useEffect(
     () =>
       subscribeRealtime((event) => {
-        if (event.type === 'card.moved') {
-          dispatch({
-            type: 'card.move',
-            cardId: event.id,
-            toColumnId: event.columnId,
-            rank: event.rank,
-          });
+        switch (event.type) {
+          case 'card.created':
+            dispatch({
+              type: 'card.create',
+              card: {
+                id: event.id,
+                columnId: event.columnId,
+                title: event.title,
+                rank: event.rank,
+                createdAt: event.createdAt,
+                dueDate: event.dueDate,
+              },
+            });
+            return;
+          case 'card.updated':
+            // The card face shows a title and a due date and nothing else, so
+            // descriptionChanged is not its business — that is the open card's.
+            dispatch({
+              type: 'card.patch',
+              cardId: event.id,
+              title: event.title,
+              dueDate: event.dueDate,
+            });
+            return;
+          case 'card.moved':
+            dispatch({
+              type: 'card.move',
+              cardId: event.id,
+              toColumnId: event.columnId,
+              rank: event.rank,
+            });
+            return;
+          case 'card.deleted':
+            dispatch({ type: 'card.delete', cardId: event.id });
+            return;
+          case 'column.created':
+            dispatch({
+              type: 'column.create',
+              column: { id: event.id, name: event.name, rank: event.rank },
+            });
+            return;
+          case 'column.updated':
+            dispatch({ type: 'column.rename', columnId: event.id, name: event.name });
+            return;
+          case 'column.moved':
+            dispatch({ type: 'column.move', columnId: event.id, rank: event.rank });
+            return;
+          case 'column.deleted':
+            dispatch({
+              type: 'column.delete',
+              columnId: event.id,
+              targetColumnId: event.targetColumnId,
+              moves: event.cards.map(({ id, rank }) => ({ id, rank })),
+            });
+            return;
+          default:
+            // Comment events belong to the open card, not the canvas.
+            return;
         }
       }),
     [subscribeRealtime],
@@ -296,7 +344,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
         mutationId: claim(),
       });
       if (!result.ok) {
-        dispatch({ type: 'column.delete', columnId: tempId, targetColumnId: null, ranks: [] });
+        dispatch({ type: 'column.delete', columnId: tempId, targetColumnId: null, moves: [] });
         setError('That column could not be added. Try again.');
         return;
       }
@@ -309,13 +357,14 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   const removeColumn = (column: StateColumn, targetColumnId: string) => {
     const moving = cardsIn(state, column.id);
     const last = cardsIn(state, targetColumnId).at(-1);
+    const ranks = ranksAfter(last?.rank ?? null, moving.length);
 
     return run(
       {
         type: 'column.delete',
         columnId: column.id,
         targetColumnId,
-        ranks: ranksAfter(last?.rank ?? null, moving.length),
+        moves: moving.map((card, position) => ({ id: card.id, rank: ranks[position] })),
       },
       () => deleteColumn({ columnId: column.id, targetColumnId, mutationId: claim() }),
       'That column could not be deleted. Try again.',

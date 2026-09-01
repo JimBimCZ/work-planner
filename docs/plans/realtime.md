@@ -34,8 +34,8 @@ Copied from the spec and `CLAUDE.md`. Every task's requirements implicitly inclu
 These are outside the plan's code and block the e2e from being meaningful.
 
 - [x] **Confirm the Pusher app exists and the credentials are real.** `.env` already carries a numeric `PUSHER_APP_ID` with a 20-character key and secret and a 2-character cluster, which look like a provisioned app, but nothing in this repository has ever called Pusher. Prove it with a real trigger before building on it — Task 1's manual check does this.
-- [ ] **Add the four variables to the Vercel project** (Production, Preview and Development): `PUSHER_APP_ID`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER`.
-- [ ] **Add them as GitHub Actions secrets and wire them into `.github/workflows/ci.yml`.** The CI job currently has no Pusher variables at all, so without this every realtime e2e skips itself and the suite is theatre. Note that `NEXT_PUBLIC_PUSHER_KEY` is inlined at build time and Playwright's `webServer` runs `pnpm build && pnpm start`, so it must be present as a **build-time** environment variable in CI, not only at run time.
+- [x] **Add the four variables to the Vercel project** (Production, Preview and Development): `PUSHER_APP_ID`, `PUSHER_SECRET`, `NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER`.
+- [x] **Add them as GitHub Actions secrets and wire them into `.github/workflows/ci.yml`.** The CI job currently has no Pusher variables at all, so without this every realtime e2e skips itself and the suite is theatre. Note that `NEXT_PUBLIC_PUSHER_KEY` is inlined at build time and Playwright's `webServer` runs `pnpm build && pnpm start`, so it must be present as a **build-time** environment variable in CI, not only at run time.
 
 ## File structure
 
@@ -1817,7 +1817,7 @@ Everything published in Section 2 gets a consumer here, so the board itself is f
 **Interfaces:**
 - Produces: `BoardAction` gains `{ type: 'card.patch'; cardId: string; title?: string; dueDate?: string | null }`, handled by `boardReducer` and given a real entry in `inverse`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/board-state.test.ts`:
 
@@ -1866,12 +1866,12 @@ describe('card.patch', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/board-state.test.ts`
 Expected: FAIL — `card.patch` is not in the `BoardAction` union.
 
-- [ ] **Step 3: Add the action**
+- [x] **Step 3: Add the action**
 
 In `lib/board-state.ts`, extend the union:
 
@@ -1904,7 +1904,7 @@ and `inverse`:
     }
 ```
 
-- [ ] **Step 4: Route the modal's patch through it**
+- [x] **Step 4: Route the modal's patch through it**
 
 In `components/board/board-canvas.tsx`, the `registerPatchCard` effect currently dispatches two actions. Collapse it:
 
@@ -1915,12 +1915,12 @@ In `components/board/board-canvas.tsx`, the `registerPatchCard` effect currently
   }, [registerPatchCard]);
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm test lib/board-state.test.ts` then `pnpm test`
 Expected: both PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/board-state.ts lib/board-state.test.ts components/board/board-canvas.tsx
@@ -1937,7 +1937,7 @@ git commit -m "feat: give the reducer one card patch action"
 - Consumes: `type BoardEvent` from `lib/events.ts`, `useRealtime` from `components/board/realtime.tsx`.
 - Produces: nothing new; the board simply converges.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/realtime.spec.ts`. A helper keeps the two-context setup from being written five times:
 
@@ -2087,12 +2087,12 @@ test('a column deleted in one browser moves its cards in the other', async ({ br
 
 **Every selector above must be checked against the real components** — `components/board/add-card.tsx`, `card-menu.tsx`, `column-menu.tsx` and `delete-column-dialog.tsx` — and corrected to match. If a name differs, the test is wrong, not the component.
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `pnpm exec playwright test realtime --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/e2e.log`
 Expected: FAIL — B never converges, because only `card.moved` has a consumer.
 
-- [ ] **Step 3: Apply every event on the canvas**
+- [x] **Step 3: Apply every event on the canvas**
 
 Replace the single-event subscription from Section 1, Task 4 with the full handler:
 
@@ -2169,12 +2169,12 @@ Replace the single-event subscription from Section 1, Task 4 with the full handl
 
 Confirm against `lib/board-state.ts` that `column.delete`'s `ranks` is the list of new ranks for the moving cards in the order the reducer expects. If the reducer needs the cards themselves rather than bare ranks, pass `event.cards` and adjust — read the reducer, do not guess.
 
-- [ ] **Step 4: Run them and watch them pass**
+- [x] **Step 4: Run them and watch them pass**
 
 Run: `pnpm exec playwright test realtime --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Run everything**
+- [x] **Step 5: Run everything**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TC=$?"
@@ -2184,7 +2184,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "E2E=$?"; tail -3 /tmp/e2e.log
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/board/board-canvas.tsx e2e/realtime.spec.ts
@@ -2193,10 +2193,10 @@ git commit -m "feat: converge the board canvas on a teammate's changes"
 
 ### Section 3 gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected.
-- [ ] Every card and column event has a consumer, proved by a two-context e2e each — **none of which reloads the receiving page.** A reload would make all of them pass with no realtime at all.
-- [ ] A column deleted remotely moves its cards rather than dropping them, asserted on the target column.
-- [ ] Dragging still works, and `e2e/board-dnd.spec.ts` passes unchanged.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected.
+- [x] Every card and column event has a consumer, proved by a two-context e2e each — **none of which reloads the receiving page.** A reload would make all of them pass with no realtime at all.
+- [x] A column deleted remotely moves its cards rather than dropping them, asserted on the target column.
+- [x] Dragging still works, and `e2e/board-dnd.spec.ts` passes unchanged.
 - [ ] Open the PR with a screen recording or paired screenshots of two windows. Stop. Start Section 4 in a fresh session.
 
 ---
