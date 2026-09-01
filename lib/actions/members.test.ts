@@ -13,6 +13,12 @@ vi.mock('@/lib/permissions', async () => {
 const findPendingInvite = vi.fn();
 vi.mock('@/lib/members', () => ({ findPendingInvite: (id: string) => findPendingInvite(id) }));
 
+const publish = vi.fn();
+vi.mock('@/lib/events', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/events')>('@/lib/events');
+  return { ...actual, publish: (...args: unknown[]) => publish(...args) };
+});
+
 type Op = { kind: 'insert' | 'update' | 'delete'; table: string; values?: unknown };
 const ops: Op[] = [];
 
@@ -75,6 +81,7 @@ const {
 
 const signedIn = { user: { id: 'owner-1', email: 'owner@example.test' } };
 const invite = { boardId: 'board-1', email: 'new@example.test', role: 'member' as const };
+const MUTATION_ID = '11111111-1111-4111-8111-111111111111';
 
 beforeEach(() => {
   ops.length = 0;
@@ -86,6 +93,7 @@ beforeEach(() => {
   assertBoardAccess.mockReset();
   assertBoardAccess.mockResolvedValue('owner');
   findPendingInvite.mockReset();
+  publish.mockReset();
 });
 
 describe('inviteMember', () => {
@@ -248,12 +256,11 @@ describe('changeRole and removeMember', () => {
     authMock.mockResolvedValue(signedIn);
     membershipRow = undefined;
     await expect(
-      changeRole({ boardId: 'board-1', userId: 'ghost', role: 'viewer' }),
+      changeRole({ boardId: 'board-1', userId: 'ghost', role: 'viewer', mutationId: MUTATION_ID }),
     ).resolves.toEqual({ ok: false, error: 'NOT_FOUND' });
-    await expect(removeMember({ boardId: 'board-1', userId: 'ghost' })).resolves.toEqual({
-      ok: false,
-      error: 'NOT_FOUND',
-    });
+    await expect(
+      removeMember({ boardId: 'board-1', userId: 'ghost', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({ ok: false, error: 'NOT_FOUND' });
     expect(ops).toEqual([]);
   });
 
@@ -263,12 +270,16 @@ describe('changeRole and removeMember', () => {
     authMock.mockResolvedValue(signedIn);
     membershipRow = { role: 'owner' };
     await expect(
-      changeRole({ boardId: 'board-1', userId: 'owner-1', role: 'viewer' }),
+      changeRole({
+        boardId: 'board-1',
+        userId: 'owner-1',
+        role: 'viewer',
+        mutationId: MUTATION_ID,
+      }),
     ).resolves.toEqual({ ok: false, error: 'TARGET_IS_OWNER' });
-    await expect(removeMember({ boardId: 'board-1', userId: 'owner-1' })).resolves.toEqual({
-      ok: false,
-      error: 'TARGET_IS_OWNER',
-    });
+    await expect(
+      removeMember({ boardId: 'board-1', userId: 'owner-1', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({ ok: false, error: 'TARGET_IS_OWNER' });
     expect(ops).toEqual([]);
   });
 
@@ -276,7 +287,7 @@ describe('changeRole and removeMember', () => {
     authMock.mockResolvedValue(signedIn);
     membershipRow = { role: 'member' };
     await expect(
-      changeRole({ boardId: 'board-1', userId: 'user-2', role: 'viewer' }),
+      changeRole({ boardId: 'board-1', userId: 'user-2', role: 'viewer', mutationId: MUTATION_ID }),
     ).resolves.toEqual({ ok: true });
     expect(ops).toEqual([{ kind: 'update', table: 'board_members', values: { role: 'viewer' } }]);
   });
@@ -284,9 +295,9 @@ describe('changeRole and removeMember', () => {
   test('remove a member', async () => {
     authMock.mockResolvedValue(signedIn);
     membershipRow = { role: 'member' };
-    await expect(removeMember({ boardId: 'board-1', userId: 'user-2' })).resolves.toEqual({
-      ok: true,
-    });
+    await expect(
+      removeMember({ boardId: 'board-1', userId: 'user-2', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({ ok: true });
     expect(ops).toEqual([{ kind: 'delete', table: 'board_members' }]);
   });
 });
@@ -295,7 +306,7 @@ describe('leaveBoard', () => {
   test('refuses the owner, who has to hand the board over first', async () => {
     authMock.mockResolvedValue(signedIn);
     assertBoardAccess.mockResolvedValue('owner');
-    await expect(leaveBoard({ boardId: 'board-1' })).resolves.toEqual({
+    await expect(leaveBoard({ boardId: 'board-1', mutationId: MUTATION_ID })).resolves.toEqual({
       ok: false,
       error: 'OWNER_CANNOT_LEAVE',
     });
@@ -305,13 +316,20 @@ describe('leaveBoard', () => {
   test('lets a viewer take themselves off', async () => {
     authMock.mockResolvedValue(signedIn);
     assertBoardAccess.mockResolvedValue('viewer');
-    await expect(leaveBoard({ boardId: 'board-1' })).resolves.toEqual({ ok: true });
+    await expect(leaveBoard({ boardId: 'board-1', mutationId: MUTATION_ID })).resolves.toEqual({
+      ok: true,
+    });
     expect(ops).toEqual([{ kind: 'delete', table: 'board_members' }]);
   });
 });
 
 describe('transferOwnership', () => {
-  const handover = { boardId: 'board-1', userId: 'user-2', confirmName: 'Roadmap' };
+  const handover = {
+    boardId: 'board-1',
+    userId: 'user-2',
+    confirmName: 'Roadmap',
+    mutationId: MUTATION_ID,
+  };
 
   test('refuses a board name that does not match', async () => {
     authMock.mockResolvedValue(signedIn);
@@ -356,5 +374,93 @@ describe('transferOwnership', () => {
       { kind: 'update', table: 'board_members', values: { role: 'owner' } },
       { kind: 'update', table: 'board_members', values: { role: 'member' } },
     ]);
+  });
+});
+
+
+describe('membership events', () => {
+  test('accepting an invite announces the new member', async () => {
+    authMock.mockResolvedValue({ user: { id: 'user-2', email: 'new@example.test' } });
+    findPendingInvite.mockResolvedValue({
+      id: 'invite-1',
+      boardId: 'board-1',
+      email: 'new@example.test',
+      role: 'member',
+    });
+    await acceptInvite({ inviteId: 'invite-1' });
+    expect(publish).toHaveBeenCalledWith('board-1', {
+      type: 'member.added',
+      userId: 'user-2',
+      role: 'member',
+      mutationId: expect.any(String),
+      actorId: 'user-2',
+    });
+  });
+
+  test('a demotion announces the new role', async () => {
+    authMock.mockResolvedValue(signedIn);
+    membershipRow = { role: 'member' };
+    await changeRole({
+      boardId: 'board-1',
+      userId: 'user-2',
+      role: 'viewer',
+      mutationId: MUTATION_ID,
+    });
+    expect(publish).toHaveBeenCalledWith('board-1', {
+      type: 'member.updated',
+      userId: 'user-2',
+      role: 'viewer',
+      mutationId: MUTATION_ID,
+      actorId: 'owner-1',
+    });
+  });
+
+  test.each([
+    [
+      'removeMember',
+      () => removeMember({ boardId: 'board-1', userId: 'user-2', mutationId: MUTATION_ID }),
+    ],
+    ['leaveBoard', () => leaveBoard({ boardId: 'board-1', mutationId: MUTATION_ID })],
+  ])('%s announces the departure', async (name, call) => {
+    authMock.mockResolvedValue(signedIn);
+    membershipRow = { role: 'member' };
+    assertBoardAccess.mockResolvedValue(name === 'leaveBoard' ? 'member' : 'owner');
+    await call();
+    expect(publish).toHaveBeenCalledWith(
+      'board-1',
+      expect.objectContaining({ type: 'member.removed' }),
+    );
+  });
+
+  // Transfer moves two rows, so it says so twice rather than inventing a
+  // fourth event for a case the other three already describe.
+  test('a transfer announces both role changes', async () => {
+    authMock.mockResolvedValue(signedIn);
+    boardRow = { name: 'Roadmap' };
+    membershipRow = { role: 'member' };
+    await transferOwnership({
+      boardId: 'board-1',
+      userId: 'user-2',
+      confirmName: 'Roadmap',
+      mutationId: MUTATION_ID,
+    });
+    expect(publish).toHaveBeenNthCalledWith(
+      1,
+      'board-1',
+      expect.objectContaining({ type: 'member.updated', userId: 'user-2', role: 'owner' }),
+    );
+    expect(publish).toHaveBeenNthCalledWith(
+      2,
+      'board-1',
+      expect.objectContaining({ type: 'member.updated', userId: 'owner-1', role: 'member' }),
+    );
+  });
+
+  test('inviting and revoking announce nothing, because only the owner sees them', async () => {
+    authMock.mockResolvedValue(signedIn);
+    await inviteMember(invite);
+    inviteRow = { id: 'invite-1', boardId: 'board-1' };
+    await revokeInvite({ inviteId: 'invite-1' });
+    expect(publish).not.toHaveBeenCalled();
   });
 });

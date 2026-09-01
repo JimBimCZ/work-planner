@@ -1,5 +1,7 @@
 import Pusher from 'pusher';
 
+import type { BoardRole } from '@/lib/permissions';
+
 // Pusher's REST API answers anything over 10KB with a 413. The gap is headroom
 // for the envelope Pusher wraps around the payload; the number is asserted in
 // lib/events.test.ts rather than trusted.
@@ -47,6 +49,9 @@ export type BoardEvent = Envelope &
     | { type: 'comment.created.truncated'; id: string; cardId: string }
     | { type: 'comment.updated'; id: string; cardId: string; body: string; updatedAt: string }
     | { type: 'comment.deleted'; id: string; cardId: string }
+    | { type: 'member.added'; userId: string; role: BoardRole }
+    | { type: 'member.updated'; userId: string; role: BoardRole }
+    | { type: 'member.removed'; userId: string }
   );
 
 export const channelFor = (boardId: string) => `private-board-${boardId}`;
