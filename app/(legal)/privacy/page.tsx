@@ -134,11 +134,13 @@ export default function PrivacyPage() {
 
       <Section title="Keeping and deleting your data">
         <p className="text-[15px]/6">
-          Your account and board content are kept for as long as your account exists. There is no
-          self-service delete yet: email{' '}
-          <span className="font-mono text-sm">{CONTACT_EMAIL}</span> and we will delete your
-          account, the boards you own, and your comments. Boards owned by other people that you
-          contributed to will keep your comments unless you ask for those too.
+          Your account and board content are kept for as long as your account exists. You can delete
+          your account yourself from the account page: it removes your sign-in, your sessions, the
+          boards you own and everything on them, immediately and permanently. Boards owned by other
+          people keep the comments you left on them, without your name attached — if you want those
+          removed as well, email{' '}
+          <span className="font-mono text-sm">{CONTACT_EMAIL}</span> before you delete your account,
+          because afterwards nothing links them to you.
         </p>
       </Section>
 

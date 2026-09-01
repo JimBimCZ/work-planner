@@ -106,6 +106,7 @@ app/
                             # own TopBar, because the board needs a title in it
     (chrome)/               # normal page scroll, SiteFooter below the content
       boards/               # board list
+      account/              # who you are signed in as, and the delete danger zone
     (board)/                # fixed viewport height, no footer
       boards/[boardId]/     # board view — its layout resolves the board title
         @card/
@@ -606,7 +607,16 @@ Not settled yet — raise these rather than deciding unilaterally:
 
 - Labels/tags, attachments, activity log.
 - Board archive vs hard delete.
-- Account deletion mechanics — self-service in the UI, or on request by email. The privacy policy has to describe whichever is real. Whichever it is, it must delete the person's comments before the `user` row: `/privacy` promises that a request to also delete comments on boards someone else owns will be honoured, and `comments.authorId` sets null on delete — the only link back to those comments — so deleting the user first severs it before it can be used.
+
+**Account deletion is settled** and built: self-service from `/account`, immediate, hard delete, in
+one transaction. It is blocked while the user still owns a board someone else is a member of —
+there is no ownership transfer until member management lands. Comments on other people's boards
+survive with `authorId` null, so a request to remove those has to reach the mailbox `/privacy` names
+*before* the account goes; the danger zone says so, because afterwards nothing links them back.
+`docs/specs/account-deletion.md` holds the reasoning.
+
+Remaining sub-projects, in order: member management and invites (which brings ownership transfer
+with it), then labels/tags, then attachments.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -55,7 +55,7 @@ The spec puts "asserts the cascade actually happened" in `lib/actions/account.te
 
 The `client` parameter exists so the action can run the same query inside its transaction. `tx` and `db` expose the same `query` shape, so one structural type covers both.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // lib/account.test.ts
@@ -104,7 +104,7 @@ describe('signInProviders', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/account.test.ts > /tmp/t1.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/t1.log
@@ -112,7 +112,7 @@ pnpm exec vitest run lib/account.test.ts > /tmp/t1.log 2>&1; echo "EXIT=$?"; tai
 
 Expected: non-zero, `Failed to resolve import "./account"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```ts
 // lib/account.ts
@@ -153,7 +153,7 @@ export async function signInProviders(userId: string): Promise<string[]> {
 
 If the `as never` / `as unknown as` casts turn out to be avoidable once `tsc` has seen the real types, remove them — `CLAUDE.md` forbids casts that exist only to silence the compiler. Try the untyped version first and only reach for a cast if drizzle's `findMany` overloads genuinely will not unify across `db` and `tx`.
 
-- [ ] **Step 4: Run it and watch it pass**
+- [x] **Step 4: Run it and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/account.test.ts > /tmp/t1.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/t1.log
@@ -161,7 +161,7 @@ pnpm exec vitest run lib/account.test.ts > /tmp/t1.log 2>&1; echo "EXIT=$?"; tai
 
 Expected: EXIT=0, 4 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/account.ts lib/account.test.ts
@@ -183,7 +183,7 @@ git commit -m "feat: query the boards an account deletion would strand"
 
 `signOut({ redirect: false })` is deliberate. `next-auth`'s own types (`node_modules/next-auth/index.d.ts:287`) show `redirect?: R` with `Promise<R extends false ? any : never>` — the default redirects, which in a server action means a thrown `NEXT_REDIRECT` and a result the caller never receives. This action has to return a result, so it signs out without redirecting and the client navigates.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 // lib/actions/account.test.ts
@@ -272,7 +272,7 @@ describe('deleteAccount', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/account.test.ts > /tmp/t2.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/t2.log
@@ -280,7 +280,7 @@ pnpm exec vitest run lib/actions/account.test.ts > /tmp/t2.log 2>&1; echo "EXIT=
 
 Expected: non-zero, `Failed to resolve import "./account"`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 ```ts
 // lib/actions/account.ts
@@ -334,7 +334,7 @@ export async function deleteAccount(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run it and watch it pass**
+- [x] **Step 4: Run it and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/account.test.ts > /tmp/t2.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/t2.log
@@ -342,7 +342,7 @@ pnpm exec vitest run lib/actions/account.test.ts > /tmp/t2.log 2>&1; echo "EXIT=
 
 Expected: EXIT=0, 6 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/account.ts lib/actions/account.test.ts
@@ -363,7 +363,7 @@ git commit -m "feat: delete an account and the boards only it can reach"
 
 No `Dialog`. The page is already the deliberate destination, and the typed email is the confirmation — a dialog on top of it would be a second gate that guards nothing.
 
-- [ ] **Step 1: Write the page**
+- [x] **Step 1: Write the page**
 
 ```tsx
 // app/(app)/(chrome)/account/page.tsx
@@ -401,7 +401,7 @@ export default async function AccountPage() {
 }
 ```
 
-- [ ] **Step 2: Write the client component**
+- [x] **Step 2: Write the client component**
 
 ```tsx
 // components/app/delete-account.tsx
@@ -505,7 +505,7 @@ export function DeleteAccount({
 }
 ```
 
-- [ ] **Step 3: Add the menu item**
+- [x] **Step 3: Add the menu item**
 
 In `components/app/account-menu.tsx`, immediately above the existing Privacy item:
 
@@ -515,7 +515,7 @@ In `components/app/account-menu.tsx`, immediately above the existing Privacy ite
         </DropdownMenuItem>
 ```
 
-- [ ] **Step 4: Add `/account` to the footer route list**
+- [x] **Step 4: Add `/account` to the footer route list**
 
 In `e2e/board-view.spec.ts`, the loop in "the footer survives the move off the root layout":
 
@@ -523,7 +523,7 @@ In `e2e/board-view.spec.ts`, the loop in "the footer survives the move off the r
     for (const path of ['/boards', '/account', '/privacy', '/design']) {
 ```
 
-- [ ] **Step 5: Verify it compiles and renders**
+- [x] **Step 5: Verify it compiles and renders**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TYPECHECK=$?"; pnpm lint > /tmp/lint.log 2>&1; echo "LINT=$?"
@@ -532,7 +532,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"; tail -5 /tmp/build.log
 
 Expected: all EXIT=0. The build is not optional here: `lib/account.ts` imports `lib/db`, and a client component importing a value from it would pull `pg` into the browser bundle — `CLAUDE.md` records that only bundling catches that. `delete-account.tsx` imports `OwnedBoard` with `import type`, which is erased; if the build fails on `dns`/`fs`/`net`, that import lost its `type` keyword.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app components e2e/board-view.spec.ts
@@ -551,7 +551,7 @@ git commit -m "feat: give the account a page and a way to delete itself"
 - Consumes: `seedSession`, `seedBoard`, `seedMember`, `seedCard`, `seedComment`, `removeSeededUser`, `closeSeedPool` — all already exported.
 - Produces: `userRowCounts(userId)`, `commentAuthorId(commentId)`.
 
-- [ ] **Step 1: Add the row-inspection helpers**
+- [x] **Step 1: Add the row-inspection helpers**
 
 Append to `e2e/support/session.ts`:
 
@@ -590,7 +590,7 @@ export async function commentAuthorId(commentId: string): Promise<string | null 
 }
 ```
 
-- [ ] **Step 2: Write the failing e2e**
+- [x] **Step 2: Write the failing e2e**
 
 ```ts
 // e2e/account.spec.ts
@@ -700,7 +700,7 @@ test('owning a board someone else is on blocks the delete', async ({ page, conte
 });
 ```
 
-- [ ] **Step 3: Run it, read the exit code from a file**
+- [x] **Step 3: Run it, read the exit code from a file**
 
 ```bash
 pnpm exec playwright test e2e/account.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e.log
@@ -710,7 +710,7 @@ Expected first run: failures, because the page does not exist yet if tasks run o
 
 **If the second test fails on a foreign key violation naming `cards_column_id_columns_id_fk`,** that is the `NO ACTION` constraint the spec flagged, resolving immediately rather than at end of statement. Stop and report it — the fix is a schema change (making the constraint `deferrable initially deferred`, or deleting cards explicitly before the user row), and it is a decision, not a patch to apply quietly.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add e2e/account.spec.ts e2e/support/session.ts
@@ -724,7 +724,7 @@ git commit -m "test: prove the account delete cascade against a real database"
 **Files:**
 - Modify: `app/(legal)/privacy/page.tsx`, `CLAUDE.md`
 
-- [ ] **Step 1: Update the policy**
+- [x] **Step 1: Update the policy**
 
 Replace the body of the "Keeping and deleting your data" section:
 
@@ -742,11 +742,11 @@ Replace the body of the "Keeping and deleting your data" section:
 
 Move `LAST_UPDATED` to the date this lands.
 
-- [ ] **Step 2: Update `CLAUDE.md`**
+- [x] **Step 2: Update `CLAUDE.md`**
 
 Under "Open decisions", replace the account-deletion bullet with a line recording that it is settled — self-service, immediate, hard delete, blocked while the user owns a shared board — and add the remaining order: member management and invites next, then labels/tags, then attachments.
 
-- [ ] **Step 3: Run the policy's own tests**
+- [x] **Step 3: Run the policy's own tests**
 
 ```bash
 pnpm exec vitest run 'app/(legal)/privacy/page.test.tsx' --reporter=verbose > /tmp/p.log 2>&1; echo "EXIT=$?"; grep -c "✓" /tmp/p.log
@@ -754,7 +754,7 @@ pnpm exec vitest run 'app/(legal)/privacy/page.test.tsx' --reporter=verbose > /t
 
 Expected: EXIT=0, 16 checks.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add app/\(legal\)/privacy/page.tsx CLAUDE.md
@@ -763,16 +763,39 @@ git commit -m "docs: describe the delete flow that now exists"
 
 ---
 
+## Deviations while executing
+
+Five, all small, all verified:
+
+- `lib/account.ts` carries **none** of the casts the plan hedged on. Typing the client as
+  `{ query: { boards: { findMany: (config: Parameters<typeof db.query.boards.findMany>[0]) => Promise<unknown> } } }`
+  accepts `db`, a drizzle transaction and the test's plain mock, so `as never` and `as unknown as`
+  were both unnecessary. One `as BoardRow[]` on the result remains, and it is load-bearing: the
+  structural parameter type is what erases the row type.
+- `signOutMock` is `vi.fn<(options?: unknown) => Promise<void>>(...)`. The plan's zero-argument
+  `vi.fn` fails `tsc` at the call site inside the module mock — `Expected 0 arguments, but got 1`.
+- `window.location.assign('/signin')` carries an `eslint-disable-next-line` for
+  `@next/next/no-location-assign-relative-destination`. The hard navigation is the point: a router
+  push keeps the RSC cache rendered for a user who no longer exists.
+- The delete button gained `disabled:opacity-50`, matching `new-card-button.tsx`. Without it the
+  disabled control is indistinguishable from the enabled one.
+- The third e2e test now also reads the orphaned comment back **as the board owner**, because the
+  gate asks whether it is readable and a null `author_id` is not that question. It renders as
+  `Deleted account`, a branch `card-comments.tsx` already had.
+
+`signOut({ redirect: false })` was confirmed against `node_modules/next-auth/index.d.ts:287` before
+it was written: `<R extends boolean = true>(options?: { redirectTo?: string; redirect?: R }) => Promise<R extends false ? any : never>`.
+
 ## Section gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, each exit code read from its own redirected log, count run compared against count collected.
-- [ ] The e2e suite ran rather than skipped: the four tests in `account.spec.ts` are named individually in the line reporter's output.
-- [ ] A real account deleted in a browser is gone, confirmed with a `select` against `user`, `account`, `session` and `board_members` — not inferred from the redirect.
-- [ ] A comment that account left on another user's board is still readable by that user, with no name on it.
-- [ ] The old session cookie does not open `/boards`.
-- [ ] The `cards.column_id` `NO ACTION` constraint did not fire on a board holding columns, cards and comments.
-- [ ] Screenshots of `/account` and the danger zone in both themes, at 1440px and 390px, attached to the PR.
-- [ ] Open the PR. Stop.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, each exit code read from its own redirected log. TYPECHECK=0, LINT=0 (2 warnings, both pre-existing in `lib/board-state.ts`), TEST=0 with 315 passed across 26 files, BUILD=0, e2e EXIT=0 with `Running 112 tests` against `112 passed`.
+- [x] The e2e suite ran rather than skipped: `Running 4 tests using 4 workers`, then `[1/4]`–`[4/4]` naming each of the four tests, then `4 passed`. Nothing skipped.
+- [x] A real account deleted in a browser is gone, confirmed with a `select` and not with the redirect: `userRowCounts` runs the four `count(*)` queries from the runner's own pool against the Neon dev branch, and `deleting takes the account, its boards and everything on them` asserts `{ user: 0, account: 0, session: 0, members: 0 }` after a real Chromium click.
+- [x] A comment that account left on another user's board is still readable by that user, with no name on it. `comment_author_id` is null in the database, and the board owner then opens `/boards/<id>/cards/<id>` and sees the body `Still here` under `Deleted account` — `card-comments.tsx:188` already had that branch.
+- [x] The old session cookie does not open `/boards`: the same test navigates there with the stale cookie still in the jar and lands on `/signin`.
+- [x] The `cards.column_id` `NO ACTION` constraint did not fire. The board deleted by the cascade held five columns, a card and a comment, and the delete committed — the constraint is resolved at end of statement, as the spec hoped rather than knew.
+- [x] Screenshots of `/account` and the danger zone in both themes, at 1440px and 390px, committed under `docs/screenshots/account-deletion/` and embedded in the PR body — including the blocked state at 1440px in both themes.
+- [x] Open the PR. Stop. — PR #73.
 
 ## Self-review
 
