@@ -611,14 +611,16 @@ Not settled yet — raise these rather than deciding unilaterally:
 - Board archive vs hard delete.
 
 **Account deletion is settled** and built: self-service from `/account`, immediate, hard delete, in
-one transaction. It is blocked while the user still owns a board someone else is a member of —
-there is no ownership transfer until member management lands. Comments on other people's boards
-survive with `authorId` null, so a request to remove those has to reach the mailbox `/privacy` names
-*before* the account goes; the danger zone says so, because afterwards nothing links them back.
-`docs/specs/account-deletion.md` holds the reasoning.
+one transaction. It is blocked while the user still owns a board someone else is a member of; the
+way out is to delete that board or hand it to one of its members from that board's members dialog —
+the danger zone offers both. The same transaction deletes any pending `board_invites` addressed to
+the departing address, because invites key on an address and no foreign key cascades them. Comments
+on other people's boards survive with `authorId` null, so a request to remove those has to reach the
+mailbox `/privacy` names *before* the account goes; the danger zone says so, because afterwards
+nothing links them back. `docs/specs/account-deletion.md` holds the reasoning.
 
-Remaining sub-projects, in order: member management and invites (which brings ownership transfer
-with it), then labels/tags, then attachments.
+Remaining sub-projects: member management and invites has Sections A–C shipped, with Section D
+(realtime membership events) outstanding, then labels/tags, then attachments.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

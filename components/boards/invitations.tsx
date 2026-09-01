@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
 import { acceptInvite, declineInvite } from '@/lib/actions/members';
+import { attempt } from '@/lib/attempt';
 import type { UserInvite } from '@/lib/members';
 
 export function Invitations({ invites }: { invites: UserInvite[] }) {
@@ -16,7 +17,9 @@ export function Invitations({ invites }: { invites: UserInvite[] }) {
   function answer(inviteId: string, accepted: boolean) {
     setError(null);
     startTransition(async () => {
-      const result = await (accepted ? acceptInvite({ inviteId }) : declineInvite({ inviteId }));
+      const result = await attempt(() =>
+        accepted ? acceptInvite({ inviteId }) : declineInvite({ inviteId }),
+      );
       if (!result.ok) {
         setError('That invitation is no longer open. Refresh to see what changed.');
         return;
@@ -27,7 +30,7 @@ export function Invitations({ invites }: { invites: UserInvite[] }) {
 
   return (
     <section className="mb-6 rounded-[var(--radius-card)] border border-line bg-surface p-4">
-      <h2 className="text-sm font-semibold uppercase tracking-[0.08em] text-muted">Invitations</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Invitations</h2>
       <ul className="mt-3 space-y-3">
         {invites.map((invite) => (
           <li key={invite.id} className="flex flex-wrap items-center gap-3">
