@@ -92,6 +92,40 @@ test('a card moved in one browser moves in another, with no reload', async ({ br
   }
 });
 
+test('a client does not re-apply its own move', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready, inProgress] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, { boardId, createdById: userId, title: 'Ship it' });
+
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await expect(page.locator('[data-realtime]')).toHaveAttribute('data-realtime', 'subscribed', {
+      timeout: 15_000,
+    });
+
+    await page.getByRole('button', { name: 'Card actions for Ship it' }).click();
+    await page.getByRole('menuitem', { name: 'Move to' }).click();
+    await page.getByRole('menuitem', { name: inProgress.name }).click();
+
+    // Long enough for the echo to have arrived and been ignored.
+    await page.waitForTimeout(3_000);
+
+    // Exactly one card, in exactly one column. A re-applied echo would show up
+    // as a duplicate or as a card that bounced back.
+    await expect(page.locator(`[data-card-id="${cardId}"]`)).toHaveCount(1);
+    await expect(
+      page.locator(`[data-column-id="${inProgress.id}"] [data-card-id="${cardId}"]`),
+    ).toBeVisible();
+    expect(errors).toEqual([]);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
 test('a board the user cannot read never subscribes', async ({ page, context }) => {
   const owner = await seedSession(context);
   const boardId = await seedBoard(owner.userId, 'Private');

@@ -26,8 +26,14 @@ const EVENT_NAMES: BoardEvent['type'][] = [
   'comment.deleted',
 ];
 
+// Bounded: an echo arrives within milliseconds of its action resolving, so the
+// window only has to outlive one round trip. Unbounded, this would grow for as
+// long as the board stays open.
+const CLAIM_MEMORY = 50;
+
 const RealtimeContext = createContext<{
   subscribe: (handler: Handler) => () => void;
+  claim: () => string;
   status: Status;
 } | null>(null);
 
@@ -41,6 +47,7 @@ export function RealtimeProvider({
   // A ref, not state: adding a handler must not re-render the provider and
   // tear down the connection every time the modal opens over the board.
   const handlers = useRef(new Set<Handler>());
+  const claimed = useRef<string[]>([]);
   const [status, setStatus] = useState<Status>('off');
 
   useEffect(() => {
@@ -69,6 +76,13 @@ export function RealtimeProvider({
     channel.bind('pusher:subscription_error', () => setStatus('failed'));
 
     const fanOut = (event: BoardEvent) => {
+      // Our own change is already applied optimistically. Applying the echo as
+      // well would fight the optimistic update rather than confirm it.
+      const index = claimed.current.indexOf(event.mutationId);
+      if (index !== -1) {
+        claimed.current.splice(index, 1);
+        return;
+      }
       for (const handler of handlers.current) handler(event);
     };
     for (const eventName of EVENT_NAMES) channel.bind(eventName, fanOut);
@@ -88,7 +102,14 @@ export function RealtimeProvider({
     };
   }, []);
 
-  const value = useMemo(() => ({ subscribe, status }), [subscribe, status]);
+  const claim = useCallback(() => {
+    const mutationId = crypto.randomUUID();
+    claimed.current.push(mutationId);
+    if (claimed.current.length > CLAIM_MEMORY) claimed.current.shift();
+    return mutationId;
+  }, []);
+
+  const value = useMemo(() => ({ subscribe, claim, status }), [subscribe, claim, status]);
 
   return (
     <RealtimeContext.Provider value={value}>

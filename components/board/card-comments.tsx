@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 
+import { useRealtime } from '@/components/board/realtime';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { addComment, deleteComment, editComment } from '@/lib/actions/comments';
 import type { CardComment, Viewer } from '@/lib/cards';
@@ -23,6 +24,7 @@ export function CardComments({
   comments: CardComment[];
   viewer: Viewer;
 }) {
+  const { claim } = useRealtime();
   const [rows, setRows] = useState<Row[]>(comments);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +51,7 @@ export function CardComments({
     setError(null);
 
     startTransition(async () => {
-      const result = await addComment({ cardId, body, mutationId: crypto.randomUUID() });
+      const result = await addComment({ cardId, body, mutationId: claim() });
       if (result.ok) {
         setRows((current) =>
           current.map((row) =>
@@ -86,7 +88,7 @@ export function CardComments({
       const result = await editComment({
         commentId: row.id,
         body,
-        mutationId: crypto.randomUUID(),
+        mutationId: claim(),
       });
       if (!result.ok) {
         // Only roll back if the row still holds the value this request sent —
@@ -105,7 +107,7 @@ export function CardComments({
     setError(null);
 
     startTransition(async () => {
-      const result = await deleteComment({ commentId: row.id, mutationId: crypto.randomUUID() });
+      const result = await deleteComment({ commentId: row.id, mutationId: claim() });
       if (!result.ok) {
         setRows((current) => reinsertOrdered(current, row));
         setError('That comment could not be deleted. Try again.');
