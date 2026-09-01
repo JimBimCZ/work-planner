@@ -271,7 +271,15 @@ export function CardBody({
           if (event.key === 'Enter') event.currentTarget.blur();
           if (event.key === 'Escape' && title !== savedTitle) setTitle(savedTitle);
         }}
-        className="rounded-[var(--radius-control)] border border-line bg-surface px-2 py-1 text-sm font-medium text-ink"
+        // The modal has no visible header to hold shadcn's close button — the
+        // sr-only DialogTitle means this input is the first thing in the
+        // content, and the button is positioned over the same corner. 32px
+        // clears it by the same 16px the fields below are spaced apart, so the
+        // ✕ reads as sharing this row rather than sitting on the field. The
+        // canonical page has no close button and so needs no indent.
+        className={`rounded-[var(--radius-control)] border border-line bg-surface px-2 py-1 text-sm font-medium text-ink ${
+          surface === 'modal' ? 'mr-8' : ''
+        }`}
       />
       <CardDueDate
         value={dueDate}
