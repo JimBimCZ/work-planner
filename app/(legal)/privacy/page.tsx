@@ -8,16 +8,13 @@ export const metadata: Metadata = {
   description: 'What Work Planner collects, why, and what you can ask us to do about it.',
 };
 
-const LAST_UPDATED = '30 August 2026';
+const LAST_UPDATED = '1 September 2026';
 
-// Unset until the service takes real users. Google's OAuth consent screen only
-// requires the URL to resolve, so the page ships with the identity blank rather
-// than with an invented controller.
-const CONTROLLER = 'Not yet set';
-const CONTACT_EMAIL = 'Not yet set';
+const CONTROLLER = 'Vit Busek';
+const CONTACT_EMAIL = 'busek.vit@gmail.com';
 
 const PROCESSORS = [
-  ['Vercel', 'Hosting and serverless functions', 'See note below'],
+  ['Vercel', 'Hosting and serverless functions', 'EU — Frankfurt (fra1)'],
   ['Neon', 'Postgres database', 'EU — Frankfurt (eu-central-1)'],
   ['Pusher', 'Realtime board updates', 'EU'],
   ['Google', 'Sign-in, if you choose it', 'Per Google’s own policy'],
@@ -42,9 +39,9 @@ export default function PrivacyPage() {
       </header>
 
       <p className="rounded-[var(--radius-card)] border border-line bg-surface p-4 text-[15px]/6">
-        This is a working draft. It describes what the application actually does today, but the
-        controller details are not filled in and it has not been reviewed by a lawyer. Do not treat
-        it as final while the service has no real users.
+        This policy has not been reviewed by a lawyer. It names a real controller and describes
+        what the application actually does today, but treat it as a working draft until it has had
+        a legal read.
       </p>
 
       <Section title="Who runs Work Planner">
@@ -118,8 +115,11 @@ export default function PrivacyPage() {
           </table>
         </div>
         <p className="text-[15px]/6 text-muted">
-          The database is pinned to the EU. The hosting region has not been confirmed yet and this
-          row must be settled before the service takes real users.
+          Your board data stays in Frankfurt: the database is pinned to eu-central-1 and the
+          functions that read and write it are pinned to fra1. Realtime updates go through
+          Pusher’s EU cluster. Vercel’s CDN serves static pages from whichever location is nearest
+          you, so a request made from outside the EU is logged at a point of presence outside it —
+          that log holds an IP address and a URL, never board content.
         </p>
       </Section>
 
