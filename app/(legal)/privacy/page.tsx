@@ -71,9 +71,11 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="font-medium">Invitations</strong> — if you invite somebody to a
-            board, we store the email address you type until the invitation is accepted, declined,
-            withdrawn or expires after 30 days. If you delete your account, invitations addressed
-            to you go with it.
+            board, we store the email address you type. We delete it when the invitation is
+            accepted, declined or withdrawn. An invitation expires 30 days after it is sent and
+            can no longer be accepted, but an expired invitation nobody withdraws stays in the
+            database until that address is invited to that board again. If you delete your
+            account, invitations addressed to you go with it.
           </li>
         </ul>
         <p className="text-[15px]/6">

@@ -59,7 +59,12 @@ describe('privacy policy', () => {
 
   test('says what happens to an address typed into an invite', () => {
     expect(html()).toMatch(/invite/i);
-    expect(html()).toMatch(/until (the invitation is|it is) accepted, declined, withdrawn or expires/i);
+    expect(html()).toMatch(/accepted, declined or withdrawn/i);
+    // Expiry hides an invite; it does not delete the row. lib/members.ts
+    // filters at read time and Deployment rules out a purge job, so the
+    // policy must not promise a deletion that never happens.
+    expect(html()).toMatch(/expires 30 days/i);
+    expect(html()).toMatch(/stays in the database/i);
   });
 
   test('is statically rendered and titled', () => {
