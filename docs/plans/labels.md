@@ -373,7 +373,7 @@ git commit -m "feat: read a board's labels, case-folded"
 - Create: `lib/actions/labels.ts`, `lib/actions/labels.test.ts`
 
 **Interfaces:**
-- Consumes: `LABELS_PER_BOARD`, `LABEL_NAME_MAX` from `lib/labels.ts`; `assertBoardAccess`, `boardAccessResult` from `lib/permissions.ts`; `touchBoard`, `Tx` from `lib/actions/scope.ts`.
+- Consumes: `LABELS_PER_BOARD`, `LABEL_NAME_MAX` from `lib/labels.ts`; `assertBoardAccess`, `boardAccessResult` from `lib/permissions.ts`. **Not** `touchBoard` — `lib/actions/scope.ts` bumps a board for card and column writes so `/boards` orders by activity, and a label is board vocabulary rather than board content. Task A4 does consume it, because that one is a card write.
 - Produces:
   ```ts
   export async function createLabel(input: unknown): Promise<
@@ -813,7 +813,7 @@ Expected: PASS, 13 tests.
 - [x] **Step 5: Commit**
 
 ```bash
-git add lib/actions/labels.ts lib/actions/labels.test.ts
+git add lib/actions/labels.ts lib/actions/labels.test.ts lib/events.ts
 git commit -m "feat: create, rename and delete a board's labels"
 ```
 
@@ -950,7 +950,7 @@ Expected: FAIL — `setCardLabels is not a function`.
 
 - [x] **Step 3: Write it**
 
-Add to `lib/actions/labels.ts` — note the extra imports (`inArray` from `drizzle-orm`, `cardLabels` from the schema, `boardIdForCard` and `touchBoard` from `./scope`):
+Add to `lib/actions/labels.ts` — note the extra imports: `cardLabels` from the schema, and `boardIdForCard` and `touchBoard` from `./scope`. **Not** a top-level `inArray`: the code below destructures it from the relational query builder's own operator bag, so a module-level import would sit unused and lint would flag it.
 
 ```ts
 const setSchema = z.object({
