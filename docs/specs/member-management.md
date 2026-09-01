@@ -136,7 +136,7 @@ unless the viewer is the owner, so a non-owner's props never carry one.
 | `changeRole({ boardId, userId, role })` | owner | `TARGET_IS_OWNER` |
 | `removeMember({ boardId, userId })` | owner | `TARGET_IS_OWNER` |
 | `leaveBoard({ boardId })` | any non-owner member | `OWNER_CANNOT_LEAVE` |
-| `transferOwnership({ boardId, userId, confirmName })` | owner | `NOT_A_MEMBER`, `NAME_MISMATCH` |
+| `transferOwnership({ boardId, userId, confirmName })` | owner | `NOT_A_MEMBER`, `NAME_MISMATCH`, `TARGET_IS_OWNER` |
 
 Every one follows the convention block: session, Zod, `assertBoardAccess`,
 transaction, publish after commit, discriminated result, no throwing for
@@ -158,6 +158,10 @@ Four that are not mechanical:
   missing board from one you are not on.
 - **`acceptInvite` on someone who is already a member** deletes the invite and
   returns `ok`. The end state the user asked for is the end state they get.
+- **`transferOwnership` rejects a transfer to yourself as `TARGET_IS_OWNER`**,
+  the same code `changeRole` and `removeMember` use. There is one owner row, so
+  "the target is already the owner" and "the target is you" are the same
+  condition, and one lookup answers both.
 - **`transferOwnership` is one transaction**: `boards.ownerId` to the target,
   the target's `board_members.role` to `owner`, the caller's to `member`.
   Confirmation is typing the board name, matching `deleteBoard`. The target must
