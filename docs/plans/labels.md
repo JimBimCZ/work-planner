@@ -1849,6 +1849,8 @@ export function LabelFilter({
 }
 ```
 
+**The narrowing belongs in this task, not C3.** This task's own test asserts that `Has nothing` disappears, so `board-canvas.tsx` has to derive the filter and apply it here — `cards={cardsIn(state, column.id).filter((card) => matchesFilter(card, filter))}`. C3 then adds only the drag guard and the empty-state copy. As written the plan left C2's test unpassable by C2's code.
+
 The count shown beside each label is computed by the caller from board state — the client already holds every card's `labelIds`, and a count query would be a second source of truth that can disagree with the board on screen.
 
 Mount it in the board layout's `actions`, before `MembersButton`:
@@ -2020,7 +2022,11 @@ git commit -m "fix: never drag a card whose neighbours are hidden"
 **Interfaces:**
 - Consumes: `createLabel`, `renameLabel`, `deleteLabel`; `attempt` from `lib/attempt.ts`; `claim` from `useRealtime`.
 
-- [ ] **Step 1: Write the failing test**
+**This task under-specified the spec.** `docs/specs/labels.md` requires three things the plan's snippets omit, and the spec is the authority: **rename** ("a 'New label' row, and rename and delete for members"), a **"Clear"** control that drops the query parameter, and a popover that is **"reachable and dismissible by keyboard"**. All three are implemented — rename swaps the row into a field with Save, Clear appears whenever the filter is active, and Escape reverts an open rename before it closes the popover, with click-outside dismissing it too.
+
+Also: visible button text stays short (`Rename`, `Delete`, `Save`) with the full phrase in `aria-label`. Spelling them out in the DOM truncated the label names the buttons act on down to `bloc…`. That keeps `getByRole('button', { name: 'Rename bug' })` working while the row stays readable — but note `getByLabel` matches substrings, so the rename field must be queried as `getByRole('textbox', { name: 'Label name' })` or it also resolves the `Save label name` button.
+
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/labels.spec.ts`:
 
@@ -2070,7 +2076,7 @@ test('a viewer is offered no way to change the set', async ({ page, context, bro
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -2078,7 +2084,7 @@ pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: FAIL — no field labelled `New label`.
 
-- [ ] **Step 3: Add management to the popover's foot**
+- [x] **Step 3: Add management to the popover's foot**
 
 Below the list in `label-filter.tsx`, behind `canWrite`, a create row and a delete control per label:
 
@@ -2127,7 +2133,7 @@ Errors render in the popover, under the form, in `text-time-over`. A failed acti
 
 `LABEL_NAME_MAX` is imported as a value from `lib/labels.ts`, which imports `lib/db` — so **import the constant into a server component and pass it as a prop, or move the two constants to a module that imports nothing.** Moving them is cleaner: put `LABEL_NAME_MAX` and `LABELS_PER_BOARD` in `lib/labels-limits.ts`, re-export them from `lib/labels.ts` so Section A's imports keep working, and have the client import the limits module. Only `pnpm build` catches this class of mistake.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/e2e.log
@@ -2139,7 +2145,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"; tail -5 /tmp/build.log
 
 Expected: all `=0`. The build is the one that proves the pg pool stayed out of the browser bundle.
 
-- [ ] **Step 5: Commit and open the Section C pull request**
+- [x] **Step 5: Commit and open the Section C pull request**
 
 ```bash
 git add components/board e2e/labels.spec.ts lib/labels-limits.ts lib/labels.ts docs/plans/labels.md

@@ -144,3 +144,119 @@ test('a column emptied by a filter says so in its own words', async ({ page, con
     await removeSeededUser(userId);
   }
 });
+
+test('a member creates a label from the filter, and deletes it again', async ({
+  page,
+  context,
+}) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Vocabulary');
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await page.getByRole('button', { name: 'Filter' }).click();
+    await page.getByLabel('New label').fill('chore');
+    const created = written(page);
+    await page.getByRole('button', { name: 'Add label' }).click();
+    await created;
+    await expect(page.getByRole('checkbox', { name: /chore/ })).toBeVisible();
+
+    const removed = written(page);
+    await page.getByRole('button', { name: 'Delete chore' }).click();
+    await removed;
+    await expect(page.getByRole('checkbox', { name: /chore/ })).toHaveCount(0);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+test('a member renames a label from the filter', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Renaming');
+  await seedLabel(boardId, 'bug');
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await page.getByRole('button', { name: 'Filter' }).click();
+    await page.getByRole('button', { name: 'Rename bug' }).click();
+    await page.getByRole('textbox', { name: 'Label name' }).fill('defect');
+    const saved = written(page);
+    await page.getByRole('button', { name: 'Save label name' }).click();
+    await saved;
+
+    await expect(page.getByRole('checkbox', { name: /defect/ })).toBeVisible();
+    await expect(page.getByRole('checkbox', { name: /^bug$/ })).toHaveCount(0);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+test('clearing the filter drops the parameter and brings the board back', async ({
+  page,
+  context,
+}) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Clearing');
+  const [first] = await boardColumns(boardId);
+  const kept = await seedCard(first.id, { boardId, createdById: userId, title: 'Has bug' });
+  await seedCard(first.id, { boardId, createdById: userId, title: 'Has nothing' });
+  const labelId = await seedLabel(boardId, 'bug');
+  await assignLabel(kept, labelId);
+
+  try {
+    await page.goto(`/boards/${boardId}?label=${labelId}`);
+    await expect(page.getByText('Has nothing')).toBeHidden();
+
+    await page.getByRole('button', { name: /Filter/ }).click();
+    await page.getByRole('button', { name: 'Clear' }).click();
+
+    await expect(page).not.toHaveURL(/label=/);
+    await expect(page.getByText('Has nothing')).toBeVisible();
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+test('a viewer is offered no way to change the set', async ({ page, context, browser }) => {
+  const aside = await browser.newContext();
+  const owner = await seedSession(aside);
+  await aside.close();
+  const boardId = await seedBoard(owner.userId, 'Read only vocabulary');
+  await seedLabel(boardId, 'bug');
+
+  const viewer = await seedSession(context);
+  await seedMember(boardId, viewer.userId, 'viewer');
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await page.getByRole('button', { name: 'Filter' }).click();
+    await expect(page.getByRole('checkbox', { name: /bug/ })).toBeVisible();
+    await expect(page.getByLabel('New label')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Delete bug' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Rename bug' })).toHaveCount(0);
+  } finally {
+    await removeSeededUser(viewer.userId);
+    await removeSeededUser(owner.userId);
+  }
+});
+
+test('the popover closes on Escape', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Dismissible');
+  await seedLabel(boardId, 'bug');
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await page.getByRole('button', { name: 'Filter' }).click();
+    await expect(page.getByRole('checkbox', { name: /bug/ })).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('checkbox', { name: /bug/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Filter' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+  } finally {
+    await removeSeededUser(userId);
+  }
+});

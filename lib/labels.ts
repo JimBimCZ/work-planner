@@ -1,11 +1,8 @@
 import { db } from '@/lib/db';
 
-export const LABEL_NAME_MAX = 32;
-
-// Not a check constraint: a tunable product limit, not an invariant. It is
-// load-bearing rather than cosmetic — a card's label ids travel in a realtime
-// payload, and 50 ids at 36 bytes stays far under PAYLOAD_CEILING.
-export const LABELS_PER_BOARD = 50;
+// Re-exported so every existing server-side import keeps working; the values
+// live in lib/labels-limits.ts because a client component needs them too.
+export { LABEL_NAME_MAX, LABELS_PER_BOARD } from '@/lib/labels-limits';
 
 export type BoardLabel = { id: string; name: string };
 

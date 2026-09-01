@@ -48,7 +48,11 @@ export default async function BoardTitleLayout({
             title={board.name}
             actions={
               <>
-                <LabelFilter labels={board.labels} />
+                <LabelFilter
+                  labels={board.labels}
+                  boardId={boardId}
+                  canWrite={atLeast(role, 'member')}
+                />
                 <MembersButton
                   boardId={boardId}
                   boardName={board.name}
