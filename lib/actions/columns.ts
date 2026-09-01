@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { cards, columns } from '@/lib/db/schema';
+import { publish } from '@/lib/events';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 import { ranksAfter, rankBetween } from '@/lib/rank';
 
@@ -15,14 +16,23 @@ import { boardIdForColumn, touchBoard, type Tx } from './scope';
 const columnName = z.string().trim().min(1).max(60);
 const id = z.string().min(1);
 
-const addSchema = z.object({ boardId: id, name: columnName, afterColumnId: id.nullable() });
-const renameSchema = z.object({ columnId: id, name: columnName });
+// Every call site mints the mutationId with crypto.randomUUID(). Bounding it to
+// a UUID keeps an oversized value from pushing the published event over
+// PAYLOAD_CEILING and silently dropping it for every other viewer.
+const addSchema = z.object({
+  boardId: id,
+  name: columnName,
+  afterColumnId: id.nullable(),
+  mutationId: z.uuid(),
+});
+const renameSchema = z.object({ columnId: id, name: columnName, mutationId: z.uuid() });
 const moveSchema = z.object({
   columnId: id,
   beforeColumnId: id.nullable(),
   afterColumnId: id.nullable(),
+  mutationId: z.uuid(),
 });
-const deleteSchema = z.object({ columnId: id, targetColumnId: id });
+const deleteSchema = z.object({ columnId: id, targetColumnId: id, mutationId: z.uuid() });
 
 function siblingColumns(tx: Tx, boardId: string) {
   return tx.query.columns.findMany({
@@ -65,6 +75,14 @@ export async function addColumn(input: unknown) {
   if (!created) return { ok: false, error: 'INVALID' } as const;
 
   revalidatePath('/boards');
+  await publish(boardId, {
+    type: 'column.created',
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+    id: created.id,
+    name,
+    rank: created.rank,
+  });
   return { ok: true, data: created } as const;
 }
 
@@ -93,6 +111,13 @@ export async function renameColumn(input: unknown) {
   });
 
   revalidatePath('/boards');
+  await publish(boardId, {
+    type: 'column.updated',
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+    id: parsed.data.columnId,
+    name: parsed.data.name,
+  });
   return { ok: true } as const;
 }
 
@@ -136,6 +161,13 @@ export async function moveColumn(input: unknown) {
   if (rank === null) return { ok: false, error: 'INVALID' } as const;
 
   revalidatePath('/boards');
+  await publish(boardId, {
+    type: 'column.moved',
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+    id: columnId,
+    rank,
+  });
   return { ok: true, data: { rank } } as const;
 }
 
@@ -183,11 +215,28 @@ export async function deleteColumn(input: unknown) {
 
     await tx.delete(columns).where(eq(columns.id, columnId));
     await touchBoard(tx, boardId);
-    return 'OK' as const;
+    return {
+      outcome: 'OK' as const,
+      cards: moving.map((card, position) => ({
+        id: card.id,
+        columnId: targetColumnId,
+        rank: ranks[position],
+      })),
+    };
   });
 
-  if (outcome !== 'OK') return { ok: false, error: outcome } as const;
+  if (outcome === 'LAST_COLUMN' || outcome === 'INVALID') {
+    return { ok: false, error: outcome } as const;
+  }
 
   revalidatePath('/boards');
+  await publish(boardId, {
+    type: 'column.deleted',
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+    id: columnId,
+    targetColumnId,
+    cards: outcome.cards,
+  });
   return { ok: true } as const;
 }

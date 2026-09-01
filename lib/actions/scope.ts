@@ -28,17 +28,32 @@ export async function touchBoard(tx: Tx, boardId: string): Promise<void> {
   await tx.update(boards).set({ updatedAt: new Date() }).where(eq(boards.id, boardId));
 }
 
+// card.updated carries the card's whole small surface, not just the field that
+// changed, so a client can apply it without asking a second question. The
+// description is deliberately absent: it cannot fit in a payload.
+export async function cardEventScope(
+  cardId: string,
+): Promise<{ boardId: string; title: string; dueDate: Date | null } | null> {
+  const card = await db.query.cards.findFirst({
+    where: (c, { eq: is }) => is(c.id, cardId),
+    columns: { boardId: true, title: true, dueDate: true },
+  });
+  return card ?? null;
+}
+
 // One query for both facts an author-only check needs. The board answers "may
 // you be here", the author answers "is it yours", and they are asked in that
 // order.
 export async function commentScope(
   commentId: string,
-): Promise<{ boardId: string; authorId: string | null } | null> {
+): Promise<{ boardId: string; cardId: string; authorId: string | null } | null> {
   const comment = await db.query.comments.findFirst({
     where: (c, { eq: is }) => is(c.id, commentId),
-    columns: { authorId: true },
+    columns: { authorId: true, cardId: true },
     with: { card: { columns: { boardId: true } } },
   });
 
-  return comment ? { boardId: comment.card.boardId, authorId: comment.authorId } : null;
+  return comment
+    ? { boardId: comment.card.boardId, cardId: comment.cardId, authorId: comment.authorId }
+    : null;
 }

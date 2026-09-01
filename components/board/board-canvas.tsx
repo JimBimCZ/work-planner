@@ -79,7 +79,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const columnRefs = useRef(new Map<string, HTMLElement>());
   const { register, registerPatchCard } = useBoardActions();
-  const { subscribe: subscribeRealtime } = useRealtime();
+  const { subscribe: subscribeRealtime, claim } = useRealtime();
 
   const reducedMotion = useSyncExternalStore(
     subscribe,
@@ -182,7 +182,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     setError(null);
 
     startTransition(async () => {
-      const result = await createCard({ columnId, title });
+      const result = await createCard({ columnId, title, mutationId: claim() });
       if (!result.ok) {
         dispatch({ type: 'card.delete', cardId: tempId });
         setError('That card could not be added. Try again.');
@@ -213,14 +213,14 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   const renameCardTo = (card: StateCard, title: string) =>
     run(
       { type: 'card.rename', cardId: card.id, title },
-      () => renameCard({ cardId: card.id, title }),
+      () => renameCard({ cardId: card.id, title, mutationId: claim() }),
       'That card could not be renamed. Try again.',
     );
 
   const removeCard = (card: StateCard) =>
     run(
       { type: 'card.delete', cardId: card.id },
-      () => deleteCard({ cardId: card.id }),
+      () => deleteCard({ cardId: card.id, mutationId: claim() }),
       'That card could not be deleted. Try again.',
     );
 
@@ -238,7 +238,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
           toColumnId,
           beforeCardId: last?.id ?? null,
           afterCardId: null,
-          mutationId: crypto.randomUUID(),
+          mutationId: claim(),
         }),
       'That card could not be moved. Try again.',
     );
@@ -247,7 +247,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   const renameColumnTo = (column: StateColumn, name: string) =>
     run(
       { type: 'column.rename', columnId: column.id, name },
-      () => renameColumn({ columnId: column.id, name }),
+      () => renameColumn({ columnId: column.id, name, mutationId: claim() }),
       'That column could not be renamed. Try again.',
     );
 
@@ -274,6 +274,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
           columnId: column.id,
           beforeColumnId: before?.id ?? null,
           afterColumnId: after?.id ?? null,
+          mutationId: claim(),
         }),
       'That column could not be moved. Try again.',
     );
@@ -288,7 +289,12 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     setError(null);
 
     startTransition(async () => {
-      const result = await addColumn({ boardId: board.id, name, afterColumnId: column.id });
+      const result = await addColumn({
+        boardId: board.id,
+        name,
+        afterColumnId: column.id,
+        mutationId: claim(),
+      });
       if (!result.ok) {
         dispatch({ type: 'column.delete', columnId: tempId, targetColumnId: null, ranks: [] });
         setError('That column could not be added. Try again.');
@@ -311,7 +317,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
         targetColumnId,
         ranks: ranksAfter(last?.rank ?? null, moving.length),
       },
-      () => deleteColumn({ columnId: column.id, targetColumnId }),
+      () => deleteColumn({ columnId: column.id, targetColumnId, mutationId: claim() }),
       'That column could not be deleted. Try again.',
     );
   };
@@ -348,7 +354,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
         toColumnId: target.toColumnId,
         rank: rankBetween(before?.rank ?? null, after?.rank ?? null),
       },
-      () => moveCard({ cardId: String(active.id), ...target, mutationId: crypto.randomUUID() }),
+      () => moveCard({ cardId: String(active.id), ...target, mutationId: claim() }),
       'That card could not be moved. Try again.',
     );
   }

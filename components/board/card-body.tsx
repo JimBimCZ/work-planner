@@ -12,6 +12,7 @@ import { useBoardActions } from '@/components/board/board-actions';
 import { CardComments } from '@/components/board/card-comments';
 import { CardDueDate } from '@/components/board/card-due-date';
 import { useCardEscapeGuard } from '@/components/board/card-modal';
+import { useRealtime } from '@/components/board/realtime';
 import { renameCard, setCardDescription, setCardDueDate } from '@/lib/actions/cards';
 import type { CardForView, Viewer } from '@/lib/cards';
 import { toDateInputValue } from '@/lib/due';
@@ -28,6 +29,7 @@ export function CardBody({
   showHeading?: boolean;
 }) {
   const { patchCard } = useBoardActions();
+  const { claim } = useRealtime();
   const [title, setTitle] = useState(card.title);
   const [savedTitle, setSavedTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description ?? '');
@@ -104,7 +106,7 @@ export function CardBody({
       saved: savedTitle,
       setValue: setTitle,
       setSaved: setSavedTitle,
-      save: () => renameCard({ cardId: card.id, title: next }),
+      save: () => renameCard({ cardId: card.id, title: next, mutationId: claim() }),
       errorMessage: 'That card could not be renamed. Try again.',
       onSuccess: () => patchCard?.(card.id, { title: next }),
     });
@@ -123,7 +125,11 @@ export function CardBody({
     setDueDate(next);
     setError(null);
     startTransition(async () => {
-      const result = await setCardDueDate({ cardId: card.id, dueDate: next });
+      const result = await setCardDueDate({
+        cardId: card.id,
+        dueDate: next,
+        mutationId: claim(),
+      });
       if (result.ok) {
         patchCard?.(card.id, { dueDate: next });
       } else {
@@ -146,7 +152,12 @@ export function CardBody({
       saved: savedDescription,
       setValue: setDescription,
       setSaved: setSavedDescription,
-      save: () => setCardDescription({ cardId: card.id, description: next }),
+      save: () =>
+        setCardDescription({
+          cardId: card.id,
+          description: next,
+          mutationId: claim(),
+        }),
       errorMessage: 'That description could not be saved. Try again.',
     });
   };
