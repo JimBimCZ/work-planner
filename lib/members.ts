@@ -83,3 +83,15 @@ export async function findPendingInvite(inviteId: string): Promise<FoundInvite |
   });
   return invite ?? null;
 }
+
+export type VisibleMember = Omit<BoardMemberRow, 'email'> & { email: string | null };
+
+// "Only the owner sees addresses" is a rule about what is sent. A dialog handed
+// every address and told to render some of them has already put them in the
+// props and in the network tab.
+export function visibleMembers(
+  members: BoardMemberRow[],
+  viewerIsOwner: boolean,
+): VisibleMember[] {
+  return members.map((member) => ({ ...member, email: viewerIsOwner ? member.email : null }));
+}

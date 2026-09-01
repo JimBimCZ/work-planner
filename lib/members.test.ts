@@ -31,9 +31,13 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
-const { INVITE_TTL_DAYS, listInvitesForUser, listPendingInvites, findPendingInvite } = await import(
-  './members'
-);
+const {
+  INVITE_TTL_DAYS,
+  listInvitesForUser,
+  listPendingInvites,
+  findPendingInvite,
+  visibleMembers,
+} = await import('./members');
 
 const table = { boardId: 'boardId', email: 'email', createdAt: 'createdAt', id: 'id' };
 const helpers: Helpers = {
@@ -80,5 +84,38 @@ describe('the invite reads', () => {
     await listInvitesForUser('  ME@Example.test ');
     const clause = JSON.stringify(captured!.where(table, helpers));
     expect(clause).toContain('me@example.test');
+  });
+});
+
+describe('visibleMembers', () => {
+  const rows = [
+    { userId: 'u1', name: 'Ada', email: 'ada@example.test', image: null, role: 'owner' as const },
+    {
+      userId: 'u2',
+      name: 'Grace',
+      email: 'grace@example.test',
+      image: null,
+      role: 'member' as const,
+    },
+  ];
+
+  test('gives the owner every address', () => {
+    expect(visibleMembers(rows, true).map((m) => m.email)).toEqual([
+      'ada@example.test',
+      'grace@example.test',
+    ]);
+  });
+
+  // The rule is about what is sent, not what is rendered. A dialog handed every
+  // address and told to hide some has already published them to the client.
+  test('sends a non-owner no addresses at all', () => {
+    expect(visibleMembers(rows, false).map((m) => m.email)).toEqual([null, null]);
+  });
+
+  test('keeps the names and roles either way', () => {
+    expect(visibleMembers(rows, false).map((m) => [m.name, m.role])).toEqual([
+      ['Ada', 'owner'],
+      ['Grace', 'member'],
+    ]);
   });
 });

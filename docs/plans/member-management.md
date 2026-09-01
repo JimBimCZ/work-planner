@@ -1310,7 +1310,7 @@ git merge-base --is-ancestor origin/feat/members-actions origin/main && echo "ba
   }): Promise<React.ReactElement>;
   ```
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `lib/members.test.ts`:
 
@@ -1389,7 +1389,7 @@ describe('MembersDialog', () => {
 });
 ```
 
-- [ ] **Step 2: Run them to watch them fail**
+- [x] **Step 2: Run them to watch them fail**
 
 ```bash
 pnpm exec vitest run lib/members.test.ts components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1397,7 +1397,7 @@ pnpm exec vitest run lib/members.test.ts components/board/members-dialog.test.ts
 
 Expected: FAIL — `visibleMembers is not a function`, and the dialog module does not resolve.
 
-- [ ] **Step 3: Write the helper, the dialog and the button**
+- [x] **Step 3: Write the helper, the dialog and the button**
 
 In `lib/members.ts`:
 
@@ -1561,7 +1561,7 @@ actions={
 
 `NewCardButton` is today's only `actions` child and it sits inside `atLeast(role, 'member')`. Adding the members control inside that same conditional would hide it from viewers — the people most likely to want out of a board.
 
-- [ ] **Step 4: Run the tests and the bundler**
+- [x] **Step 4: Run the tests and the bundler**
 
 ```bash
 pnpm exec vitest run lib/members.test.ts components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1570,7 +1570,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"; tail -5 /tmp/build.log
 
 Expected: both `=0`. **The build is not optional here.** `members-dialog.tsx` is a client component importing from `@/lib/members`; a value import from `@/lib/permissions` or `@/lib/events` anywhere in that file's graph pulls the pg pool or the Pusher SDK into the browser bundle, and typecheck, lint and unit tests all pass on that mistake. `import type` is erased and is safe.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/members.ts lib/members.test.ts components/board/members-button.tsx components/board/members-dialog.tsx components/board/members-dialog.test.tsx "app/(app)/(board)/boards/[boardId]/layout.tsx"
@@ -1585,7 +1585,7 @@ git commit -m "feat: show who is on the board, and let a member leave it"
 **Interfaces:**
 - Consumes: `inviteMember`, `revokeInvite` from A3; the `invites: PendingInvite[]` prop from B1.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `components/board/members-dialog.test.tsx`:
 
@@ -1619,7 +1619,7 @@ describe('MembersDialog, as the owner', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1627,7 +1627,7 @@ pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>
 
 Expected: FAIL — no invite field in the markup.
 
-- [ ] **Step 3: Add the owner's invite section**
+- [x] **Step 3: Add the owner's invite section**
 
 In `components/board/members-dialog.tsx`, delete `void invites;`, import `inviteMember` and `revokeInvite` alongside `leaveBoard`, and add state for the form:
 
@@ -1724,7 +1724,7 @@ And the pending list, still inside the owner block:
 
 Delete `void pending;` — the invite button now uses it.
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1732,7 +1732,7 @@ pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>
 
 Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/members-dialog.tsx components/board/members-dialog.test.tsx
@@ -1747,7 +1747,7 @@ git commit -m "feat: invite someone from the members dialog, and withdraw it"
 **Interfaces:**
 - Consumes: `changeRole`, `removeMember` from A5.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `components/board/members-dialog.test.tsx`:
 
@@ -1774,7 +1774,7 @@ describe('MembersDialog role controls', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1782,7 +1782,7 @@ pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>
 
 Expected: FAIL — no `aria-label="Role for Grace"` in the markup.
 
-- [ ] **Step 3: Add the controls**
+- [x] **Step 3: Add the controls**
 
 Import `changeRole` and `removeMember`, and add:
 
@@ -1839,7 +1839,7 @@ In the member list item, replace the plain role label with a conditional. The ow
 )}
 ```
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1847,7 +1847,7 @@ pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>
 
 Expected: PASS, 10 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/members-dialog.tsx components/board/members-dialog.test.tsx
@@ -1862,7 +1862,7 @@ git commit -m "feat: change a member role or remove them from the dialog"
 **Interfaces:**
 - Consumes: `transferOwnership` from A6; the `boardName` prop from B1.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 describe('MembersDialog transfer', () => {
@@ -1876,7 +1876,7 @@ describe('MembersDialog transfer', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1884,7 +1884,7 @@ pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>
 
 Expected: FAIL — no "Make owner" in the markup.
 
-- [ ] **Step 3: Add the transfer step**
+- [x] **Step 3: Add the transfer step**
 
 Delete `void boardName;`. Import `transferOwnership`. Add state for the second step and the typed confirmation:
 
@@ -1949,7 +1949,7 @@ And, beneath the list when `handingTo` is set:
 )}
 ```
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1960,7 +1960,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"; tail -5 /tmp/build.log
 
 Expected: all `=0`, 12 tests in the dialog file. Confirm no `void ` scaffolding statements remain in `members-dialog.tsx`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/members-dialog.tsx components/board/members-dialog.test.tsx
@@ -1976,7 +1976,7 @@ git commit -m "feat: hand a board over from the members dialog"
 **Interfaces:**
 - Produces: `boardMemberRoles(boardId): Promise<{ user_id: string; role: string }[]>` and `boardOwnerId(boardId): Promise<string | null>` in `e2e/support/session.ts`, used again in Sections C and D.
 
-- [ ] **Step 1: Add the seed helpers**
+- [x] **Step 1: Add the seed helpers**
 
 In `e2e/support/session.ts`:
 
@@ -2000,7 +2000,7 @@ export async function boardOwnerId(boardId: string): Promise<string | null> {
 }
 ```
 
-- [ ] **Step 2: Write the failing e2e spec**
+- [x] **Step 2: Write the failing e2e spec**
 
 Create `e2e/members.spec.ts`. Section B drives the owner's dialog against a seeded second member — Section C replaces the seeding with the real invite flow.
 
@@ -2105,7 +2105,7 @@ test('a viewer can see who is on the board and leave it', async ({ page, context
 
 `seedSession` gives every user the name "Test User", so `Role for Test User` is the label for the seeded member — the owner's own row has no such control by design.
 
-- [ ] **Step 3: Run it**
+- [x] **Step 3: Run it**
 
 ```bash
 pnpm exec playwright test e2e/members.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -2113,11 +2113,11 @@ pnpm exec playwright test e2e/members.spec.ts --reporter=line > /tmp/e2e.log 2>&
 
 Expected: PASS, 3 tests. **Compare the number that ran against the number collected** — a passing count is not a passing suite.
 
-- [ ] **Step 4: Take the screenshots the PR needs**
+- [x] **Step 4: Take the screenshots the PR needs**
 
 The dialog in both themes at 1440px and 390px, as owner and as viewer. Save under `docs/screenshots/`, matching what the account-deletion PR committed. Close any browser or dev server you opened.
 
-- [ ] **Step 5: Commit and open the Section B pull request**
+- [x] **Step 5: Commit and open the Section B pull request**
 
 ```bash
 git add e2e/members.spec.ts e2e/support/session.ts docs/screenshots docs/plans/member-management.md
