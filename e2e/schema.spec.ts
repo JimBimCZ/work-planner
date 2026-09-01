@@ -206,17 +206,17 @@ test('a board cannot hold two labels whose names differ only in case', async ({ 
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   try {
     await pool.query('insert into labels (id, board_id, name) values ($1, $2, $3)', [
-      'label-lower',
+      crypto.randomUUID(),
       boardId,
       'bug',
     ]);
     await expect(
       pool.query('insert into labels (id, board_id, name) values ($1, $2, $3)', [
-        'label-upper',
+        crypto.randomUUID(),
         boardId,
         'Bug',
       ]),
-    ).rejects.toThrow();
+    ).rejects.toThrow(/labels_board_id_name_key/);
   } finally {
     await pool.end();
     await removeSeededUser(userId);
