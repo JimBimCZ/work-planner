@@ -1,11 +1,13 @@
 'use server';
 
 import { eq } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { boardInvites } from '@/lib/db/schema';
+import { boardInvites, boardMembers } from '@/lib/db/schema';
+import { findPendingInvite } from '@/lib/members';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 
 const id = z.string().min(1);
@@ -91,5 +93,60 @@ export async function revokeInvite(input: unknown) {
   }
 
   await db.delete(boardInvites).where(eq(boardInvites.id, invite.id));
+  return { ok: true } as const;
+}
+
+// The only actions in this codebase that touch a board without a membership
+// check. The invitee is not on the board yet by definition; they are scoped by
+// the session's own email against the invite row, the way deleteAccount is
+// scoped by the session's own user id.
+async function invitedTo(inviteId: string, sessionEmail: string) {
+  const invite = await findPendingInvite(inviteId);
+  if (!invite) return null;
+  return invite.email === sessionEmail.trim().toLowerCase() ? invite : null;
+}
+
+export async function acceptInvite(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id || !session.user.email) {
+    return { ok: false, error: 'UNAUTHENTICATED' } as const;
+  }
+
+  const parsed = inviteRef.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  const invite = await invitedTo(parsed.data.inviteId, session.user.email);
+  // One answer for "no such invite", "expired" and "addressed to someone else".
+  if (!invite) return { ok: false, error: 'NOT_FOUND' } as const;
+
+  const userId = session.user.id;
+  await db.transaction(async (tx) => {
+    // Already a member is the end state the user asked for, so it is not an
+    // error; the invite is consumed either way.
+    await tx
+      .insert(boardMembers)
+      .values({ boardId: invite.boardId, userId, role: invite.role })
+      .onConflictDoNothing();
+    await tx.delete(boardInvites).where(eq(boardInvites.id, invite.id));
+  });
+
+  revalidatePath('/boards');
+  return { ok: true, data: { boardId: invite.boardId } } as const;
+}
+
+export async function declineInvite(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id || !session.user.email) {
+    return { ok: false, error: 'UNAUTHENTICATED' } as const;
+  }
+
+  const parsed = inviteRef.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  const invite = await invitedTo(parsed.data.inviteId, session.user.email);
+  if (!invite) return { ok: false, error: 'NOT_FOUND' } as const;
+
+  await db.delete(boardInvites).where(eq(boardInvites.id, invite.id));
+  revalidatePath('/boards');
   return { ok: true } as const;
 }

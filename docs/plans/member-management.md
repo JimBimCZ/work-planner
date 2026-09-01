@@ -733,7 +733,7 @@ git commit -m "feat: invite someone to a board by email, and take it back"
     -> { ok: true } | { ok: false, error: 'UNAUTHENTICATED' | 'INVALID' | 'NOT_FOUND' }
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/actions/members.test.ts`, and extend the import line to
 `const { acceptInvite, declineInvite, inviteMember, revokeInvite } = await import('./members');`
@@ -819,7 +819,7 @@ describe('declineInvite', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -827,7 +827,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: FAIL — `acceptInvite is not a function`.
 
-- [ ] **Step 3: Write the two actions**
+- [x] **Step 3: Write the two actions**
 
 Add to `lib/actions/members.ts`, extending its imports with `revalidatePath` from `next/cache`, `boardMembers` from the schema, and `findPendingInvite` from `@/lib/members`:
 
@@ -888,7 +888,7 @@ export async function declineInvite(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -896,7 +896,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: PASS, 13 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/members.ts lib/actions/members.test.ts

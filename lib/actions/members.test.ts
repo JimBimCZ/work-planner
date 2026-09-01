@@ -62,7 +62,7 @@ vi.mock('@/lib/db', () => ({
   db: { ...writer, transaction: (fn: (t: typeof writer) => Promise<unknown>) => fn(writer) },
 }));
 
-const { inviteMember, revokeInvite } = await import('./members');
+const { acceptInvite, declineInvite, inviteMember, revokeInvite } = await import('./members');
 
 const signedIn = { user: { id: 'owner-1', email: 'owner@example.test' } };
 const invite = { boardId: 'board-1', email: 'new@example.test', role: 'member' as const };
@@ -151,6 +151,85 @@ describe('revokeInvite', () => {
     inviteRow = { id: 'invite-1', boardId: 'board-1' };
     await expect(revokeInvite({ inviteId: 'invite-1' })).resolves.toEqual({ ok: true });
     expect(assertBoardAccess).toHaveBeenCalledWith('owner-1', 'board-1', 'owner');
+    expect(ops).toEqual([{ kind: 'delete', table: 'board_invites' }]);
+  });
+});
+
+describe('acceptInvite', () => {
+  const invitee = { user: { id: 'user-2', email: 'New@Example.test' } };
+
+  test('answers NOT_FOUND when the invite has expired or never existed', async () => {
+    authMock.mockResolvedValue(invitee);
+    findPendingInvite.mockResolvedValue(null);
+    await expect(acceptInvite({ inviteId: 'invite-1' })).resolves.toEqual({
+      ok: false,
+      error: 'NOT_FOUND',
+    });
+    expect(ops).toEqual([]);
+  });
+
+  // The same answer as an expired invite, deliberately: a guessed id must not
+  // learn that it named a real invite addressed to someone else.
+  test('answers NOT_FOUND for an invite addressed to somebody else', async () => {
+    authMock.mockResolvedValue(invitee);
+    findPendingInvite.mockResolvedValue({
+      id: 'invite-1',
+      boardId: 'board-1',
+      email: 'someone@example.test',
+      role: 'member',
+    });
+    await expect(acceptInvite({ inviteId: 'invite-1' })).resolves.toEqual({
+      ok: false,
+      error: 'NOT_FOUND',
+    });
+    expect(ops).toEqual([]);
+  });
+
+  test('adds the membership and consumes the invite, matching case-insensitively', async () => {
+    authMock.mockResolvedValue(invitee);
+    findPendingInvite.mockResolvedValue({
+      id: 'invite-1',
+      boardId: 'board-1',
+      email: 'new@example.test',
+      role: 'viewer',
+    });
+    await expect(acceptInvite({ inviteId: 'invite-1' })).resolves.toEqual({
+      ok: true,
+      data: { boardId: 'board-1' },
+    });
+    expect(ops).toEqual([
+      {
+        kind: 'insert',
+        table: 'board_members',
+        values: { boardId: 'board-1', userId: 'user-2', role: 'viewer' },
+      },
+      { kind: 'delete', table: 'board_invites' },
+    ]);
+  });
+
+  test('never calls assertBoardAccess, because the invitee is not on the board yet', async () => {
+    authMock.mockResolvedValue(invitee);
+    findPendingInvite.mockResolvedValue({
+      id: 'invite-1',
+      boardId: 'board-1',
+      email: 'new@example.test',
+      role: 'member',
+    });
+    await acceptInvite({ inviteId: 'invite-1' });
+    expect(assertBoardAccess).not.toHaveBeenCalled();
+  });
+});
+
+describe('declineInvite', () => {
+  test('deletes the invite it was addressed to', async () => {
+    authMock.mockResolvedValue({ user: { id: 'user-2', email: 'new@example.test' } });
+    findPendingInvite.mockResolvedValue({
+      id: 'invite-1',
+      boardId: 'board-1',
+      email: 'new@example.test',
+      role: 'member',
+    });
+    await expect(declineInvite({ inviteId: 'invite-1' })).resolves.toEqual({ ok: true });
     expect(ops).toEqual([{ kind: 'delete', table: 'board_invites' }]);
   });
 });
