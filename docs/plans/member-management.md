@@ -2146,7 +2146,7 @@ Branch `feat/members-invitations` from `main` once A has landed (it does not nee
   export function Invitations({ invites }: { invites: UserInvite[] }): React.ReactElement | null;
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `components/boards/invitations.test.tsx`:
 
@@ -2193,7 +2193,7 @@ describe('Invitations', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run components/boards/invitations.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -2201,7 +2201,7 @@ pnpm exec vitest run components/boards/invitations.test.tsx > /tmp/unit.log 2>&1
 
 Expected: FAIL — the module does not resolve.
 
-- [ ] **Step 3: Write the component and wire the page**
+- [x] **Step 3: Write the component and wire the page**
 
 Create `components/boards/invitations.tsx`:
 
@@ -2283,7 +2283,7 @@ const invites = session.user.email ? await listInvitesForUser(session.user.email
 
 The existing "Create your first board" empty state stays exactly as it is. An invitation is a thing waiting for you and the empty state is a thing to do; they are not alternatives, so neither replaces the other.
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run components/boards/invitations.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -2292,7 +2292,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"; tail -5 /tmp/build.log
 
 Expected: both `=0`, 4 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/boards/invitations.tsx components/boards/invitations.test.tsx "app/(app)/(chrome)/boards/page.tsx"
@@ -2309,7 +2309,7 @@ git commit -m "feat: answer a board invitation from the board list"
 - Consumes: the `boardInvites` table from A1.
 - Produces: no new exports. `deleteAccount`'s result union is unchanged.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `lib/actions/account.test.ts`'s transaction mock records only that *a* delete happened. Replace its `tx` with one that records which table, so the new statement is provable:
 
@@ -2352,7 +2352,7 @@ test('says what happens to an address typed into an invite', () => {
 });
 ```
 
-- [ ] **Step 2: Run them to watch them fail**
+- [x] **Step 2: Run them to watch them fail**
 
 ```bash
 pnpm exec vitest run lib/actions/account.test.ts "app/(legal)/privacy/page.test.tsx" > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/unit.log
@@ -2360,7 +2360,7 @@ pnpm exec vitest run lib/actions/account.test.ts "app/(legal)/privacy/page.test.
 
 Expected: FAIL — `deleted` is `['user']`, and the policy says nothing about invites.
 
-- [ ] **Step 3: Delete the invites and say so in the policy**
+- [x] **Step 3: Delete the invites and say so in the policy**
 
 In `lib/actions/account.ts`, import `sql` from `drizzle-orm` and `boardInvites` from the schema, then inside the existing transaction, **before** the user delete:
 
@@ -2378,7 +2378,7 @@ In `app/(legal)/privacy/page.tsx`, add to "What we collect" or the sharing secti
 
 > **Invitations.** If you invite somebody to a board, we store the email address you type until the invitation is accepted, declined, withdrawn or expires after 30 days. If you delete your account, invitations addressed to you go with it.
 
-- [ ] **Step 4: Run them to watch them pass**
+- [x] **Step 4: Run them to watch them pass**
 
 ```bash
 pnpm exec vitest run lib/actions/account.test.ts "app/(legal)/privacy/page.test.tsx" > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -2386,13 +2386,13 @@ pnpm exec vitest run lib/actions/account.test.ts "app/(legal)/privacy/page.test.
 
 Expected: PASS. If the policy assertion still fails, the regex and the prose disagree — fix the prose, and only widen the regex if the prose is right.
 
-- [ ] **Step 5: Give the blocked danger zone its second way out**
+- [x] **Step 5: Give the blocked danger zone its second way out**
 
 `/account`'s danger zone lists the boards blocking a deletion and offers only "delete that board". Transfer now exists, so the copy gains the other resolution. In the component that renders the blocked list, extend the sentence to say that handing the board to one of its members from that board's members dialog also unblocks the deletion. No logic changes: `sharedBoardsOwnedBy` stops returning a board the moment you are no longer its owner, so `deleteAccount` unblocks itself.
 
 Find it with `grep -rn "OWNS_SHARED_BOARDS" components app`, and keep the existing links to each board.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/actions/account.ts lib/actions/account.test.ts "app/(legal)/privacy/page.tsx" "app/(legal)/privacy/page.test.tsx" components
@@ -2407,7 +2407,7 @@ git commit -m "fix: delete pending invites with the account they name"
 **Interfaces:**
 - Produces: `pendingInviteCount(boardId): Promise<number>` in `e2e/support/session.ts`.
 
-- [ ] **Step 1: Add the helper and write the failing test**
+- [x] **Step 1: Add the helper and write the failing test**
 
 In `e2e/support/session.ts`:
 
@@ -2502,7 +2502,7 @@ test('declining an invite leaves no membership and no invite', async ({ browser 
 
 Extend the file's import from `./support/session` with `pendingInviteCount`.
 
-- [ ] **Step 2: Run the whole e2e suite**
+- [x] **Step 2: Run the whole e2e suite**
 
 ```bash
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -2510,7 +2510,7 @@ pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; t
 
 Expected: `EXIT=0`, and the number that ran equals the number collected. The whole suite, not just this file — `/boards` gained a section above the list and `e2e/boards.spec.ts` asserts that page's empty state.
 
-- [ ] **Step 3: Prove the deletion by hand**
+- [x] **Step 3: Prove the deletion by hand**
 
 Seed nothing; use two real accounts in a browser. Invite an address, then delete that account from `/account`, then read the table directly:
 
@@ -2520,11 +2520,11 @@ psql "$DATABASE_URL_UNPOOLED" -c "select count(*) from board_invites where email
 
 Expected: `0`. Record the actual output in the PR body.
 
-- [ ] **Step 4: Screenshots**
+- [x] **Step 4: Screenshots**
 
 `/boards` with an invitation pending, both themes, 1440px and 390px. Close every browser and dev server you opened.
 
-- [ ] **Step 5: Commit and open the Section C pull request**
+- [x] **Step 5: Commit and open the Section C pull request**
 
 ```bash
 git add e2e/members.spec.ts e2e/support/session.ts docs/screenshots docs/plans/member-management.md
