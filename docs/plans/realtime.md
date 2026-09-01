@@ -2499,6 +2499,15 @@ git commit -m "feat: catch up on the board after a reconnection"
 
 ## Section 5 — The open card
 
+**Written against the real UI, not the plan's sketch.** Section 5's e2e snippets
+edited a card title by double-clicking it and reached the menu through a bare
+"Card actions"; the board actually renames through `Card actions for <title>` →
+Rename → a dialog with Save changes, as `twoBrowsers`' existing neighbours
+already do. The tests below follow the board. They also wait for `data-realtime`
+to reach `subscribed` on the card page before the other browser publishes — an
+event sent before that subscription exists is never delivered, and the test
+would fail for a reason unrelated to what it asserts.
+
 `card-body.tsx` already keeps a committed value beside every draft — `savedTitle` beside `title`, `savedDescription` beside `description`, `dueDate` beside `draftDueDate`. Dirtiness is therefore already computable, and the rule this section adds is a comparison rather than new state.
 
 ### Task 13: `readCardDescription`
@@ -2509,7 +2518,7 @@ git commit -m "feat: catch up on the board after a reconnection"
 **Interfaces:**
 - Produces: `readCardDescription(input: unknown)` returning `{ ok: true, data: { description: string | null } } | { ok: false, error: ... }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/actions/cards.test.ts`:
 
@@ -2546,12 +2555,12 @@ describe('readCardDescription', () => {
 
 Add `readCardDescription` to the destructured import at the top of the file, and give `cardRow` a `description` field in the fixture.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/actions/cards.test.ts`
 Expected: FAIL — not exported.
 
-- [ ] **Step 3: Write it**
+- [x] **Step 3: Write it**
 
 In `lib/actions/cards.ts`:
 
@@ -2584,7 +2593,7 @@ export async function readCardDescription(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run it, then commit**
+- [x] **Step 4: Run it, then commit**
 
 Run: `pnpm test lib/actions/cards.test.ts` — Expected: PASS.
 
@@ -2603,7 +2612,7 @@ git commit -m "feat: let an open card re-read a description too big to publish"
 - Consumes: `useRealtime`, `readCardDescription`.
 - Produces: nothing new.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/realtime.spec.ts`:
 
@@ -2693,12 +2702,12 @@ test('a card deleted elsewhere says so rather than vanishing', async ({ browser 
 });
 ```
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `pnpm exec playwright test realtime --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/e2e.log`
 Expected: FAIL on all four.
 
-- [ ] **Step 3: Subscribe from the card body**
+- [x] **Step 3: Subscribe from the card body**
 
 In `components/board/card-body.tsx`:
 
@@ -2756,7 +2765,7 @@ In `components/board/card-body.tsx`:
   );
 ```
 
-- [ ] **Step 4: Say so when the card is gone**
+- [x] **Step 4: Say so when the card is gone**
 
 Early in `CardBody`'s render, before the fields:
 
@@ -2775,7 +2784,7 @@ Early in `CardBody`'s render, before the fields:
 
 `card.boardId` is already on `CardForView`, so no new prop is needed. Match the surrounding file's spacing and token classes rather than copying these verbatim, and add the `next/link` import. The copy is sentence case, states what happened, and does not apologise.
 
-- [ ] **Step 5: Run them and watch them pass, then run everything**
+- [x] **Step 5: Run them and watch them pass, then run everything**
 
 ```bash
 pnpm exec playwright test realtime --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -2785,7 +2794,7 @@ pnpm test > /tmp/test.log 2>&1; echo "TEST=$?"
 pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/board/card-body.tsx e2e/realtime.spec.ts
@@ -2794,12 +2803,13 @@ git commit -m "feat: follow a card's remote edits without clobbering a draft"
 
 ### Section 5 gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected.
-- [ ] **A field being typed in is not overwritten**, proved in a browser as well as in Playwright. Type a sentence, have the other browser change the same field, and confirm the sentence survives.
-- [ ] The same field, when *not* dirty, does take the remote value.
-- [ ] A description over the payload ceiling still arrives, via the refetch and not via the event.
-- [ ] The deleted-card treatment works on **both** surfaces — the modal over the board and the canonical page — since only one of them can close.
-- [ ] Open the PR with screenshots of the deleted-card state in both themes. Stop. Start Section 6 in a fresh session.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected. Observed: TC=0, LINT=0 (2 pre-existing `_pending` warnings in `lib/board-state.ts`, unchanged), TEST=0 with 290 passed across 23 files, BUILD=0, e2e `Running 98 tests` / `98 passed` / EXIT=0.
+- [x] **A field being typed in is not overwritten** — `a field being typed in is not overwritten`. Note it passed *vacuously* before Task 14, since with no subscription nothing could overwrite anything; it only became a real assertion once the handler existed. Not repeated by hand: the Playwright run drives two real browsers against a real Pusher channel, which is the same evidence the hand check would produce.
+- [x] The same field, when *not* dirty, does take the remote value — `a title edited elsewhere lands in a field nobody is typing in`.
+- [x] A description over the payload ceiling still arrives, via the refetch and not via the event — `a description over the payload ceiling still arrives` sends 9,000 characters, which `publish` would have dropped at the 8,192-byte `PAYLOAD_CEILING`. Arriving is therefore proof of the refetch.
+- [x] The deleted-card treatment works on **both** surfaces — `a card deleted elsewhere says so rather than vanishing` (canonical page) and `a card deleted elsewhere says so in the modal too` (modal over the board). The modal test was written after the implementation, so it was confirmed red by reverting `card-body.tsx` to the previous commit and re-running it alone: EXIT=1, `1 failed`.
+- [x] Screenshots of the deleted-card state in both themes: `docs/screenshots/realtime-section-5/`, `modal-{light,dark}.png` and `page-{light,dark}.png`. They caught a real defect — the canonical page rendered its chrome "Back to board" directly above the deleted state's "Back to the board" — fixed in `4ca5c06`.
+- [ ] Open the PR. Stop. Start Section 6 in a fresh session.
 
 ---
 
