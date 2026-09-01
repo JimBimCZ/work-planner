@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { CardMenu } from '@/components/board/card-menu';
 import type { StateCard } from '@/lib/board-state';
 import { dueLabel, dueState, formatDue, fromDateInputValue } from '@/lib/due';
+import type { BoardLabel } from '@/lib/labels';
 import { useMounted } from '@/lib/use-mounted';
 
 function DueDate({ value }: { value: string }) {
@@ -36,12 +37,31 @@ function DueDate({ value }: { value: string }) {
   );
 }
 
+function LabelLine({ ids, labels }: { ids: string[]; labels: BoardLabel[] }) {
+  // An id with no label is one this client has not caught up on — dropped
+  // rather than rendered, and never a reason to hide the rest of the line.
+  const names = ids
+    .map((id) => labels.find((label) => label.id === id)?.name)
+    .filter((name): name is string => name !== undefined);
+
+  if (names.length === 0) return null;
+
+  // truncate rather than wrap: a card's height must not change with its label
+  // count, or a column reflows under a drag in progress.
+  return (
+    <p data-testid="card-labels" className="mt-1.5 truncate font-mono text-xs text-muted">
+      {names.join(' · ')}
+    </p>
+  );
+}
+
 export function BoardCard({
   card,
   ringHue,
   boardId,
   canWrite,
   columns,
+  labels,
   onRename,
   onDelete,
   onMoveTo,
@@ -51,6 +71,8 @@ export function BoardCard({
   boardId: string;
   canWrite: boolean;
   columns: { id: string; name: string }[];
+  // The board's whole set, not this card's, so one lookup serves every card.
+  labels: BoardLabel[];
   onRename: (title: string) => void;
   onDelete: () => void;
   onMoveTo: (columnId: string) => void;
@@ -119,6 +141,7 @@ export function BoardCard({
       </h3>
 
       {card.dueDate ? <DueDate value={card.dueDate} /> : null}
+      <LabelLine ids={card.labelIds} labels={labels} />
 
       {canWrite ? (
         <CardMenu

@@ -488,6 +488,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 onCloseComposer={() => setComposerIn(null)}
                 onAddCard={(title) => addCard(column.id, title)}
                 columns={columns}
+                labels={state.labels}
                 onRenameCard={renameCardTo}
                 onDeleteCard={removeCard}
                 onMoveCardTo={moveCardTo}

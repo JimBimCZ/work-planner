@@ -1217,7 +1217,7 @@ git commit -m "feat: carry each card's labels into board state"
 - Consumes: `StateCard.labelIds`, `BoardState.labels`.
 - Produces: `BoardCard` gains a `labels: BoardLabel[]` prop — the board's whole set, not this card's, so one lookup map serves every card.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `components/board/board-card.test.tsx`, rendering to static markup the way `members-dialog.test.tsx` does:
 
@@ -1294,7 +1294,7 @@ describe('the label line', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/board-card.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1302,7 +1302,7 @@ pnpm exec vitest run components/board/board-card.test.tsx > /tmp/unit.log 2>&1; 
 
 Expected: FAIL — the markup contains no label names.
 
-- [ ] **Step 3: Add the line**
+- [x] **Step 3: Add the line**
 
 In `components/board/board-card.tsx`, a component beside `DueDate` — named `LabelLine`, not `CardLabels`, because `components/board/card-labels.tsx` in Task B3 is the modal's picker and two components of one name in one folder is a trap:
 
@@ -1335,7 +1335,7 @@ and render it under the due date:
 
 Then thread `labels` from `BoardCanvas` through `BoardColumn` to `BoardCard`, taking it from `state.labels`.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec vitest run > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1345,7 +1345,7 @@ pnpm lint > /tmp/lint.log 2>&1; echo "LINT=$?"; tail -3 /tmp/lint.log
 
 Expected: all `=0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board
