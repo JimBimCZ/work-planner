@@ -2357,7 +2357,7 @@ git commit -m "feat: add a permission-checking board read for catching up"
 **Interfaces:**
 - Produces: `useRealtime()` gains `reconnected: number`, a counter that increments on every `connected` **after** the first. Consumers watch it as an effect dependency.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/realtime.spec.ts`. The gap is forced by taking the socket down, changing the board from the other browser while it is down, and bringing it back:
 
@@ -2405,12 +2405,12 @@ test('a client that missed events catches up on reconnect', async ({ browser }) 
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm exec playwright test realtime -g "catches up" --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/e2e.log`
 Expected: FAIL — B stays on the stale column.
 
-- [ ] **Step 3: Signal the reconnection**
+- [x] **Step 3: Signal the reconnection**
 
 In `components/board/realtime.tsx`, inside the effect:
 
@@ -2430,7 +2430,7 @@ In `components/board/realtime.tsx`, inside the effect:
 
 Add `reconnected` to the context type and the `useMemo` value.
 
-- [ ] **Step 4: Refetch on the canvas, deferred while busy**
+- [x] **Step 4: Refetch on the canvas, deferred while busy**
 
 In `components/board/board-canvas.tsx`:
 
@@ -2466,12 +2466,12 @@ Wrap the two places that call actions so they count: increment before `startTran
   }, [reconnected, draggingId, pendingWrites, board.id]);
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 Run: `pnpm exec playwright test realtime --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log`
 Expected: EXIT=0. This test is slower than the others — a real Pusher reconnection takes seconds — so its generous timeouts are deliberate, not padding.
 
-- [ ] **Step 6: Run everything, then commit**
+- [x] **Step 6: Run everything, then commit**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TC=$?"

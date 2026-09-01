@@ -330,3 +330,50 @@ test('a column deleted in one browser moves its cards in the other', async ({ br
     await close();
   }
 });
+
+// Pusher does not replay. This forces a real gap — the socket goes down, the
+// board moves on, the socket comes back — and asserts the client notices.
+test('a client that missed events catches up on reconnect', async ({ browser }) => {
+  test.setTimeout(180_000);
+  let cardId = '';
+  const { boardId, pageA, pageB, close } = await twoBrowsers(browser, async (id, ownerId) => {
+    const [ready] = await boardColumns(id);
+    cardId = await seedCard(ready.id, { boardId: id, createdById: ownerId, title: 'Ship it' });
+  });
+  const [ready, inProgress] = await boardColumns(boardId);
+
+  try {
+    await expect(
+      pageB.locator(`[data-column-id="${ready.id}"] [data-card-id="${cardId}"]`),
+    ).toBeVisible();
+
+    // Offline is the honest way to open the gap: pusher-js sees a real
+    // disconnection rather than a synthetic event.
+    await pageB.context().setOffline(true);
+    // Measured at ~30s: navigator.onLine flips at once, but pusher-js only gives
+    // up on the socket after its own timers run out. The margin is for that, not
+    // for flakiness.
+    await expect(pageB.locator('[data-realtime]')).not.toHaveAttribute(
+      'data-realtime',
+      'subscribed',
+      { timeout: 60_000 },
+    );
+
+    // A moves a card that B will never be told about.
+    await pageA.getByRole('button', { name: 'Card actions for Ship it' }).click();
+    await pageA.getByRole('menuitem', { name: 'Move to' }).click();
+    await pageA.getByRole('menuitem', { name: inProgress.name }).click();
+    await expect(
+      pageA.locator(`[data-column-id="${inProgress.id}"] [data-card-id="${cardId}"]`),
+    ).toBeVisible();
+
+    await pageB.context().setOffline(false);
+
+    // B never reloads. Converging here can only be the reconnect refetch.
+    await expect(
+      pageB.locator(`[data-column-id="${inProgress.id}"] [data-card-id="${cardId}"]`),
+    ).toBeVisible({ timeout: 60_000 });
+  } finally {
+    await close();
+  }
+});

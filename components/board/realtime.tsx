@@ -35,6 +35,7 @@ const RealtimeContext = createContext<{
   subscribe: (handler: Handler) => () => void;
   claim: () => string;
   status: Status;
+  reconnected: number;
 } | null>(null);
 
 export function RealtimeProvider({
@@ -49,6 +50,7 @@ export function RealtimeProvider({
   const handlers = useRef(new Set<Handler>());
   const claimed = useRef<string[]>([]);
   const [status, setStatus] = useState<Status>('off');
+  const [reconnected, setReconnected] = useState(0);
 
   useEffect(() => {
     // Referenced literally, never destructured off process.env: Next inlines
@@ -70,6 +72,22 @@ export function RealtimeProvider({
       channelAuthorization: { endpoint: '/api/pusher/auth', transport: 'ajax' },
     });
 
+    // The first `connected` is the initial connection and means nothing. Every
+    // later one follows a gap the client slept through — Pusher does not
+    // replay, so what was missed is gone unless someone goes and asks.
+    let everConnected = false;
+    pusher.connection.bind('connected', () => {
+      if (everConnected) setReconnected((count) => count + 1);
+      everConnected = true;
+    });
+
+    // The status has to be honest about a socket that dropped, not only about a
+    // subscription that once succeeded on it. pusher-js re-subscribes itself on
+    // reconnection, so subscription_succeeded puts it back.
+    pusher.connection.bind('state_change', ({ current }: { current: string }) => {
+      if (current !== 'connected') setStatus('connecting');
+    });
+
     const name = `private-board-${boardId}`;
     const channel = pusher.subscribe(name);
     channel.bind('pusher:subscription_succeeded', () => setStatus('subscribed'));
@@ -88,6 +106,7 @@ export function RealtimeProvider({
     for (const eventName of EVENT_NAMES) channel.bind(eventName, fanOut);
 
     return () => {
+      pusher.connection.unbind_all();
       channel.unbind_all();
       pusher.unsubscribe(name);
       pusher.disconnect();
@@ -109,7 +128,10 @@ export function RealtimeProvider({
     return mutationId;
   }, []);
 
-  const value = useMemo(() => ({ subscribe, claim, status }), [subscribe, claim, status]);
+  const value = useMemo(
+    () => ({ subscribe, claim, status, reconnected }),
+    [subscribe, claim, status, reconnected],
+  );
 
   return (
     <RealtimeContext.Provider value={value}>
