@@ -315,9 +315,13 @@ describe('setCardLabels', () => {
     );
   });
 
+  // submittedLabels legitimately belongs to board-1 so the ownership guard
+  // would pass; only the cap is left to reject, and only safeParse runs
+  // before assertBoardAccess, so a call there would mean the cap did not.
   test('refuses more labels than a board can hold', async () => {
     authMock.mockResolvedValue(signedIn);
     cardRow = { boardId: 'board-1' };
+    submittedLabels = Array.from({ length: 51 }, (_, i) => ({ id: `l${i}`, boardId: 'board-1' }));
     await expect(
       setCardLabels({
         cardId: 'card-1',
@@ -325,5 +329,7 @@ describe('setCardLabels', () => {
         mutationId: MUTATION_ID,
       }),
     ).resolves.toEqual({ ok: false, error: 'INVALID' });
+    expect(ops).toEqual([]);
+    expect(assertBoardAccess).not.toHaveBeenCalled();
   });
 });
