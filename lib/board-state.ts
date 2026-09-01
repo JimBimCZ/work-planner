@@ -39,6 +39,20 @@ export function toBoardState(board: BoardWithCards): BoardState {
   };
 }
 
+export function matchesFilter(card: StateCard, labelIds: string[]): boolean {
+  // `every` over an empty array is true, which is exactly the empty-filter
+  // case — so it needs no special branch.
+  return labelIds.every((id) => card.labelIds.includes(id));
+}
+
+// The filter lives in the URL, so it survives a reload and a reconnect's
+// board.reseed — which replaces the whole reducer and would drop anything
+// held there.
+export function parseLabelFilter(params: URLSearchParams, labels: BoardLabel[]): string[] {
+  const known = new Set(labels.map((label) => label.id));
+  return [...new Set(params.getAll('label'))].filter((id) => known.has(id));
+}
+
 export type BoardAction =
   | { type: 'card.create'; card: StateCard }
   | { type: 'card.rename'; cardId: string; title: string }

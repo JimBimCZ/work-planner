@@ -1594,7 +1594,7 @@ The board narrows. Branch `feat/labels-filter` from `main` once Section B has la
   export function parseLabelFilter(params: URLSearchParams, labels: BoardLabel[]): string[];
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/board-state.test.ts`:
 
@@ -1660,7 +1660,7 @@ describe('parseLabelFilter', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1668,7 +1668,7 @@ pnpm exec vitest run lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?
 
 Expected: FAIL — `matchesFilter is not a function`.
 
-- [ ] **Step 3: Write them**
+- [x] **Step 3: Write them**
 
 In `lib/board-state.ts`:
 
@@ -1688,7 +1688,7 @@ export function parseLabelFilter(params: URLSearchParams, labels: BoardLabel[]):
 
 `every` over an empty array is `true`, which is exactly the empty-filter case and is why it needs no special branch.
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1696,7 +1696,7 @@ pnpm exec vitest run lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/board-state.ts lib/board-state.test.ts
@@ -1721,7 +1721,7 @@ git commit -m "feat: match a card against an ANDed label filter"
   }): React.ReactElement;
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/labels.spec.ts`:
 
@@ -1741,7 +1741,11 @@ test('the filter narrows the board and survives a reload', async ({ page, contex
     await expect(page.getByText('Has nothing')).toBeVisible();
 
     await page.getByRole('button', { name: 'Filter' }).click();
-    await page.getByRole('checkbox', { name: /bug/ }).check();
+    // click, not check: the box is controlled by the URL, so it only flips
+    // once router.replace lands. check() asserts the state synchronously and
+    // would fail on a filter that deliberately has no second source of truth.
+    await page.getByRole('checkbox', { name: /bug/ }).click();
+    await expect(page.getByRole('checkbox', { name: /bug/ })).toBeChecked();
 
     await expect(page.getByText('Has bug')).toBeVisible();
     await expect(page.getByText('Has nothing')).toBeHidden();
@@ -1758,7 +1762,7 @@ test('the filter narrows the board and survives a reload', async ({ page, contex
 
 Check `seedCard`'s signature in `e2e/support/session.ts` before writing this: if it does not accept a `title`, add it there rather than working around it in the test.
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -1766,7 +1770,7 @@ pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: FAIL — no button named `Filter`.
 
-- [ ] **Step 3: Build the popover**
+- [x] **Step 3: Build the popover**
 
 Create `components/board/label-filter.tsx`. It is a `'use client'` component; the trigger is a real `<button>` carrying `aria-expanded`, the list is real checkboxes, and toggling one rewrites the URL rather than any local state:
 
@@ -1845,6 +1849,8 @@ export function LabelFilter({
 }
 ```
 
+**The narrowing belongs in this task, not C3.** This task's own test asserts that `Has nothing` disappears, so `board-canvas.tsx` has to derive the filter and apply it here — `cards={cardsIn(state, column.id).filter((card) => matchesFilter(card, filter))}`. C3 then adds only the drag guard and the empty-state copy. As written the plan left C2's test unpassable by C2's code.
+
 The count shown beside each label is computed by the caller from board state — the client already holds every card's `labelIds`, and a count query would be a second source of truth that can disagree with the board on screen.
 
 Mount it in the board layout's `actions`, before `MembersButton`:
@@ -1874,7 +1880,7 @@ const BoardActionsContext = createContext<{
 
 `BoardCanvas` registers the counts it computes from `state.cards`; `LabelFilter` reads `labelCounts` from `useBoardActions()` and falls back to `0` for an unregistered label, so the popover renders correctly on the first paint before the canvas has registered anything. Note `registerLabelCounts` stores a plain object, so unlike `register` it does **not** need the updater-function wrapper that file's comment explains.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e.log
@@ -1884,7 +1890,7 @@ pnpm lint > /tmp/lint.log 2>&1; echo "LINT=$?"; tail -3 /tmp/lint.log
 
 Expected: all `=0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board "app/(app)/(board)/boards/[boardId]/layout.tsx"
@@ -1899,7 +1905,7 @@ git commit -m "feat: narrow the board to the labels in the URL"
 **Interfaces:**
 - Consumes: `matchesFilter`, `parseLabelFilter`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/labels.spec.ts`:
 
@@ -1916,12 +1922,17 @@ test('a filtered board does not let a card be dragged', async ({ page, context }
   try {
     await page.goto(`/boards/${boardId}`);
     const card = page.locator(`[data-card-id="${cardId}"]`);
-    await expect(card).toHaveAttribute('tabindex', '0');
+    await expect(card).toHaveAttribute('aria-disabled', 'false');
 
     await page.goto(`/boards/${boardId}?label=${labelId}`);
-    // dnd-kit drops the draggable attributes when disabled, which is what
-    // makes the card unreachable by pointer and by keyboard alike.
-    await expect(page.locator(`[data-card-id="${cardId}"]`)).not.toHaveAttribute('tabindex', '0');
+    // aria-disabled, not tabindex: dnd-kit hardcodes tabIndex to 0 whatever
+    // `disabled` says (core.cjs:3404) and expresses the state through
+    // aria-disabled instead, returning `listeners: undefined` alongside it —
+    // so this one attribute is what proves pointer and keyboard are both off.
+    await expect(page.locator(`[data-card-id="${cardId}"]`)).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
   } finally {
     await removeSeededUser(userId);
   }
@@ -1949,7 +1960,7 @@ test('a column emptied by a filter says so in its own words', async ({ page, con
 
 The count of 4 is the four empty columns of a five-column board whose first column holds one card. Check `e2e/board-view.spec.ts` for how the seeded columns are asserted elsewhere and match it.
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -1957,7 +1968,7 @@ pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: FAIL — the card is still draggable, and the column still reads "Nothing here yet".
 
-- [ ] **Step 3: Guard the drag, and fix the copy**
+- [x] **Step 3: Guard the drag, and fix the copy**
 
 In `components/board/board-canvas.tsx`, derive the filter and pass it down:
 
@@ -1985,7 +1996,7 @@ In `components/board/board-column.tsx`, the empty state takes the filter into ac
 
 "Nothing here yet" under a filter is simply false, and `CLAUDE.md`'s copy rule is that an empty state is an invitation rather than an apology — "Nothing here matches" says what happened without either.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/e2e.log
@@ -1996,7 +2007,7 @@ pnpm lint > /tmp/lint.log 2>&1; echo "LINT=$?"; tail -3 /tmp/lint.log
 
 Expected: all `=0`, and the e2e count run equal to the count collected — compare `pnpm exec playwright test --list` if anything looks short.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board e2e/labels.spec.ts
@@ -2011,7 +2022,11 @@ git commit -m "fix: never drag a card whose neighbours are hidden"
 **Interfaces:**
 - Consumes: `createLabel`, `renameLabel`, `deleteLabel`; `attempt` from `lib/attempt.ts`; `claim` from `useRealtime`.
 
-- [ ] **Step 1: Write the failing test**
+**This task under-specified the spec.** `docs/specs/labels.md` requires three things the plan's snippets omit, and the spec is the authority: **rename** ("a 'New label' row, and rename and delete for members"), a **"Clear"** control that drops the query parameter, and a popover that is **"reachable and dismissible by keyboard"**. All three are implemented — rename swaps the row into a field with Save, Clear appears whenever the filter is active, and Escape reverts an open rename before it closes the popover, with click-outside dismissing it too.
+
+Also: visible button text stays short (`Rename`, `Delete`, `Save`) with the full phrase in `aria-label`. Spelling them out in the DOM truncated the label names the buttons act on down to `bloc…`. That keeps `getByRole('button', { name: 'Rename bug' })` working while the row stays readable — but note `getByLabel` matches substrings, so the rename field must be queried as `getByRole('textbox', { name: 'Label name' })` or it also resolves the `Save label name` button.
+
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/labels.spec.ts`:
 
@@ -2061,7 +2076,7 @@ test('a viewer is offered no way to change the set', async ({ page, context, bro
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -2069,7 +2084,7 @@ pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: FAIL — no field labelled `New label`.
 
-- [ ] **Step 3: Add management to the popover's foot**
+- [x] **Step 3: Add management to the popover's foot**
 
 Below the list in `label-filter.tsx`, behind `canWrite`, a create row and a delete control per label:
 
@@ -2118,7 +2133,7 @@ Errors render in the popover, under the form, in `text-time-over`. A failed acti
 
 `LABEL_NAME_MAX` is imported as a value from `lib/labels.ts`, which imports `lib/db` — so **import the constant into a server component and pass it as a prop, or move the two constants to a module that imports nothing.** Moving them is cleaner: put `LABEL_NAME_MAX` and `LABELS_PER_BOARD` in `lib/labels-limits.ts`, re-export them from `lib/labels.ts` so Section A's imports keep working, and have the client import the limits module. Only `pnpm build` catches this class of mistake.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/e2e.log
@@ -2130,7 +2145,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"; tail -5 /tmp/build.log
 
 Expected: all `=0`. The build is the one that proves the pg pool stayed out of the browser bundle.
 
-- [ ] **Step 5: Commit and open the Section C pull request**
+- [x] **Step 5: Commit and open the Section C pull request**
 
 ```bash
 git add components/board e2e/labels.spec.ts lib/labels-limits.ts lib/labels.ts docs/plans/labels.md

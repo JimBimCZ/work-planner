@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import { TopBar } from '@/components/app/top-bar';
 import { BoardActionsProvider } from '@/components/board/board-actions';
+import { LabelFilter } from '@/components/board/label-filter';
 import { MembersButton } from '@/components/board/members-button';
 import { MembershipWatch } from '@/components/board/membership-watch';
 import { NewCardButton } from '@/components/board/new-card-button';
@@ -47,6 +48,11 @@ export default async function BoardTitleLayout({
             title={board.name}
             actions={
               <>
+                <LabelFilter
+                  labels={board.labels}
+                  boardId={boardId}
+                  canWrite={atLeast(role, 'member')}
+                />
                 <MembersButton
                   boardId={boardId}
                   boardName={board.name}

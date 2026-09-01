@@ -39,6 +39,7 @@ const render = (props: Partial<Parameters<typeof BoardCard>[0]> = {}) =>
       canWrite
       columns={[]}
       labels={labels}
+      filtering={false}
       onRename={() => {}}
       onDelete={() => {}}
       onMoveTo={() => {}}

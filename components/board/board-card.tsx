@@ -62,6 +62,7 @@ export function BoardCard({
   canWrite,
   columns,
   labels,
+  filtering,
   onRename,
   onDelete,
   onMoveTo,
@@ -73,6 +74,7 @@ export function BoardCard({
   columns: { id: string; name: string }[];
   // The board's whole set, not this card's, so one lookup serves every card.
   labels: BoardLabel[];
+  filtering: boolean;
   onRename: (title: string) => void;
   onDelete: () => void;
   onMoveTo: (columnId: string) => void;
@@ -81,7 +83,12 @@ export function BoardCard({
   // until it settles; a viewer is never draggable at all.
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id,
-    disabled: !canWrite || card.pending === true,
+    // A filtered board never drags: moveCard ranks against beforeCardId and
+    // afterCardId, and neighbours read from a filtered list put the card
+    // between two cards the user cannot see, while neighbours read from the
+    // unfiltered list make the drop position on screen a lie. The ⋯ menu's
+    // "Move to column" still works, so nothing becomes unreachable.
+    disabled: !canWrite || card.pending === true || filtering,
     // The drop settle, per the design brief. Set through the hook rather than a
     // CSS rule so it applies to the settle and not to the drag itself.
     transition: { duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' },
