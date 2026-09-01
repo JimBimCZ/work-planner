@@ -6,10 +6,11 @@ import { z } from 'zod';
 
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { labels } from '@/lib/db/schema';
+import { cardLabels, labels } from '@/lib/db/schema';
 import { publish } from '@/lib/events';
 import { LABEL_NAME_MAX, LABELS_PER_BOARD } from '@/lib/labels';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
+import { boardIdForCard, touchBoard } from './scope';
 
 const id = z.string().min(1);
 const mutationId = z.string().min(1);
@@ -24,6 +25,13 @@ const labelName = z.preprocess(
 const createSchema = z.object({ boardId: id, name: labelName, mutationId });
 const renameSchema = z.object({ labelId: id, name: labelName, mutationId });
 const deleteSchema = z.object({ labelId: id, mutationId });
+const setSchema = z.object({
+  cardId: id,
+  // Deduplicated by the set, and capped at the board's own maximum: a longer
+  // list can only be a client bug or an attempt to grow the payload.
+  labelIds: z.array(id).max(LABELS_PER_BOARD),
+  mutationId,
+});
 
 // Postgres's unique_violation. The database owns uniqueness because a
 // check-then-insert lets two simultaneous creates both pass the check.
@@ -143,6 +151,57 @@ export async function deleteLabel(input: unknown) {
   await publish(label.boardId, {
     type: 'label.deleted',
     id: label.id,
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+  });
+
+  revalidatePath('/boards');
+  return { ok: true } as const;
+}
+
+export async function setCardLabels(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = setSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  const { cardId } = parsed.data;
+  const labelIds = [...new Set(parsed.data.labelIds)];
+
+  const boardId = await boardIdForCard(cardId);
+  if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
+
+  try {
+    await assertBoardAccess(session.user.id, boardId, 'member');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  // Every submitted id is re-read and checked against this card's own board.
+  // An id from another board would otherwise be written verbatim, which leaks
+  // that board's vocabulary and poisons its counts.
+  if (labelIds.length > 0) {
+    const found = await db.query.labels.findMany({
+      where: (label, { inArray: isIn }) => isIn(label.id, labelIds),
+      columns: { id: true, boardId: true },
+    });
+    const mine = found.filter((label) => label.boardId === boardId);
+    if (mine.length !== labelIds.length) return { ok: false, error: 'INVALID' } as const;
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.delete(cardLabels).where(eq(cardLabels.cardId, cardId));
+    if (labelIds.length > 0) {
+      await tx.insert(cardLabels).values(labelIds.map((labelId) => ({ cardId, labelId })));
+    }
+    await touchBoard(tx, boardId);
+  });
+
+  await publish(boardId, {
+    type: 'card.labelled',
+    id: cardId,
+    labelIds,
     mutationId: parsed.data.mutationId,
     actorId: session.user.id,
   });

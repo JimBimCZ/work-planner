@@ -28,11 +28,19 @@ let labelRow: { id: string; boardId: string; name: string } | undefined;
 let labelCount = 0;
 let insertRejects: Error | undefined;
 let updateRejects: Error | undefined;
+let cardRow: { boardId: string } | undefined;
+let submittedLabels: { id: string; boardId: string }[] = [];
 
 const query = {
   labels: {
     findFirst: async () => labelRow,
-    findMany: async () => Array.from({ length: labelCount }, (_, i) => ({ id: `l${i}` })),
+    findMany: async () =>
+      submittedLabels.length > 0
+        ? submittedLabels
+        : Array.from({ length: labelCount }, (_, i) => ({ id: `l${i}` })),
+  },
+  cards: {
+    findFirst: async () => cardRow,
   },
 };
 
@@ -64,7 +72,7 @@ vi.mock('@/lib/db', () => ({
   db: { ...writer, transaction: (fn: (t: typeof writer) => Promise<unknown>) => fn(writer) },
 }));
 
-const { createLabel, deleteLabel, renameLabel } = await import('./labels');
+const { createLabel, deleteLabel, renameLabel, setCardLabels } = await import('./labels');
 
 const signedIn = { user: { id: 'user-1', email: 'dev@example.test' } };
 const MUTATION_ID = '22222222-2222-4222-8222-222222222222';
@@ -75,6 +83,8 @@ beforeEach(() => {
   labelCount = 0;
   insertRejects = undefined;
   updateRejects = undefined;
+  cardRow = undefined;
+  submittedLabels = [];
   authMock.mockReset();
   assertBoardAccess.mockReset();
   assertBoardAccess.mockResolvedValue('member');
@@ -226,5 +236,94 @@ describe('deleteLabel', () => {
       error: 'FORBIDDEN',
     });
     expect(ops).toEqual([]);
+  });
+});
+
+describe('setCardLabels', () => {
+  const input = { cardId: 'card-1', labelIds: ['l1', 'l2'], mutationId: MUTATION_ID };
+
+  test('answers NOT_FOUND for a card that is not there', async () => {
+    authMock.mockResolvedValue(signedIn);
+    await expect(setCardLabels(input)).resolves.toEqual({ ok: false, error: 'NOT_FOUND' });
+    expect(assertBoardAccess).not.toHaveBeenCalled();
+  });
+
+  // The whole reason this action re-reads the labels it was handed. Without
+  // it, a member of board A staples board B's label onto a card by id.
+  test('refuses a label belonging to another board', async () => {
+    authMock.mockResolvedValue(signedIn);
+    cardRow = { boardId: 'board-1' };
+    submittedLabels = [
+      { id: 'l1', boardId: 'board-1' },
+      { id: 'l2', boardId: 'board-2' },
+    ];
+    await expect(setCardLabels(input)).resolves.toEqual({ ok: false, error: 'INVALID' });
+    expect(ops).toEqual([]);
+  });
+
+  test('refuses an id that names no label at all', async () => {
+    authMock.mockResolvedValue(signedIn);
+    cardRow = { boardId: 'board-1' };
+    submittedLabels = [{ id: 'l1', boardId: 'board-1' }];
+    await expect(setCardLabels(input)).resolves.toEqual({ ok: false, error: 'INVALID' });
+    expect(ops).toEqual([]);
+  });
+
+  test('replaces the whole set in one transaction, then announces it', async () => {
+    authMock.mockResolvedValue(signedIn);
+    cardRow = { boardId: 'board-1' };
+    submittedLabels = [
+      { id: 'l1', boardId: 'board-1' },
+      { id: 'l2', boardId: 'board-1' },
+    ];
+    await expect(setCardLabels(input)).resolves.toEqual({ ok: true });
+    expect(ops).toEqual([
+      { kind: 'delete', table: 'card_labels' },
+      {
+        kind: 'insert',
+        table: 'card_labels',
+        values: [
+          { cardId: 'card-1', labelId: 'l1' },
+          { cardId: 'card-1', labelId: 'l2' },
+        ],
+      },
+      { kind: 'update', table: 'boards', values: { updatedAt: expect.any(Date) } },
+    ]);
+    expect(publish).toHaveBeenCalledWith('board-1', {
+      type: 'card.labelled',
+      id: 'card-1',
+      labelIds: ['l1', 'l2'],
+      mutationId: MUTATION_ID,
+      actorId: 'user-1',
+    });
+  });
+
+  // Clearing every label is a legal instruction, not an empty request.
+  test('accepts an empty set and writes only the delete', async () => {
+    authMock.mockResolvedValue(signedIn);
+    cardRow = { boardId: 'board-1' };
+    submittedLabels = [];
+    await expect(
+      setCardLabels({ cardId: 'card-1', labelIds: [], mutationId: MUTATION_ID }),
+    ).resolves.toEqual({ ok: true });
+    expect(ops.filter((op) => op.table === 'card_labels')).toEqual([
+      { kind: 'delete', table: 'card_labels' },
+    ]);
+    expect(publish).toHaveBeenCalledWith(
+      'board-1',
+      expect.objectContaining({ type: 'card.labelled', labelIds: [] }),
+    );
+  });
+
+  test('refuses more labels than a board can hold', async () => {
+    authMock.mockResolvedValue(signedIn);
+    cardRow = { boardId: 'board-1' };
+    await expect(
+      setCardLabels({
+        cardId: 'card-1',
+        labelIds: Array.from({ length: 51 }, (_, i) => `l${i}`),
+        mutationId: MUTATION_ID,
+      }),
+    ).resolves.toEqual({ ok: false, error: 'INVALID' });
   });
 });

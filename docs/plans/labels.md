@@ -64,7 +64,7 @@ No UI, no events. Branch `feat/labels-actions` from `main`.
 **Interfaces:**
 - Produces: `labels` and `cardLabels` tables, exported from `lib/db/schema.ts`; `cards.cardLabels` as a `many` relation so the board query can pull assignments in one round trip.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/schema.spec.ts`. These are database invariants, which is why they live here and not in Vitest — the fold and the cascades are Postgres's behaviour, not Zod's:
 
@@ -124,7 +124,7 @@ test('deleting a label takes it off every card that carried it', async ({ contex
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -132,7 +132,7 @@ pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: FAIL — `relation "labels" does not exist`.
 
-- [ ] **Step 3: Add the tables**
+- [x] **Step 3: Add the tables**
 
 In `lib/db/schema.ts`, add `uniqueIndex` to the existing `drizzle-orm/pg-core` import, then, after the `cards` table:
 
@@ -189,7 +189,7 @@ export const cardLabelsRelations = relations(cardLabels, ({ one }) => ({
 
 and add `cardLabels: many(cardLabels)` to the existing `cardsRelations`. Without that line the board query in Task B1 cannot reach assignments and drizzle fails at runtime, not at compile time.
 
-- [ ] **Step 4: Generate and apply the migration**
+- [x] **Step 4: Generate and apply the migration**
 
 ```bash
 pnpm db:generate > /tmp/gen.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/gen.log
@@ -204,7 +204,7 @@ psql "$DATABASE_URL_UNPOOLED" -c '\d labels' -c '\d card_labels'
 
 Expect `labels_board_id_name_key` to be a unique index on `(board_id, lower(name))`, and `card_labels` to have a two-column primary key.
 
-- [ ] **Step 5: Run the test to watch it pass**
+- [x] **Step 5: Run the test to watch it pass**
 
 ```bash
 pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e.log
@@ -212,7 +212,7 @@ pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: `EXIT=0`, with the count run equal to the count collected.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/db/schema.ts lib/db/migrations e2e/schema.spec.ts
@@ -233,7 +233,7 @@ git commit -m "feat: add labels and card_labels, folded on name"
   export async function boardLabels(boardId: string): Promise<BoardLabel[]>;
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/labels.test.ts`. The db is mocked the way `lib/members.test.ts` mocks it — this asserts the query's shape and ordering, not Postgres. The `where` and `orderBy` tests invoke the captured callbacks with stub column identifiers and stub operators, so a regression that drops the board scope or the case-fold fails the test rather than merely failing to be checked:
 
@@ -317,7 +317,7 @@ test('hands back what the query returned, unchanged', async () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/labels.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -325,7 +325,7 @@ pnpm exec vitest run lib/labels.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; ta
 
 Expected: FAIL — cannot resolve `./labels`.
 
-- [ ] **Step 3: Write it**
+- [x] **Step 3: Write it**
 
 Create `lib/labels.ts`:
 
@@ -352,7 +352,7 @@ export async function boardLabels(boardId: string): Promise<BoardLabel[]> {
 
 Ordering folds case for the same reason the unique index does: `Bug` must sit beside `bug`, not before every lower-case name.
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run lib/labels.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -360,7 +360,7 @@ pnpm exec vitest run lib/labels.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; ta
 
 Expected: PASS, 4 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/labels.ts lib/labels.test.ts
@@ -385,7 +385,7 @@ git commit -m "feat: read a board's labels, case-folded"
   ```
   Each input carries `mutationId: string`. `createLabel` takes `{ boardId, name, mutationId }`; the other two take `{ labelId, ... }` and resolve the board from the row.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/actions/labels.test.ts`, modelled on `lib/actions/members.test.ts` — the same op-recording db double, so read that file first:
 
@@ -624,7 +624,7 @@ describe('deleteLabel', () => {
 
 Read `lib/permissions.ts` before writing that last test: `BoardAccessError`'s constructor argument and what `boardAccessResult` maps it to are what the expectation has to match. If the constructor takes a different shape, fix the test to match the source, not the source to match the test.
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/labels.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -632,7 +632,7 @@ pnpm exec vitest run lib/actions/labels.test.ts > /tmp/unit.log 2>&1; echo "EXIT
 
 Expected: FAIL — cannot resolve `./labels`.
 
-- [ ] **Step 3: Write the three actions**
+- [x] **Step 3: Write the three actions**
 
 Create `lib/actions/labels.ts`:
 
@@ -802,7 +802,7 @@ export async function deleteLabel(input: unknown) {
 
 They are published from here and delivered from Section D; a published event nothing binds is exactly the failure `lib/events.test.ts` guards against, so **Section D's Task D1 must land before this feature is considered shipped**, and the Section A PR body says so.
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/labels.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -810,7 +810,7 @@ pnpm exec vitest run lib/actions/labels.test.ts > /tmp/unit.log 2>&1; echo "EXIT
 
 Expected: PASS, 13 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/labels.ts lib/actions/labels.test.ts
@@ -832,7 +832,7 @@ git commit -m "feat: create, rename and delete a board's labels"
   ```
   Input `{ cardId, labelIds: string[], mutationId }`. The whole set, every time — there is no add or remove.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/actions/labels.test.ts`. Extend the db double first — `setCardLabels` reads the card's board and the submitted labels:
 
@@ -934,7 +934,7 @@ describe('setCardLabels', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/labels.test.ts -t setCardLabels > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -942,7 +942,7 @@ pnpm exec vitest run lib/actions/labels.test.ts -t setCardLabels > /tmp/unit.log
 
 Expected: FAIL — `setCardLabels is not a function`.
 
-- [ ] **Step 3: Write it**
+- [x] **Step 3: Write it**
 
 Add to `lib/actions/labels.ts` — note the extra imports (`inArray` from `drizzle-orm`, `cardLabels` from the schema, `boardIdForCard` and `touchBoard` from `./scope`):
 
@@ -1009,7 +1009,7 @@ export async function setCardLabels(input: unknown) {
 
 Delete-then-insert rather than a diff: the set is small, it is one round trip either way inside the transaction, and a diff would have to reason about which rows are new — complexity with nothing to buy.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec vitest run lib/actions/labels.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1022,7 +1022,7 @@ pnpm typecheck > /tmp/tc.log 2>&1; echo "TYPECHECK=$?"; tail -3 /tmp/tc.log
 
 Expected: `EXIT=0` with 18 tests, `LINT=0`, `TYPECHECK=0`. If typecheck is red on a `publish` call, the union members from Task A3 Step 3 are missing.
 
-- [ ] **Step 5: Commit and open the Section A pull request**
+- [x] **Step 5: Commit and open the Section A pull request**
 
 ```bash
 git add lib/actions/labels.ts lib/actions/labels.test.ts docs/plans/labels.md
