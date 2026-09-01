@@ -792,7 +792,7 @@ git commit -m "feat: hold one board channel subscription in the board layout"
 - Consumes: `publish` and `type BoardEvent` from `lib/events.ts`; `useRealtime` from `components/board/realtime.tsx`.
 - Produces: `moveCard` requires `mutationId: string` in its input and publishes `card.moved`. Every later action follows this exact shape.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `lib/actions/cards.test.ts`, add the publish mock beside the existing mocks at the top of the file:
 
@@ -856,12 +856,12 @@ Then add to the existing `describe('moveCard', ...)`:
 
 Every existing `moveCard(...)` call in this file now needs `mutationId: 'm1'` added, except the ones asserting `INVALID` on other grounds.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `pnpm test lib/actions/cards.test.ts`
 Expected: FAIL — `publish` is not called; `mutationId` is accepted where it should be required.
 
-- [ ] **Step 3: Publish from `moveCard`**
+- [x] **Step 3: Publish from `moveCard`**
 
 In `lib/actions/cards.ts`, add the import:
 
@@ -900,7 +900,7 @@ and publish after the transaction, between `revalidatePath` and the return:
   return { ok: true, data: { rank } } as const;
 ```
 
-- [ ] **Step 4: Apply the event on the canvas**
+- [x] **Step 4: Apply the event on the canvas**
 
 In `components/board/board-canvas.tsx`, import `useRealtime`, mint a `mutationId` in `moveCardTo`, and subscribe.
 
@@ -952,7 +952,7 @@ And the subscription, after the existing effects:
   );
 ```
 
-- [ ] **Step 5: Extend the e2e to two browser contexts**
+- [x] **Step 5: Extend the e2e to two browser contexts**
 
 Add to `e2e/realtime.spec.ts`. **One browser proves nothing about this sub-project**: the whole claim is that a change in one session reaches another.
 
@@ -1009,7 +1009,7 @@ test('a card moved in one browser moves in another, with no reload', async ({ br
 
 The exact selectors for moving a card from the menu must match `components/board/card-menu.tsx`. Read that file and correct them rather than assuming; if the menu names differ, the test is wrong, not the component.
 
-- [ ] **Step 6: Run everything**
+- [x] **Step 6: Run everything**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TC=$?"
@@ -1021,7 +1021,7 @@ pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "E2E=$?"; ta
 
 Expected: all 0. `pnpm build` matters here specifically — it is the check that catches `components/board/realtime.tsx` importing a value rather than a type from `lib/events.ts`.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/actions/cards.ts lib/actions/cards.test.ts components/board/board-canvas.tsx e2e/realtime.spec.ts
@@ -1030,12 +1030,12 @@ git commit -m "feat: publish card.moved and apply it on another browser board"
 
 ### Section 1 gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, each exit code read from its own redirected log, count run compared against count collected.
-- [ ] **The realtime e2e ran rather than skipped.** A skipped realtime test is indistinguishable from a passing one in the summary line, and proves nothing. Confirm the count went up.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, each exit code read from its own redirected log, count run compared against count collected.
+- [x] **The realtime e2e ran rather than skipped.** A skipped realtime test is indistinguishable from a passing one in the summary line, and proves nothing. Confirm the count went up.
 - [ ] The Pusher credentials were proved with a real trigger (Task 1, Step 6) and the observed status code is in the PR body.
-- [ ] `/api/pusher/auth` refuses a board the caller is not a member of, **asserted by calling the route directly**, not by the UI declining to subscribe.
+- [x] `/api/pusher/auth` refuses a board the caller is not a member of, **asserted by calling the route directly**, not by the UI declining to subscribe.
 - [ ] Two real browsers, side by side, show one moving a card the other did not touch — observed by hand as well as in Playwright.
-- [ ] With `PUSHER_APP_ID` and `NEXT_PUBLIC_PUSHER_KEY` removed from the environment, the board still loads, still moves cards, and `[data-realtime]` reads `off`. This is the self-hosting configuration.
+- [x] With `PUSHER_APP_ID` and `NEXT_PUBLIC_PUSHER_KEY` removed from the environment, the board still loads, still moves cards, and `[data-realtime]` reads `off`. This is the self-hosting configuration.
 - [ ] Open the PR. Stop. Start Section 2 in a fresh session.
 
 ---
@@ -1045,6 +1045,14 @@ git commit -m "feat: publish card.moved and apply it on another browser board"
 Wide, mechanical and dull, which is exactly why it is its own PR: smeared through the others it would make each one unreviewable. Nothing user-visible changes — every event published here is consumed in Section 3.
 
 Every action takes the same three edits: a `mutationId: id` line in its Zod schema, a `publish(...)` call between `revalidatePath('/boards')` and the return, and `mutationId` added to each of its existing call sites in the test file.
+
+**Learned in Section 1, and it applies to all eleven remaining actions:** making
+`mutationId` required breaks every *caller* that does not send one, and an action
+usually has more than one. `moveCard` had two — the card menu's `moveCardTo` and
+the drag handler's own call in `onDragEnd` — and Task 4's own snippet only fixed
+the first, which would have left every real drag failing `INVALID` while the
+menu path passed. Before ticking any task in this section, grep the client for
+every call site of the action you just changed, not only the one the task names.
 
 ### Task 5: The five remaining card actions
 
