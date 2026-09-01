@@ -432,7 +432,7 @@ git commit -m "feat: read members and pending invites, expiring at thirty days"
   ```
   Later tasks add to this same file and this same test file.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/actions/members.test.ts`. This preamble is the harness every later task in Section A reuses — write it once, here.
 
@@ -595,7 +595,7 @@ describe('revokeInvite', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -603,7 +603,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: FAIL — `Failed to resolve import "./members"`.
 
-- [ ] **Step 3: Write the two actions**
+- [x] **Step 3: Write the two actions**
 
 Create `lib/actions/members.ts`:
 
@@ -702,7 +702,7 @@ export async function revokeInvite(input: unknown) {
 
 `and` and `eq` are imported now because A5 and A6 use them; if lint complains about an unused import at this step, add the actions in A5 before committing rather than deleting the import.
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -710,7 +710,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: PASS, 8 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/members.ts lib/actions/members.test.ts
