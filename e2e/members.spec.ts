@@ -186,3 +186,71 @@ test('declining an invite leaves no membership and no invite', async ({ browser 
     await inviteeContext.close();
   }
 });
+
+// playwright.config.ts loads .env and .env.local before this runs. Without
+// credentials the app is correctly non-realtime and these two would pass
+// vacuously, so they skip rather than pretend — the same guard, and the same
+// wording, as e2e/realtime.spec.ts.
+const configured = Boolean(
+  process.env.PUSHER_APP_ID &&
+    process.env.PUSHER_SECRET &&
+    process.env.NEXT_PUBLIC_PUSHER_KEY &&
+    process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+);
+
+test.describe('a membership that changes while the board is open', () => {
+  test.skip(!configured, 'Pusher credentials are not configured');
+
+  test('a demotion takes the write controls away without a reload', async ({ browser }) => {
+    const ownerContext = await browser.newContext();
+    const memberContext = await browser.newContext();
+    const owner = await seedSession(ownerContext);
+    const member = await seedSession(memberContext);
+    const boardId = await seedBoard(owner.userId, 'Live roles');
+    await seedMember(boardId, member.userId, 'member');
+
+    try {
+      const memberPage = await memberContext.newPage();
+      await memberPage.goto(`/boards/${boardId}`);
+      await expect(memberPage.getByRole('button', { name: 'New card' })).toBeVisible();
+
+      const ownerPage = await ownerContext.newPage();
+      await ownerPage.goto(`/boards/${boardId}`);
+      await ownerPage.getByRole('button', { name: 'Members' }).click();
+      await ownerPage.getByLabel('Role for Test User').selectOption('viewer');
+
+      await expect(memberPage.getByRole('button', { name: 'New card' })).toBeHidden();
+    } finally {
+      await removeSeededUser(member.userId);
+      await removeSeededUser(owner.userId);
+      await ownerContext.close();
+      await memberContext.close();
+    }
+  });
+
+  test('a removal sends the removed member back to the board list', async ({ browser }) => {
+    const ownerContext = await browser.newContext();
+    const memberContext = await browser.newContext();
+    const owner = await seedSession(ownerContext);
+    const member = await seedSession(memberContext);
+    const boardId = await seedBoard(owner.userId, 'Live removal');
+    await seedMember(boardId, member.userId, 'member');
+
+    try {
+      const memberPage = await memberContext.newPage();
+      await memberPage.goto(`/boards/${boardId}`);
+
+      const ownerPage = await ownerContext.newPage();
+      await ownerPage.goto(`/boards/${boardId}`);
+      await ownerPage.getByRole('button', { name: 'Members' }).click();
+      await ownerPage.getByRole('button', { name: 'Remove' }).click();
+
+      await memberPage.waitForURL('**/boards');
+    } finally {
+      await removeSeededUser(member.userId);
+      await removeSeededUser(owner.userId);
+      await ownerContext.close();
+      await memberContext.close();
+    }
+  });
+});
