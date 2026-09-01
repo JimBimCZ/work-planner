@@ -77,6 +77,11 @@ test("comments on someone else's board outlive the account that wrote them", asy
 
     expect((await userRowCounts(guest.userId)).user).toBe(0);
     await expect(commentAuthorId(commentId)).resolves.toBeNull();
+
+    // The owner can still read it, and it carries no name.
+    await page.goto(`/boards/${boardId}/cards/${cardId}`);
+    await expect(page.getByText('Still here')).toBeVisible();
+    await expect(page.getByText('Deleted account')).toBeVisible();
   } finally {
     await guestContext.close();
     await removeSeededUser(owner.userId);
