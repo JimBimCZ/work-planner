@@ -29,6 +29,7 @@ import { useRealtime } from '@/components/board/realtime';
 import { readBoard } from '@/lib/actions/board';
 import { createCard, deleteCard, moveCard, renameCard } from '@/lib/actions/cards';
 import { addColumn, deleteColumn, moveColumn, renameColumn } from '@/lib/actions/columns';
+import { attempt } from '@/lib/attempt';
 import { avatarHue } from '@/lib/avatar';
 import {
   boardReducer,
@@ -226,7 +227,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     catchUpWanted.current = false;
 
     let cancelled = false;
-    void readBoard({ boardId: board.id }).then((result) => {
+    void attempt(() => readBoard({ boardId: board.id })).then((result) => {
       if (cancelled) return;
       if (result.ok) dispatch({ type: 'board.reseed', state: result.data });
       // A failed catch-up leaves the board stale, so it stays wanted rather
@@ -267,7 +268,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     setError(null);
 
     startTransition(async () => {
-      const result = await createCard({ columnId, title, mutationId: claim() });
+      const result = await attempt(() => createCard({ columnId, title, mutationId: claim() }));
       if (!result.ok) {
         dispatch({ type: 'card.delete', cardId: tempId });
         setError('That card could not be added. Try again.');
@@ -287,7 +288,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     setError(null);
 
     startTransition(async () => {
-      const result = await call();
+      const result = await attempt(call);
       if (!result.ok) {
         for (const step of undo) dispatch(step);
         setError(message);
@@ -374,12 +375,14 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     setError(null);
 
     startTransition(async () => {
-      const result = await addColumn({
-        boardId: board.id,
-        name,
-        afterColumnId: column.id,
-        mutationId: claim(),
-      });
+      const result = await attempt(() =>
+        addColumn({
+          boardId: board.id,
+          name,
+          afterColumnId: column.id,
+          mutationId: claim(),
+        }),
+      );
       if (!result.ok) {
         dispatch({ type: 'column.delete', columnId: tempId, targetColumnId: null, moves: [] });
         setError('That column could not be added. Try again.');

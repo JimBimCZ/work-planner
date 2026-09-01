@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react';
 
 import { useRealtime } from '@/components/board/realtime';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { attempt } from '@/lib/attempt';
 import { addComment, deleteComment, editComment, readComments } from '@/lib/actions/comments';
 import type { CardComment, Viewer } from '@/lib/cards';
 import { reinsertOrdered } from '@/lib/comment-order';
@@ -56,7 +57,7 @@ export function CardComments({
             );
             return;
           case 'comment.created.truncated':
-            void readComments({ cardId }).then((result) => {
+            void attempt(() => readComments({ cardId })).then((result) => {
               if (!result.ok) return;
               // A comment of ours still in flight is not in the server's
               // answer yet, and dropping it here would make it disappear
@@ -100,7 +101,7 @@ export function CardComments({
     setError(null);
 
     startTransition(async () => {
-      const result = await addComment({ cardId, body, mutationId: claim() });
+      const result = await attempt(() => addComment({ cardId, body, mutationId: claim() }));
       if (result.ok) {
         setRows((current) =>
           // A truncated-comment refetch can land between this post and its
@@ -139,11 +140,13 @@ export function CardComments({
     setError(null);
 
     startTransition(async () => {
-      const result = await editComment({
-        commentId: row.id,
-        body,
-        mutationId: claim(),
-      });
+      const result = await attempt(() =>
+        editComment({
+          commentId: row.id,
+          body,
+          mutationId: claim(),
+        }),
+      );
       if (!result.ok) {
         // Only roll back if the row still holds the value this request sent —
         // a later edit to the same comment that already succeeded must not be
@@ -161,7 +164,9 @@ export function CardComments({
     setError(null);
 
     startTransition(async () => {
-      const result = await deleteComment({ commentId: row.id, mutationId: claim() });
+      const result = await attempt(() =>
+        deleteComment({ commentId: row.id, mutationId: claim() }),
+      );
       if (!result.ok) {
         setRows((current) => reinsertOrdered(current, row));
         setError('That comment could not be deleted. Try again.');
