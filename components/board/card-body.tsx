@@ -21,6 +21,7 @@ import {
   setCardDescription,
   setCardDueDate,
 } from '@/lib/actions/cards';
+import { attempt } from '@/lib/attempt';
 import type { CardForView, Viewer } from '@/lib/cards';
 import { toDateInputValue } from '@/lib/due';
 
@@ -89,7 +90,7 @@ export function CardBody({
         }
 
         if (event.descriptionChanged && description === savedDescription) {
-          void readCardDescription({ cardId: card.id }).then((result) => {
+          void attempt(() => readCardDescription({ cardId: card.id })).then((result) => {
             if (!result.ok) return;
             const next = result.data.description ?? '';
             setDescription(next);
@@ -137,7 +138,7 @@ export function CardBody({
     setError(null);
 
     startTransition(async () => {
-      const result = await save();
+      const result = await attempt(save);
       if (result.ok) {
         setSaved(next);
         // Only echo the sent value back if the field still holds it — a
@@ -183,11 +184,13 @@ export function CardBody({
     setDueDate(next);
     setError(null);
     startTransition(async () => {
-      const result = await setCardDueDate({
-        cardId: card.id,
-        dueDate: next,
-        mutationId: claim(),
-      });
+      const result = await attempt(() =>
+        setCardDueDate({
+          cardId: card.id,
+          dueDate: next,
+          mutationId: claim(),
+        }),
+      );
       if (result.ok) {
         patchCard?.(card.id, { dueDate: next });
       } else {

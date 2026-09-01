@@ -797,3 +797,61 @@ test('the ring does not transform under reduced motion', async ({ browser }) => 
     await removeSeededUser(bob.userId);
   }
 });
+
+// A server action is a fetch. Offline it rejects rather than returning a
+// refusal, and before lib/attempt.ts that rejection escaped startTransition
+// into the nearest error boundary: the whole board was replaced by "This page
+// couldn't load", losing every card on screen and the strip that would have
+// explained it. The board must survive a write it could not send.
+test('a write that cannot reach the server leaves the board standing', async ({ browser }) => {
+  const { boardId, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+
+  try {
+    await pageB.context().setOffline(true);
+
+    await pageB.getByRole('button', { name: `Add card to ${ready.name}` }).click();
+    await pageB.getByRole('textbox', { name: 'Card title' }).fill('Made offline');
+    await pageB.getByRole('textbox', { name: 'Card title' }).press('Enter');
+
+    // The canvas is still mounted, not swapped for an error page.
+    await expect(pageB.locator('[data-column-id]')).toHaveCount(5, { timeout: 15_000 });
+    await expect(pageB.getByTestId('board-status')).toHaveText(
+      'That card could not be added. Try again.',
+      { timeout: 15_000 },
+    );
+    // The write never landed, so the optimistic card is rolled back rather than
+    // left on screen pretending to be saved.
+    await expect(pageB.getByTestId('card-title').filter({ hasText: 'Made offline' })).toHaveCount(0);
+  } finally {
+    await pageB.context().setOffline(false);
+    await close();
+  }
+});
+
+// The same rejection through the other shape: run() serves every mutation but
+// create, so a rename proves the shared path rather than only addCard's.
+test('a rename that cannot reach the server rolls back and says so', async ({ browser }) => {
+  let cardId = '';
+  const { pageB, close } = await twoBrowsers(browser, async (boardId, ownerId) => {
+    const [ready] = await boardColumns(boardId);
+    cardId = await seedCard(ready.id, { boardId, createdById: ownerId, title: 'Ship it' });
+  });
+
+  try {
+    await pageB.context().setOffline(true);
+    await renameOnBoard(pageB, 'Ship it', 'Shipped');
+
+    await expect(pageB.locator('[data-column-id]')).toHaveCount(5, { timeout: 15_000 });
+    await expect(pageB.getByTestId('board-status')).toHaveText(
+      'That card could not be renamed. Try again.',
+      { timeout: 15_000 },
+    );
+    await expect(pageB.locator(`[data-card-id="${cardId}"] [data-testid="card-title"]`)).toHaveText(
+      'Ship it',
+    );
+  } finally {
+    await pageB.context().setOffline(false);
+    await close();
+  }
+});
