@@ -5,9 +5,10 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { auth } from '@/lib/auth';
+import { getCardForView } from '@/lib/cards';
 import { db } from '@/lib/db';
 import { comments } from '@/lib/db/schema';
-import { publish } from '@/lib/events';
+import { publish, publishComment } from '@/lib/events';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 
 import { boardIdForCard, commentScope, touchBoard } from './scope';
@@ -21,6 +22,7 @@ const body = z.string().trim().min(1).max(4_000);
 const addSchema = z.object({ cardId: id, body, mutationId: z.uuid() });
 const editSchema = z.object({ commentId: id, body, mutationId: z.uuid() });
 const deleteSchema = z.object({ commentId: id, mutationId: z.uuid() });
+const readSchema = z.object({ cardId: id });
 
 export async function addComment(input: unknown) {
   const session = await auth();
@@ -56,7 +58,7 @@ export async function addComment(input: unknown) {
   });
 
   revalidatePath('/boards');
-  await publish(boardId, {
+  await publishComment(boardId, {
     type: 'comment.created',
     mutationId: parsed.data.mutationId,
     actorId: authorId,
@@ -144,4 +146,26 @@ export async function deleteComment(input: unknown) {
     cardId: scope.cardId,
   });
   return { ok: true } as const;
+}
+
+// Only reached when a comment was too large to publish inline. It re-reads the
+// whole thread rather than one comment, because getCardForView already returns
+// it in the order the component needs.
+export async function readComments(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = readSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  const card = await getCardForView(parsed.data.cardId);
+  if (!card) return { ok: false, error: 'NOT_FOUND' } as const;
+
+  try {
+    await assertBoardAccess(session.user.id, card.boardId, 'viewer');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  return { ok: true, data: card.comments } as const;
 }

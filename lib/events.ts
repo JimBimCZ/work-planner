@@ -82,3 +82,24 @@ export async function publish(boardId: string, event: BoardEvent): Promise<void>
     console.error('[events] publish failed', error);
   }
 }
+
+// The one place the size branch lives. Everything else in this module either
+// always fits or never ships its large field at all. The body cap counts
+// characters and this counts bytes, so a comment well under 4,000 characters
+// of emoji can still be far over the ceiling.
+export async function publishComment(
+  boardId: string,
+  event: Extract<BoardEvent, { type: 'comment.created' }>,
+): Promise<void> {
+  if (Buffer.byteLength(JSON.stringify(event)) <= PAYLOAD_CEILING) {
+    return publish(boardId, event);
+  }
+
+  return publish(boardId, {
+    type: 'comment.created.truncated',
+    mutationId: event.mutationId,
+    actorId: event.actorId,
+    id: event.id,
+    cardId: event.cardId,
+  });
+}

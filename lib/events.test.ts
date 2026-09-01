@@ -8,7 +8,7 @@ vi.mock('pusher', () => ({
   },
 }));
 
-const { PAYLOAD_CEILING, channelFor, publish } = await import('./events');
+const { PAYLOAD_CEILING, channelFor, publish, publishComment } = await import('./events');
 
 const CREDENTIALS = {
   PUSHER_APP_ID: '1234567',
@@ -77,5 +77,48 @@ describe('publish', () => {
 
   test('the ceiling leaves headroom under Pusher documented 10KB limit', () => {
     expect(PAYLOAD_CEILING).toBeLessThan(10 * 1024);
+  });
+});
+
+describe('publishComment', () => {
+  const created = {
+    type: 'comment.created',
+    mutationId: 'm1',
+    actorId: 'user-1',
+    id: 'comment-1',
+    cardId: 'card-1',
+    createdAt: '2026-08-31T00:00:00.000Z',
+    author: { id: 'user-1', name: 'Alice', image: null },
+  } as const;
+
+  test('ships a short body inline', async () => {
+    await publishComment('b1', { ...created, body: 'Looks right' });
+    expect(trigger).toHaveBeenCalledWith(
+      'private-board-b1',
+      'comment.created',
+      expect.objectContaining({ body: 'Looks right' }),
+    );
+  });
+
+  // 4,000 characters is under the ceiling in ASCII and far over it in emoji.
+  // The cap counts characters; the guard has to count bytes.
+  test('degrades a body that is under the character cap but over the byte ceiling', async () => {
+    await publishComment('b1', { ...created, body: '😀'.repeat(4_000) });
+    expect(trigger).toHaveBeenCalledWith('private-board-b1', 'comment.created.truncated', {
+      type: 'comment.created.truncated',
+      mutationId: 'm1',
+      actorId: 'user-1',
+      id: 'comment-1',
+      cardId: 'card-1',
+    });
+  });
+
+  test('a maximum-length ASCII comment still ships inline', async () => {
+    await publishComment('b1', { ...created, body: 'x'.repeat(4_000) });
+    expect(trigger).toHaveBeenCalledWith(
+      'private-board-b1',
+      'comment.created',
+      expect.objectContaining({ body: 'x'.repeat(4_000) }),
+    );
   });
 });

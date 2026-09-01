@@ -209,8 +209,10 @@ Postgres `LISTEN/NOTIFY` over SSE is **not** viable here. It needs a dedicated, 
 - Every mutating server action calls `publish(boardId, event)` after its transaction commits.
 - Clients subscribe with `pusher-js`; `/api/pusher/auth` authorises the channel by re-checking board membership. Channel names are never trusted — the route derives access from the session.
 - Client ignores events it caused itself, matched on a client-generated `mutationId` echoed in the payload.
-- Events: `card.created`, `card.updated`, `card.moved`, `card.deleted`, `column.*`, `comment.created`.
-- Payloads carry the changed entity, not a full board refetch. Keep them under Pusher's 10KB message limit — long descriptions ship as `{ id, updatedAt }` and the client refetches that card.
+- Events, all twelve: `card.created`, `card.updated`, `card.moved`, `card.deleted`, `column.created`, `column.updated`, `column.moved`, `column.deleted`, `comment.created`, `comment.created.truncated`, `comment.updated`, `comment.deleted`. `lib/events.ts`'s `BoardEvent` union and `components/board/realtime.tsx`'s `EVENT_NAMES` must list the same set — an event missing from the second is published and never delivered.
+- Payloads carry the changed entity, not a full board refetch, and stay under `PAYLOAD_CEILING` (8,192 bytes, headroom under Pusher's documented 10KB). The two fields that cannot fit are handled by saying so and letting the reader ask:
+  - `card.updated` carries `descriptionChanged: boolean` rather than the description; an open card calls `readCardDescription`.
+  - `comment.created` degrades to `comment.created.truncated` — id and cardId only — when the whole event would exceed the ceiling; an open thread calls `readComments`. `publishComment` in `lib/events.ts` is the only place that branch lives. The body cap and the ceiling measure different things: `maxLength`/Zod count UTF-16 units, the guard counts UTF-8 bytes, so 2,000 emoji is a legal 4,000-unit comment weighing 8,355 bytes.
 - Presence channels (who else is viewing the board) are a later addition, not part of the first build.
 
 Last-write-wins on card fields is acceptable. Do not build OT/CRDT text merging for descriptions.

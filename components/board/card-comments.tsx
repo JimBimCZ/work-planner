@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 
 import { useRealtime } from '@/components/board/realtime';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { addComment, deleteComment, editComment } from '@/lib/actions/comments';
+import { addComment, deleteComment, editComment, readComments } from '@/lib/actions/comments';
 import type { CardComment, Viewer } from '@/lib/cards';
 import { reinsertOrdered } from '@/lib/comment-order';
 
@@ -24,7 +24,7 @@ export function CardComments({
   comments: CardComment[];
   viewer: Viewer;
 }) {
-  const { claim } = useRealtime();
+  const { claim, subscribe } = useRealtime();
   const [rows, setRows] = useState<Row[]>(comments);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +32,55 @@ export function CardComments({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  // Ordering is lib/comment-order.ts's job, not this component's: a remote
+  // comment must land where its (createdAt, id) says, not simply at the end,
+  // because an optimistic row of ours may already be sitting there.
+  useEffect(
+    () =>
+      subscribe((event) => {
+        if (!('cardId' in event) || event.cardId !== cardId) return;
+
+        switch (event.type) {
+          case 'comment.created':
+            // reinsertOrdered compares createdAt as a Date; the event carries
+            // an ISO string, so it is converted here rather than inside the
+            // helper, which stays a pure ordering function.
+            setRows((rows) =>
+              reinsertOrdered(rows, {
+                id: event.id,
+                body: event.body,
+                createdAt: new Date(event.createdAt),
+                author: event.author,
+              }),
+            );
+            return;
+          case 'comment.created.truncated':
+            void readComments({ cardId }).then((result) => {
+              if (!result.ok) return;
+              // A comment of ours still in flight is not in the server's
+              // answer yet, and dropping it here would make it disappear
+              // until a reload.
+              setRows((rows) => [...result.data, ...rows.filter((row) => row.pending)]);
+            });
+            return;
+          case 'comment.updated':
+            // Only the stored body moves. An open editor holds its text in
+            // editDraft, which nothing here touches, so a remote edit of the
+            // comment you are editing cannot take the sentence off your screen.
+            setRows((rows) =>
+              rows.map((row) => (row.id === event.id ? { ...row, body: event.body } : row)),
+            );
+            return;
+          case 'comment.deleted':
+            setRows((rows) => rows.filter((row) => row.id !== event.id));
+            return;
+          default:
+            return;
+        }
+      }),
+    [subscribe, cardId],
+  );
 
   const submit = () => {
     const body = draft.trim();
@@ -54,9 +103,14 @@ export function CardComments({
       const result = await addComment({ cardId, body, mutationId: claim() });
       if (result.ok) {
         setRows((current) =>
-          current.map((row) =>
-            row.id === tempId ? { ...row, id: result.data.id, pending: false } : row,
-          ),
+          // A truncated-comment refetch can land between this post and its
+          // response and already carry our comment under its real id. Renaming
+          // the temp row then would leave two rows sharing one key.
+          current.some((row) => row.id === result.data.id)
+            ? current.filter((row) => row.id !== tempId)
+            : current.map((row) =>
+                row.id === tempId ? { ...row, id: result.data.id, pending: false } : row,
+              ),
         );
       } else {
         setRows((current) => current.filter((row) => row.id !== tempId));

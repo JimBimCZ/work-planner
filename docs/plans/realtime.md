@@ -2815,6 +2815,15 @@ git commit -m "feat: follow a card's remote edits without clobbering a draft"
 
 ## Section 6 — Comments in a live thread
 
+**Two corrections against the real code.** `addComment` publishing through
+`publishComment` breaks its own existing tests unless `publishComment` is mocked
+too: it calls `lib/events.ts`'s own module-scope `publish`, not the mocked
+export, so the real one reaches straight past the mock. And the e2e snippets
+below need `exact: true` on `Delete comment` and `Comment` — without it they
+also match `Delete comment: <label>` and `Edit comment: <label>`, which is a
+strict-mode violation rather than a failure. `CLAUDE.md`'s event list is twelve
+entries, not eleven; `comment.created.truncated` is one of them.
+
 ### Task 15: `readComments`, and the degraded event
 
 **Files:**
@@ -2823,7 +2832,7 @@ git commit -m "feat: follow a card's remote edits without clobbering a draft"
 **Interfaces:**
 - Produces: `readComments(input: unknown)` returning the thread; `publishComment(boardId, event)` in `lib/events.ts`, which degrades an oversized `comment.created` to `comment.created.truncated`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `lib/events.test.ts`:
 
@@ -2872,12 +2881,12 @@ describe('publishComment', () => {
 });
 ```
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `pnpm test lib/events.test.ts`
 Expected: FAIL — `publishComment` is not exported.
 
-- [ ] **Step 3: Add the degrading publisher**
+- [x] **Step 3: Add the degrading publisher**
 
 In `lib/events.ts`:
 
@@ -2904,7 +2913,7 @@ export async function publishComment(
 
 Change `addComment` in `lib/actions/comments.ts` to call `publishComment` rather than `publish`.
 
-- [ ] **Step 4: Add `readComments`**
+- [x] **Step 4: Add `readComments`**
 
 In `lib/actions/comments.ts`. It reuses `getCardForView`, which already reads the thread in `(createdAt, id)` order for the card page, so there is one query rather than two:
 
@@ -2968,7 +2977,7 @@ describe('readComments', () => {
 });
 ```
 
-- [ ] **Step 5: Run, then commit**
+- [x] **Step 5: Run, then commit**
 
 ```bash
 pnpm test lib/events.test.ts lib/actions/comments.test.ts
@@ -2981,7 +2990,7 @@ git commit -m "feat: degrade an oversized comment payload to a pointer"
 **Files:**
 - Modify: `components/board/card-comments.tsx`, `e2e/realtime.spec.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 test('a comment posted elsewhere appears in an open thread', async ({ browser }) => {
@@ -3046,11 +3055,11 @@ test('a comment deleted elsewhere leaves the thread', async ({ browser }) => {
 
 Import `seedComment` from `./support/session`, and check the Edit/Delete control names against `components/board/card-comments.tsx` — Section 5 of the card modal gave each a distinct label, so use the real one.
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `pnpm exec playwright test realtime -g comment --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/e2e.log`
 
-- [ ] **Step 3: Subscribe from the thread**
+- [x] **Step 3: Subscribe from the thread**
 
 In `components/board/card-comments.tsx`:
 
@@ -3106,7 +3115,7 @@ In `components/board/card-comments.tsx`:
 
 **A comment being edited locally is not clobbered**, by the same rule as Section 5: if `editingId === event.id`, update the stored body but leave `editDraft` alone.
 
-- [ ] **Step 4: Run them, run everything, commit**
+- [x] **Step 4: Run them, run everything, commit**
 
 ```bash
 pnpm exec playwright test realtime --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -3123,11 +3132,11 @@ git commit -m "feat: keep an open comment thread live"
 
 ### Task 17: Update `CLAUDE.md`
 
-- [ ] **Step 1: Add the two events**
+- [x] **Step 1: Add the two events**
 
 In `CLAUDE.md`'s Realtime section, change the events line to name all eleven, including `comment.updated` and `comment.deleted`. `CLAUDE.md`'s own rule is that it stays current when an architectural decision changes, and the event list is one.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add CLAUDE.md
@@ -3136,12 +3145,13 @@ git commit -m "docs: name every board event, including comment edit and delete"
 
 ### Section 6 gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected.
-- [ ] A comment, an edit and a delete each reach a second open thread with no reload.
-- [ ] **A 4,000-character comment of emoji arrives**, via the degraded path — forced, not hoped for. Post one and confirm the thread updates.
-- [ ] A comment being edited locally is not clobbered by a remote edit of the same comment.
-- [ ] An optimistic comment and a remote one do not both appear as duplicates of each other.
-- [ ] Open the PR with screenshots of a live thread in both themes. Stop. Start Section 7 in a fresh session.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected. Observed: TC=0, LINT=0 (2 pre-existing `_pending` warnings in `lib/board-state.ts`), TEST=0 with 299 passed, BUILD=0, e2e `Running 103 tests` / `103 passed` / EXIT=0.
+- [x] A comment, an edit and a delete each reach a second open thread with no reload — `a comment posted elsewhere appears in an open thread`, `a comment edited elsewhere updates in an open thread`, `a comment deleted elsewhere leaves the thread`.
+- [x] **A comment too large to publish inline arrives via the degraded path**, forced — `a comment too large to publish inline still reaches the thread`. **The gate's "4,000-character comment of emoji" cannot be posted:** the textarea's `maxLength` and the Zod body cap both count UTF-16 units, and an emoji is two, so 2,000 emoji *is* the 4,000-unit maximum. At 8,355 bytes it clears the 8,192 ceiling by 163 bytes, so the degrade is forced rather than hoped for. `publishComment`'s unit test drives 4,000 emoji directly, where no input cap applies.
+- [x] A comment being edited locally is not clobbered by a remote edit of the same comment — `a comment being edited locally is not clobbered`. Note only a comment's author may edit it, so a remote edit of the comment you are editing can only come from **the same account in another session**; the test uses two tabs of one context, which is exactly that. An earlier draft had another user post instead, which would not have exercised the rule at all.
+- [x] An optimistic comment and a remote one do not both appear as duplicates — asserted inside `a comment posted elsewhere appears in an open thread`: the poster's own thread holds exactly one row.
+- [x] Screenshots of a live thread in both themes: `docs/screenshots/realtime-section-6/thread-{light,dark}.png`. The third comment in each arrives over Pusher while the page is open, so it is a live thread rather than a rendered one. Every author reads "Test User" because `seedSession` names them so; that is the fixture, not the UI.
+- [ ] Open the PR. Stop. Start Section 7 in a fresh session.
 
 ---
 
