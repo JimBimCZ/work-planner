@@ -63,7 +63,7 @@ No UI, no events. Branch `feat/members-actions` from `main`.
 - Consumes: nothing.
 - Produces: `boardInvites` table with columns `id`, `boardId`, `email`, `role`, `invitedById`, `createdAt`; `boardInvitesRelations` exposing `board` and `invitedBy`; `boardMembersRelations` gaining `user`.
 
-- [ ] **Step 1: Add the table and the relations**
+- [x] **Step 1: Add the table and the relations**
 
 In `lib/db/schema.ts`, extend the existing imports — `check` and `unique` come from `drizzle-orm/pg-core`, `sql` from `drizzle-orm` — then add after `boardMembers`:
 
@@ -103,7 +103,7 @@ export const boardInvitesRelations = relations(boardInvites, ({ one }) => ({
 
 Add `user: one(users, { fields: [boardMembers.userId], references: [users.id] })` to the existing `boardMembersRelations`, and `invites: many(boardInvites)` to `boardsRelations`.
 
-- [ ] **Step 2: Generate and apply the migration**
+- [x] **Step 2: Generate and apply the migration**
 
 ```bash
 pnpm db:generate > /tmp/generate.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/generate.log
@@ -118,7 +118,7 @@ Expected: a new `lib/db/migrations/0004_*.sql` creating `board_invites` with the
 psql "$DATABASE_URL_UNPOOLED" -c '\d board_invites'
 ```
 
-- [ ] **Step 3: Write the failing invariant tests**
+- [x] **Step 3: Write the failing invariant tests**
 
 Append to `e2e/schema.spec.ts` (it already imports `Pool`, `seedSession`, `seedBoard`, `removeSeededUser`):
 
@@ -168,7 +168,7 @@ test('a board cannot hold two pending invites for one address', async ({ context
 });
 ```
 
-- [ ] **Step 4: Run them**
+- [x] **Step 4: Run them**
 
 ```bash
 pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e.log
@@ -176,7 +176,7 @@ pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: PASS, and the count that ran equals the count collected. If the check-constraint test fails, the migration in Step 2 did not carry the constraint — fix the schema and regenerate rather than patching SQL.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/db/schema.ts lib/db/migrations e2e/schema.spec.ts

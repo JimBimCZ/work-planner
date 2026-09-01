@@ -1,5 +1,15 @@
-import { relations } from 'drizzle-orm';
-import { index, integer, pgEnum, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
+import { relations, sql } from 'drizzle-orm';
+import {
+  check,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  unique,
+} from 'drizzle-orm/pg-core';
 import type { AdapterAccountType } from 'next-auth/adapters';
 
 // Names mirror @auth/drizzle-adapter's own defaults exactly. DrizzleAdapter is
@@ -84,6 +94,29 @@ export const boardMembers = pgTable(
   ],
 );
 
+export const boardInvites = pgTable(
+  'board_invites',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    boardId: text('board_id')
+      .notNull()
+      .references(() => boards.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    role: boardRole('role').notNull(),
+    invitedById: text('invited_by_id').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('board_invites_board_id_email_key').on(t.boardId, t.email),
+    index('board_invites_email_idx').on(t.email),
+    // The one-owner invariant, in the database rather than only in Zod:
+    // ownership moves through transferOwnership and nowhere else.
+    check('board_invites_role_not_owner', sql`${t.role} <> 'owner'`),
+  ],
+);
+
 export const columns = pgTable(
   'columns',
   {
@@ -155,12 +188,19 @@ export const comments = pgTable(
 
 export const boardsRelations = relations(boards, ({ many }) => ({
   members: many(boardMembers),
+  invites: many(boardInvites),
   columns: many(columns),
   cards: many(cards),
 }));
 
 export const boardMembersRelations = relations(boardMembers, ({ one }) => ({
   board: one(boards, { fields: [boardMembers.boardId], references: [boards.id] }),
+  user: one(users, { fields: [boardMembers.userId], references: [users.id] }),
+}));
+
+export const boardInvitesRelations = relations(boardInvites, ({ one }) => ({
+  board: one(boards, { fields: [boardInvites.boardId], references: [boards.id] }),
+  invitedBy: one(users, { fields: [boardInvites.invitedById], references: [users.id] }),
 }));
 
 export const columnsRelations = relations(columns, ({ one, many }) => ({

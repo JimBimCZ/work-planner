@@ -29,6 +29,13 @@
       "when": 1788181576290,
       "tag": "0003_dear_vengeance",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788275935009,
+      "tag": "0004_natural_microchip",
+      "breakpoints": true
     }
   ]
 }
