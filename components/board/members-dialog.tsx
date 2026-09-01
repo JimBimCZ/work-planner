@@ -12,6 +12,7 @@ import {
   revokeInvite,
   transferOwnership,
 } from '@/lib/actions/members';
+import { attempt } from '@/lib/attempt';
 import { avatarHue, initials } from '@/lib/avatar';
 import type { PendingInvite, VisibleMember } from '@/lib/members';
 
@@ -45,7 +46,7 @@ export function MembersPanel({
 
   function leave() {
     startTransition(async () => {
-      const result = await leaveBoard({ boardId });
+      const result = await attempt(() => leaveBoard({ boardId }));
       if (!result.ok) {
         setError('You could not be taken off this board. Try again.');
         return;
@@ -58,7 +59,7 @@ export function MembersPanel({
     event.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await inviteMember({ boardId, email, role });
+      const result = await attempt(() => inviteMember({ boardId, email, role }));
       if (!result.ok) {
         setError(
           result.error === 'ALREADY_MEMBER'
@@ -74,7 +75,7 @@ export function MembersPanel({
 
   function setMemberRole(userId: string, next: 'member' | 'viewer') {
     startTransition(async () => {
-      const result = await changeRole({ boardId, userId, role: next });
+      const result = await attempt(() => changeRole({ boardId, userId, role: next }));
       if (!result.ok) {
         setError('That role could not be changed. Try again.');
         return;
@@ -85,7 +86,7 @@ export function MembersPanel({
 
   function remove(userId: string) {
     startTransition(async () => {
-      const result = await removeMember({ boardId, userId });
+      const result = await attempt(() => removeMember({ boardId, userId }));
       if (!result.ok) {
         setError('They could not be removed. Try again.');
         return;
@@ -97,7 +98,7 @@ export function MembersPanel({
   function transfer(userId: string) {
     setError(null);
     startTransition(async () => {
-      const result = await transferOwnership({ boardId, userId, confirmName });
+      const result = await attempt(() => transferOwnership({ boardId, userId, confirmName }));
       if (!result.ok) {
         setError(
           result.error === 'NAME_MISMATCH'
@@ -114,7 +115,7 @@ export function MembersPanel({
 
   function revoke(inviteId: string) {
     startTransition(async () => {
-      const result = await revokeInvite({ inviteId });
+      const result = await attempt(() => revokeInvite({ inviteId }));
       if (!result.ok) {
         setError('That invite could not be withdrawn. Try again.');
         return;
