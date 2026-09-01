@@ -38,7 +38,7 @@ describe('getCardForView', () => {
   });
 
   test('reads the thread oldest first, which is how it is rendered', async () => {
-    cardRow = { id: 'k1', boardId: 'b1', columnId: 'c1', title: 'Ship it', comments: [] };
+    cardRow = { id: 'k1', boardId: 'b1', columnId: 'c1', title: 'Ship it', comments: [], cardLabels: [] };
     await getCardForView('k1');
 
     const config = findFirst.mock.calls[0][0] as FindFirstConfig;
@@ -58,6 +58,7 @@ describe('getCardForView', () => {
       description: null,
       dueDate: null,
       comments: [{ id: 'm1', body: 'Still here', createdAt: new Date(0), author: null }],
+      cardLabels: [],
     };
 
     const card = await getCardForView('k1');

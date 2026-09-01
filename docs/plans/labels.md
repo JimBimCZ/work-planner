@@ -1047,13 +1047,13 @@ The board carries labels and the card modal edits them. No filtering yet. Branch
 ### Task B1: Labels reach the client
 
 **Files:**
-- Modify: `lib/boards.ts`, `lib/board-state.ts`, `lib/board-state.test.ts`
+- Modify: `lib/boards.ts`, `lib/board-state.ts`, `lib/board-state.test.ts`, `lib/db/schema.ts` (the `labels` inverse relation), `lib/actions/board.test.ts` (untyped fixture), `components/board/board-canvas.tsx`
 
 **Interfaces:**
 - Produces: `StateCard` gains `labelIds: string[]`; `BoardState` gains `labels: BoardLabel[]`; `BoardCardRow` gains `cardLabels: { labelId: string }[]`; `BoardWithCards` gains `labels: BoardLabel[]`.
 - Consumes: `BoardLabel` from `lib/labels.ts` — **`import type`, always**. `lib/board-state.ts` is imported by `'use client'` components and `lib/labels.ts` imports `lib/db`, so a value import here puts the pg pool in the browser bundle and only `pnpm build` says so.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/board-state.test.ts`, beside the existing `toBoardState` tests:
 
@@ -1116,9 +1116,9 @@ test('a card with no labels carries an empty array, never undefined', () => {
 });
 ```
 
-The existing `toBoardState` tests in this file will stop compiling, because their fixtures lack `labels` and `cardLabels`. Adding those two keys to each is part of this step — the failures are where you notice, not a surprise.
+`toBoardState` has **no** existing tests — these two are the first. What stops compiling is everything else in the file: fifteen `StateCard` literals now need `labelIds`, and six `BoardState` literals now need `labels`. Two more fixtures live outside this file and are **untyped object literals, so `pnpm typecheck` cannot see them** — only the test run does: `BOARD` in `lib/actions/board.test.ts` needs `labels` and `cardLabels` (worth asserting, since the reconnect catch-up returns them), and `lib/board-state.ts`'s `column.delete` case rebuilds the state object explicitly and must spread `...state` to keep `labels`.
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/unit.log
@@ -1126,7 +1126,7 @@ pnpm exec vitest run lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?
 
 Expected: FAIL — `labelIds` is `undefined`.
 
-- [ ] **Step 3: Carry them through**
+- [x] **Step 3: Carry them through**
 
 In `lib/boards.ts`, extend the types and the query:
 
@@ -1155,7 +1155,7 @@ and inside `getBoardWithColumns`, on the nested `cards`, add beside its `columns
             with: { cardLabels: { columns: { labelId: true } } },
 ```
 
-and on the board itself, beside `columns`:
+and on the board itself, beside `columns` — which first requires adding `labels: many(labels)` to `boardsRelations` in `lib/db/schema.ts`. Task A1 added `labelsRelations` (label → board) but not its inverse, so without it drizzle rejects the `labels` key with "does not exist in type". Relations are TypeScript-side only; **no migration is generated or needed**:
 
 ```ts
       labels: {
@@ -1191,7 +1191,7 @@ and in `toBoardState`, `labels: board.labels` on the state, and on each card:
 
 Everywhere else that builds a `StateCard` — an optimistic `card.create` in `board-canvas.tsx`, and the `card.created` realtime handler — now needs `labelIds: []`. A new card carries no labels, and the field is an empty array rather than optional so nothing downstream has to ask whether it exists.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec vitest run > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1200,7 +1200,7 @@ pnpm typecheck > /tmp/tc.log 2>&1; echo "TYPECHECK=$?"; tail -5 /tmp/tc.log
 
 Expected: both `=0`. Typecheck is what finds every remaining `StateCard` literal.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/boards.ts lib/board-state.ts lib/board-state.test.ts components/board
@@ -1217,7 +1217,7 @@ git commit -m "feat: carry each card's labels into board state"
 - Consumes: `StateCard.labelIds`, `BoardState.labels`.
 - Produces: `BoardCard` gains a `labels: BoardLabel[]` prop — the board's whole set, not this card's, so one lookup map serves every card.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `components/board/board-card.test.tsx`, rendering to static markup the way `members-dialog.test.tsx` does:
 
@@ -1255,7 +1255,7 @@ const labels = [
   { id: 'l3', name: 'chore' },
 ];
 
-const render = (props: Record<string, unknown> = {}) =>
+const render = (props: Partial<Parameters<typeof BoardCard>[0]> = {}) =>
   renderToStaticMarkup(
     <BoardCard
       card={card}
@@ -1294,7 +1294,7 @@ describe('the label line', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/board-card.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1302,7 +1302,7 @@ pnpm exec vitest run components/board/board-card.test.tsx > /tmp/unit.log 2>&1; 
 
 Expected: FAIL — the markup contains no label names.
 
-- [ ] **Step 3: Add the line**
+- [x] **Step 3: Add the line**
 
 In `components/board/board-card.tsx`, a component beside `DueDate` — named `LabelLine`, not `CardLabels`, because `components/board/card-labels.tsx` in Task B3 is the modal's picker and two components of one name in one folder is a trap:
 
@@ -1335,7 +1335,7 @@ and render it under the due date:
 
 Then thread `labels` from `BoardCanvas` through `BoardColumn` to `BoardCard`, taking it from `state.labels`.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec vitest run > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1345,7 +1345,7 @@ pnpm lint > /tmp/lint.log 2>&1; echo "LINT=$?"; tail -3 /tmp/lint.log
 
 Expected: all `=0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board
@@ -1356,36 +1356,36 @@ git commit -m "feat: print a card's labels under its due date"
 
 **Files:**
 - Create: `components/board/card-labels.tsx`
-- Modify: `lib/cards.ts`, `components/board/card-body.tsx`, `e2e/labels.spec.ts` (create)
+- Modify: `lib/cards.ts`, `components/board/card-body.tsx`, both card route pages under `app/(app)/(board)/boards/[boardId]/`, `e2e/support/session.ts`, `e2e/labels.spec.ts` (create). Also `lib/cards.test.ts` and `lib/actions/comments.test.ts`: both hold untyped card fixtures that `getCardForView` now maps `cardLabels` off, so both need `cardLabels: []` — typecheck cannot see either, only the test run does.
 
 **Interfaces:**
 - Consumes: `setCardLabels` from `lib/actions/labels.ts`; `claim` from `useRealtime`.
 - Produces:
   ```tsx
   export function CardLabels(props: {
-    cardId: string;
     labels: BoardLabel[];
     selected: string[];
     canWrite: boolean;
     onChange: (labelIds: string[]) => void;
   }): React.ReactElement;
   ```
-  `CardForView` gains `labelIds: string[]`, and `getCardForView` gains `with: { cardLabels: { columns: { labelId: true } } }`.
+  (No `cardId`: the component body below never uses one, and an unused prop is dead weight.) `CardForView` gains `labelIds: string[]`, and `getCardForView` gains `with: { cardLabels: { columns: { labelId: true } } }`. `getCardForRoute` returns `labels` alongside `card`, so both routes inherit the board's set from one place.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `e2e/labels.spec.ts`. This is the first flow test for the feature, so it also establishes the file:
 
 ```ts
 import { expect, test } from '@playwright/test';
-import { Pool } from 'pg';
 
 import {
+  assignLabel,
   boardColumns,
   closeSeedPool,
   removeSeededUser,
   seedBoard,
   seedCard,
+  seedLabel,
   seedMember,
   seedSession,
   written,
@@ -1395,18 +1395,26 @@ test.afterAll(async () => {
   await closeSeedPool();
 });
 
-async function seedLabel(boardId: string, name: string): Promise<string> {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  try {
-    const { rows } = await pool.query<{ id: string }>(
-      'insert into labels (id, board_id, name) values (gen_random_uuid()::text, $1, $2) returning id',
-      [boardId, name],
-    );
-    return rows[0].id;
-  } finally {
-    await pool.end();
-  }
+`seedLabel` and `assignLabel` belong in `e2e/support/session.ts` beside the other seed helpers, using its shared lazy `seedPool()` — **not** a second `new Pool` opened and ended per call in the spec, which is a second way of doing what that module already does and which `closeSeedPool` exists to make unnecessary:
+
+```ts
+export async function seedLabel(boardId: string, name: string): Promise<string> {
+  const labelId = crypto.randomUUID();
+  await seedPool().query('insert into labels (id, board_id, name) values ($1, $2, $3)', [
+    labelId,
+    boardId,
+    name,
+  ]);
+  return labelId;
 }
+
+export async function assignLabel(cardId: string, labelId: string): Promise<void> {
+  await seedPool().query('insert into card_labels (card_id, label_id) values ($1, $2)', [
+    cardId,
+    labelId,
+  ]);
+}
+```
 
 test('a member puts a label on a card and the card face shows it', async ({ page, context }) => {
   const { userId } = await seedSession(context);
@@ -1445,12 +1453,7 @@ test('a viewer sees the labels and is offered no way to change them', async ({
   const viewer = await seedSession(context);
   await seedMember(boardId, viewer.userId, 'viewer');
 
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  await pool.query('insert into card_labels (card_id, label_id) values ($1, $2)', [
-    cardId,
-    labelId,
-  ]);
-  await pool.end();
+  await assignLabel(cardId, labelId);
 
   try {
     await page.goto(`/boards/${boardId}/cards/${cardId}`);
@@ -1463,7 +1466,7 @@ test('a viewer sees the labels and is offered no way to change them', async ({
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -1471,7 +1474,7 @@ pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: FAIL — no checkbox named `bug`.
 
-- [ ] **Step 3: Write the picker**
+- [x] **Step 3: Write the picker**
 
 Create `components/board/card-labels.tsx`:
 
@@ -1551,7 +1554,7 @@ In `components/board/card-body.tsx`, hold the selection and call the action opti
 
 Render it under the due-date control, with a `Labels` heading in the same style as the section headings already there. `attempt` is not optional — `CLAUDE.md` records that an unwrapped server action rejection replaced the whole board with an error boundary.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e.log
@@ -1563,7 +1566,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"; tail -5 /tmp/build.log
 
 Expected: all `=0`. `pnpm build` matters here specifically: `card-labels.tsx` imports a type from `lib/labels.ts`, which imports `lib/db` — `import type` is erased and safe, a value import would put the pg pool in the browser bundle and only the build would notice.
 
-- [ ] **Step 5: Commit and open the Section B pull request**
+- [x] **Step 5: Commit and open the Section B pull request**
 
 ```bash
 git add components/board lib/cards.ts e2e/labels.spec.ts docs/plans/labels.md
@@ -1731,9 +1734,7 @@ test('the filter narrows the board and survives a reload', async ({ page, contex
   await seedCard(first.id, { boardId, createdById: userId, title: 'Has nothing' });
   const labelId = await seedLabel(boardId, 'bug');
 
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  await pool.query('insert into card_labels (card_id, label_id) values ($1, $2)', [kept, labelId]);
-  await pool.end();
+  await assignLabel(kept, labelId);
 
   try {
     await page.goto(`/boards/${boardId}`);
@@ -1910,12 +1911,7 @@ test('a filtered board does not let a card be dragged', async ({ page, context }
   const cardId = await seedCard(first.id, { boardId, createdById: userId, title: 'Has bug' });
   const labelId = await seedLabel(boardId, 'bug');
 
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  await pool.query('insert into card_labels (card_id, label_id) values ($1, $2)', [
-    cardId,
-    labelId,
-  ]);
-  await pool.end();
+  await assignLabel(cardId, labelId);
 
   try {
     await page.goto(`/boards/${boardId}`);

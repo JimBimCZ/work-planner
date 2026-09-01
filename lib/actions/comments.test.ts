@@ -51,6 +51,7 @@ let cardRow:
       columnId: string;
       rank: string;
       comments: typeof thread;
+      cardLabels: { labelId: string }[];
     }
   | undefined;
 let commentRow:
@@ -107,7 +108,14 @@ const { BoardAccessError } = await import('@/lib/permissions');
 
 beforeEach(() => {
   ops.length = 0;
-  cardRow = { id: 'card-1', boardId: 'b1', columnId: 'col-1', rank: 'a0', comments: thread };
+  cardRow = {
+    id: 'card-1',
+    boardId: 'b1',
+    columnId: 'col-1',
+    rank: 'a0',
+    comments: thread,
+    cardLabels: [],
+  };
   commentRow = { authorId: 'user-1', cardId: 'card-1', card: { boardId: 'b1' } };
   assertBoardAccess.mockReset();
   assertBoardAccess.mockResolvedValue('member');

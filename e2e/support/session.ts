@@ -147,6 +147,23 @@ export async function seedCard(
   return cardId;
 }
 
+export async function seedLabel(boardId: string, name: string): Promise<string> {
+  const labelId = crypto.randomUUID();
+  await seedPool().query('insert into labels (id, board_id, name) values ($1, $2, $3)', [
+    labelId,
+    boardId,
+    name,
+  ]);
+  return labelId;
+}
+
+export async function assignLabel(cardId: string, labelId: string): Promise<void> {
+  await seedPool().query('insert into card_labels (card_id, label_id) values ($1, $2)', [
+    cardId,
+    labelId,
+  ]);
+}
+
 export async function seedComment(
   cardId: string,
   authorId: string,

@@ -9,6 +9,7 @@ import { BoardCard } from '@/components/board/board-card';
 import { ColumnMenu } from '@/components/board/column-menu';
 import { DeleteColumnDialog } from '@/components/board/delete-column-dialog';
 import type { StateCard, StateColumn } from '@/lib/board-state';
+import type { BoardLabel } from '@/lib/labels';
 import { flowColor } from '@/lib/flow';
 
 // Columns sit flush so the 3px rules meet edge to edge and read as one band
@@ -28,6 +29,7 @@ export function BoardColumn({
   onCloseComposer,
   onAddCard,
   columns,
+  labels,
   onRenameCard,
   onDeleteCard,
   onMoveCardTo,
@@ -51,6 +53,7 @@ export function BoardColumn({
   onCloseComposer: () => void;
   onAddCard: (title: string) => void;
   columns: StateColumn[];
+  labels: BoardLabel[];
   onRenameCard: (card: StateCard, title: string) => void;
   onDeleteCard: (card: StateCard) => void;
   onMoveCardTo: (card: StateCard, toColumnId: string) => void;
@@ -123,6 +126,7 @@ export function BoardColumn({
                     boardId={boardId}
                     canWrite={canWrite}
                     columns={columns}
+                    labels={labels}
                     onRename={(title) => onRenameCard(card, title)}
                     onDelete={() => onDeleteCard(card)}
                     onMoveTo={(toColumnId) => onMoveCardTo(card, toColumnId)}

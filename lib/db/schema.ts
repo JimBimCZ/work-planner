@@ -227,6 +227,7 @@ export const boardsRelations = relations(boards, ({ many }) => ({
   invites: many(boardInvites),
   columns: many(columns),
   cards: many(cards),
+  labels: many(labels),
 }));
 
 export const boardMembersRelations = relations(boardMembers, ({ one }) => ({

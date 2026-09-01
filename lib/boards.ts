@@ -1,5 +1,6 @@
 import { cache } from 'react';
 import { db } from '@/lib/db';
+import type { BoardLabel } from '@/lib/labels';
 import type { BoardRole } from '@/lib/permissions';
 
 export type BoardSummary = {
@@ -28,10 +29,16 @@ export type BoardCardRow = {
   rank: string;
   createdAt: Date;
   dueDate: Date | null;
+  cardLabels: { labelId: string }[];
 };
 
 export type BoardColumnRow = { id: string; name: string; rank: string; cards: BoardCardRow[] };
-export type BoardWithCards = { id: string; name: string; columns: BoardColumnRow[] };
+export type BoardWithCards = {
+  id: string;
+  name: string;
+  labels: BoardLabel[];
+  columns: BoardColumnRow[];
+};
 
 // The board layout and the board page both re-check access and both read the
 // board, because CLAUDE.md requires every entry point to verify rather than
@@ -55,8 +62,13 @@ export const getBoardWithColumns = cache(async (boardId: string): Promise<BoardW
               dueDate: true,
             },
             orderBy: (card, { asc }) => [asc(card.rank), asc(card.createdAt), asc(card.id)],
+            with: { cardLabels: { columns: { labelId: true } } },
           },
         },
+      },
+      labels: {
+        columns: { id: true, name: true },
+        orderBy: (label, { asc, sql }) => [asc(sql`lower(${label.name})`)],
       },
     },
   });

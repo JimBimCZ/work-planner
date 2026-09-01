@@ -161,6 +161,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 rank: event.rank,
                 createdAt: event.createdAt,
                 dueDate: event.dueDate,
+                labelIds: [],
               },
             });
             return;
@@ -262,6 +263,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
         rank: ranksAfter(last?.rank ?? null, 1)[0],
         createdAt: new Date().toISOString(),
         dueDate: null,
+        labelIds: [],
         pending: true,
       },
     });
@@ -486,6 +488,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 onCloseComposer={() => setComposerIn(null)}
                 onAddCard={(title) => addCard(column.id, title)}
                 columns={columns}
+                labels={state.labels}
                 onRenameCard={renameCardTo}
                 onDeleteCard={removeCard}
                 onMoveCardTo={moveCardTo}
