@@ -1129,7 +1129,7 @@ git commit -m "feat: add a temporary proof sheet for the design tokens"
 ### Section C gate
 
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm test:e2e` all pass, output observed.
-- [ ] Screenshots of `/design` in both themes attached to the PR, per the rule that UI changes ship with screenshots.
+- [ ] Screenshots of `/design` in both themes attached to the PR, per the rule that UI changes ship with screenshots. Never captured. The route still exists at `app/design/`, so this is closable by capturing both themes, committing them under `docs/screenshots/`, and embedding them in PR the section shipped with — the `?raw=true` method Realtime Section 5 established.
 - [x] Open the PR. Stop. Start Section D in a fresh session.
 
 ---

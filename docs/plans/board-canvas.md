@@ -3363,8 +3363,7 @@ git commit -m "feat: rename, move and delete a card from its menu"
 - [x] No component except `board-canvas.tsx` imports a server action. `grep -rn "from '@/lib/actions/" components/` returns only `board-canvas.tsx` inside `components/board/`; the other three hits are the pre-existing account menu and board-list components.
 - [x] A viewer, checked in a browser and not only in Playwright, sees a board with no "New card", no "Add card" and no card menus. Rendered at 1280x800 with the first card hovered and the screenshot read by eye, not only asserted: the header carries the avatar alone, no column has an "Add card" foot, and the hovered card shows no `⋯`.
 - [ ] Screenshots of the board with cards, in both themes, attached to the PR. Captured at 1280x800 in
-      both themes plus the viewer's board, and described in the PR body — but **not attached**, since
-      images cannot be uploaded to GitHub from the CLI. They need dragging in by hand.
+      both themes plus the viewer's board, and described in the PR body — but **not attached**. **The stated reason is wrong.** `gh` has no image-upload endpoint, but that was never the only route: an image committed under `docs/screenshots/` embeds in a PR body with a `https://github.com/JimBimCZ/work-planner/blob/<branch>/<path>?raw=true` URL. Realtime Section 5 (PR #63) did exactly that, and Section 7 (PR #65) repeated it. This box is open because the images were never committed, not because GitHub refused them.
 - [x] Open the PR. Stop. Start Section D in a fresh session. — PR #45.
 
 ---
@@ -3966,8 +3965,7 @@ git commit -m "feat: delete a column into a target that keeps its cards"
 - [x] A column holding cards cannot be deleted without naming a target, and the cards arrive below the target's existing ones. The dialog has no path that submits without a target, and `arriving cards land below the ones already there` seeds both cards at rank `a0`, so the asserted order can only come from the re-rank the delete performs.
 - [x] The Delete item is not offered on a board with one column. Checked in a browser on a board reduced to one column: the menu offers Rename, a disabled Move left, a disabled Move right and Add column right, and no Delete item at all.
 - [ ] Screenshots of a six-column board, both themes, attached to the PR. Captured in both themes and
-      described in the PR body, but **not attached** — images cannot be uploaded to GitHub from the
-      CLI, so this stays a manual step.
+      described in the PR body, but **not attached**. **The stated reason is wrong.** `gh` has no image-upload endpoint, but that was never the only route: an image committed under `docs/screenshots/` embeds in a PR body with a `https://github.com/JimBimCZ/work-planner/blob/<branch>/<path>?raw=true` URL. Realtime Section 5 (PR #63) did exactly that, and Section 7 (PR #65) repeated it. This box is open because the images were never committed, not because GitHub refused them.
 - [x] Open the PR. Stop. Start Section E in a fresh session. — PR #46.
 
 ---
@@ -4531,8 +4529,7 @@ git commit -m "feat: the drag tilt, the settle, and the reduced-motion path"
       **One limitation, found here and worth knowing:** `sortableKeyboardCoordinates` navigates between *sortable items*, so an **empty** column cannot be reached by keyboard — the arrow keys have nothing there to land on. **Move to** in the card menu is the pointer-free path that does reach it, which is also what Section F relies on at 360px.
 - [x] A click on a card body does not move it — the 5px activation distance is intact. `e2e/board-dnd.spec.ts` clicks a card and asserts it is still in its column.
 - [ ] Screenshots or a capture of a drag in progress attached to the PR. Captured mid-drag in both
-      motion settings and described in the PR body, but **not attached** — images cannot be uploaded
-      to GitHub from the CLI.
+      motion settings and described in the PR body, but **not attached**. **The stated reason is wrong.** `gh` has no image-upload endpoint, but that was never the only route: an image committed under `docs/screenshots/` embeds in a PR body with a `https://github.com/JimBimCZ/work-planner/blob/<branch>/<path>?raw=true` URL. Realtime Section 5 (PR #63) did exactly that, and Section 7 (PR #65) repeated it. This box is open because the images were never committed, not because GitHub refused them.
 - [x] Open the PR. Stop. Start Section F in a fresh session. — PR #48.
 
 ---
@@ -4806,7 +4803,7 @@ git commit -m "feat: one column at a time below 700px, with a switcher"
       `scroll-snap-align: none`, the tablist `display: none`, no sideways page overflow.
 - [ ] Screenshots at 360px and at 1280px, both themes, attached to the PR.
       Captured at 360x720 and 1280x800 in both themes and described in the PR body, but
-      **not attached** — images cannot be uploaded to GitHub from the CLI.
+      **not attached**. **The stated reason is wrong.** `gh` has no image-upload endpoint, but that was never the only route: an image committed under `docs/screenshots/` embeds in a PR body with a `https://github.com/JimBimCZ/work-planner/blob/<branch>/<path>?raw=true` URL. Realtime Section 5 (PR #63) did exactly that, and Section 7 (PR #65) repeated it. This box is open because the images were never committed, not because GitHub refused them.
 - [x] Open the PR. Stop. — PR #50, merged.
 
 ---
