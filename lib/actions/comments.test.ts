@@ -11,9 +11,17 @@ vi.mock('@/lib/permissions', async () => {
 });
 
 const publish = vi.fn();
+// publishComment is mocked separately rather than left to run for real: it
+// calls this module's own `publish`, not the mocked export, so the real one
+// would reach past the mock and assert nothing.
+const publishComment = vi.fn();
 vi.mock('@/lib/events', async () => {
   const actual = await vi.importActual<typeof import('@/lib/events')>('@/lib/events');
-  return { ...actual, publish: (...args: unknown[]) => publish(...args) };
+  return {
+    ...actual,
+    publish: (...args: unknown[]) => publish(...args),
+    publishComment: (...args: unknown[]) => publishComment(...args),
+  };
 });
 
 const MUTATION_ID = '11111111-1111-4111-8111-111111111111';
@@ -28,7 +36,23 @@ const publishedAfterTransaction = () =>
   opsWhenPublished.some((op) => op.kind === 'update' && op.table === 'boards');
 
 
-let cardRow: { id: string; boardId: string; columnId: string; rank: string } | undefined;
+const thread = [
+  {
+    id: 'comment-1',
+    body: 'First thought',
+    createdAt: new Date('2026-09-01T00:00:00.000Z'),
+    author: { id: 'user-1', name: 'Ada', image: null },
+  },
+];
+let cardRow:
+  | {
+      id: string;
+      boardId: string;
+      columnId: string;
+      rank: string;
+      comments: typeof thread;
+    }
+  | undefined;
 let commentRow:
   | { authorId: string | null; cardId: string; card: { boardId: string } }
   | undefined;
@@ -78,22 +102,25 @@ vi.mock('@/lib/db', () => ({
   db: { query, transaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) },
 }));
 
-const { addComment, editComment, deleteComment } = await import('./comments');
+const { addComment, editComment, deleteComment, readComments } = await import('./comments');
 const { BoardAccessError } = await import('@/lib/permissions');
 
 beforeEach(() => {
   ops.length = 0;
-  cardRow = { id: 'card-1', boardId: 'b1', columnId: 'col-1', rank: 'a0' };
+  cardRow = { id: 'card-1', boardId: 'b1', columnId: 'col-1', rank: 'a0', comments: thread };
   commentRow = { authorId: 'user-1', cardId: 'card-1', card: { boardId: 'b1' } };
   assertBoardAccess.mockReset();
   assertBoardAccess.mockResolvedValue('member');
   authMock.mockReset();
   authMock.mockResolvedValue({ user: { id: 'user-1', name: 'Ada', image: null } });
   publish.mockReset();
+  publishComment.mockReset();
   opsWhenPublished.length = 0;
-  publish.mockImplementation(async () => {
+  const record = async () => {
     opsWhenPublished.push(...ops);
-  });
+  };
+  publish.mockImplementation(record);
+  publishComment.mockImplementation(record);
 });
 
 describe('addComment', () => {
@@ -144,9 +171,11 @@ describe('addComment', () => {
     });
   });
 
+  // Through publishComment, not publish: an oversized body has to be able to
+  // degrade to a pointer, and only that publisher knows how.
   test('publishes comment.created with the body and the author', async () => {
     await addComment({ cardId: 'card-1', body: 'Looks right', mutationId: MUTATION_ID });
-    expect(publish).toHaveBeenCalledWith('b1', {
+    expect(publishComment).toHaveBeenCalledWith('b1', {
       type: 'comment.created',
       mutationId: MUTATION_ID,
       actorId: 'user-1',
@@ -162,6 +191,7 @@ describe('addComment', () => {
   test('publishes nothing when the write is refused', async () => {
     assertBoardAccess.mockRejectedValue(new BoardAccessError('NOT_FOUND'));
     await addComment({ cardId: 'card-1', body: 'Looks right', mutationId: MUTATION_ID });
+    expect(publishComment).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
   });
 });
@@ -288,5 +318,49 @@ describe('deleteComment', () => {
     authMock.mockResolvedValue({ user: { id: 'someone-else' } });
     await deleteComment({ commentId: 'comment-1', mutationId: MUTATION_ID });
     expect(publish).not.toHaveBeenCalled();
+  });
+});
+
+describe('readComments', () => {
+  test('refuses without a session', async () => {
+    authMock.mockResolvedValue(null);
+    await expect(readComments({ cardId: 'card-1' })).resolves.toEqual({
+      ok: false,
+      error: 'UNAUTHENTICATED',
+    });
+  });
+
+  test('returns the thread in the order the component needs', async () => {
+    await expect(readComments({ cardId: 'card-1' })).resolves.toEqual({
+      ok: true,
+      data: thread,
+    });
+  });
+
+  test('refuses a card that does not exist', async () => {
+    cardRow = undefined;
+    await expect(readComments({ cardId: 'card-1' })).resolves.toEqual({
+      ok: false,
+      error: 'NOT_FOUND',
+    });
+  });
+
+  test('asks for viewer, since reading is all it does', async () => {
+    await readComments({ cardId: 'card-1' });
+    expect(assertBoardAccess).toHaveBeenCalledWith('user-1', 'b1', 'viewer');
+  });
+
+  test('refuses a board the caller is not a member of', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await expect(readComments({ cardId: 'card-1' })).resolves.toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+  });
+
+  test('publishes nothing — it is a read', async () => {
+    await readComments({ cardId: 'card-1' });
+    expect(publish).not.toHaveBeenCalled();
+    expect(publishComment).not.toHaveBeenCalled();
   });
 });
