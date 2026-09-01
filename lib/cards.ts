@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { boardLabels, type BoardLabel } from '@/lib/labels';
 import { assertBoardAccess, atLeast, BoardAccessError } from '@/lib/permissions';
 
 export type CardComment = {
@@ -21,6 +22,7 @@ export type CardForView = {
   title: string;
   description: string | null;
   dueDate: Date | null;
+  labelIds: string[];
   comments: CardComment[];
 };
 
@@ -44,10 +46,14 @@ export const getCardForView = cache(async (cardId: string): Promise<CardForView 
         orderBy: (comment, { asc }) => [asc(comment.createdAt), asc(comment.id)],
         with: { author: { columns: { id: true, name: true, image: true } } },
       },
+      cardLabels: { columns: { labelId: true } },
     },
   });
 
-  return card ?? null;
+  if (!card) return null;
+
+  const { cardLabels, ...rest } = card;
+  return { ...rest, labelIds: cardLabels.map((assignment) => assignment.labelId) };
 });
 
 // Both the intercepted slot and the canonical page need the same session
@@ -62,6 +68,7 @@ export async function getCardForRoute(
   cardId: string,
 ): Promise<{
   card: CardForView;
+  labels: BoardLabel[];
   canWrite: boolean;
   viewer: Viewer;
 }> {
@@ -83,6 +90,9 @@ export async function getCardForRoute(
 
   return {
     card,
+    // The board's whole set, so the picker can offer every label rather than
+    // only the ones already on this card.
+    labels: await boardLabels(card.boardId),
     canWrite: atLeast(role, 'member'),
     viewer: {
       id: session.user.id,

@@ -13,6 +13,7 @@ import {
 import { useBoardActions } from '@/components/board/board-actions';
 import { CardComments } from '@/components/board/card-comments';
 import { CardDueDate } from '@/components/board/card-due-date';
+import { CardLabels } from '@/components/board/card-labels';
 import { useCardEscapeGuard } from '@/components/board/card-modal';
 import { useRealtime } from '@/components/board/realtime';
 import {
@@ -21,17 +22,21 @@ import {
   setCardDescription,
   setCardDueDate,
 } from '@/lib/actions/cards';
+import { setCardLabels } from '@/lib/actions/labels';
 import { attempt } from '@/lib/attempt';
 import type { CardForView, Viewer } from '@/lib/cards';
 import { toDateInputValue } from '@/lib/due';
+import type { BoardLabel } from '@/lib/labels';
 
 export function CardBody({
   card,
+  labels,
   canWrite,
   viewer,
   surface = 'page',
 }: {
   card: CardForView;
+  labels: BoardLabel[];
   canWrite: boolean;
   viewer: Viewer;
   // The canonical page has no chrome of its own and no history entry to go
@@ -59,6 +64,7 @@ export function CardBody({
     setLastDueDate(dueDate);
     setDraftDueDate(dueDate ?? '');
   }
+  const [labelIds, setLabelIds] = useState(card.labelIds);
   const [error, setError] = useState<string | null>(null);
   const [deleted, setDeleted] = useState(false);
   const [, startTransition] = useTransition();
@@ -200,6 +206,21 @@ export function CardBody({
     });
   };
 
+  function changeLabels(next: string[]) {
+    const previous = labelIds;
+    setLabelIds(next);
+    setError(null);
+    startTransition(async () => {
+      const result = await attempt(() =>
+        setCardLabels({ cardId: card.id, labelIds: next, mutationId: claim() }),
+      );
+      if (!result.ok) {
+        setLabelIds(previous);
+        setError('Those labels could not be saved. Try again.');
+      }
+    });
+  }
+
   const revertDueDate = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Escape' && draftDueDate !== (dueDate ?? '')) {
       setDraftDueDate(dueDate ?? '');
@@ -250,6 +271,15 @@ export function CardBody({
           <h2 className="text-sm font-medium leading-5 text-ink">{savedTitle}</h2>
         ) : null}
         <CardDueDate value={dueDate} canWrite={canWrite} />
+        <section className="flex flex-col gap-2">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Labels</h2>
+          <CardLabels
+            labels={labels}
+            selected={labelIds}
+            canWrite={canWrite}
+            onChange={changeLabels}
+          />
+        </section>
         <p className="whitespace-pre-wrap text-[15px] leading-6 text-ink">
           {savedDescription || <span className="text-muted">No description yet</span>}
         </p>
@@ -289,6 +319,15 @@ export function CardBody({
         onCommit={commitDueDate}
         onKeyDown={revertDueDate}
       />
+      <section className="flex flex-col gap-2">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Labels</h2>
+        <CardLabels
+          labels={labels}
+          selected={labelIds}
+          canWrite={canWrite}
+          onChange={changeLabels}
+        />
+      </section>
       <textarea
         aria-label="Description"
         value={description}

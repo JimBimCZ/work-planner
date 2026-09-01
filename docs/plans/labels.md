@@ -1372,7 +1372,7 @@ git commit -m "feat: print a card's labels under its due date"
   ```
   `CardForView` gains `labelIds: string[]`, and `getCardForView` gains `with: { cardLabels: { columns: { labelId: true } } }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `e2e/labels.spec.ts`. This is the first flow test for the feature, so it also establishes the file:
 
@@ -1463,7 +1463,7 @@ test('a viewer sees the labels and is offered no way to change them', async ({
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -1471,7 +1471,7 @@ pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: FAIL — no checkbox named `bug`.
 
-- [ ] **Step 3: Write the picker**
+- [x] **Step 3: Write the picker**
 
 Create `components/board/card-labels.tsx`:
 
@@ -1551,7 +1551,7 @@ In `components/board/card-body.tsx`, hold the selection and call the action opti
 
 Render it under the due-date control, with a `Labels` heading in the same style as the section headings already there. `attempt` is not optional — `CLAUDE.md` records that an unwrapped server action rejection replaced the whole board with an error boundary.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e.log
@@ -1563,7 +1563,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"; tail -5 /tmp/build.log
 
 Expected: all `=0`. `pnpm build` matters here specifically: `card-labels.tsx` imports a type from `lib/labels.ts`, which imports `lib/db` — `import type` is erased and safe, a value import would put the pg pool in the browser bundle and only the build would notice.
 
-- [ ] **Step 5: Commit and open the Section B pull request**
+- [x] **Step 5: Commit and open the Section B pull request**
 
 ```bash
 git add components/board lib/cards.ts e2e/labels.spec.ts docs/plans/labels.md
