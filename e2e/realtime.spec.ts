@@ -105,6 +105,16 @@ test('a board the user cannot read never subscribes', async ({ page, context }) 
       form: { socket_id: '123.456', channel_name: `private-board-${boardId}` },
     });
     expect(response.status()).toBe(403);
+
+    // The 403 above must mean "not a member of this board", not "the session
+    // cookie never reached the route" — otherwise this test would still pass
+    // with an empty cookie jar. Proving the same caller succeeds once they
+    // are a member is what pins the reason down.
+    await seedMember(boardId, outsider.userId, 'viewer');
+    const asMember = await page.request.post('/api/pusher/auth', {
+      form: { socket_id: '123.456', channel_name: `private-board-${boardId}` },
+    });
+    expect(asMember.status()).toBe(200);
   } finally {
     await removeSeededUser(owner.userId);
     await removeSeededUser(outsider.userId);
