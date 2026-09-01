@@ -113,9 +113,17 @@ listPendingInvites(boardId): Promise<{ id, email, role, createdAt }[]>
 listInvitesForUser(email): Promise<{ id, boardName, role, invitedByName }[]>
 ```
 
-`listPendingInvites` and `listInvitesForUser` both apply the TTL. Callers do the
-permission check; these functions answer questions, they do not authorise —
-same division as `getBoardWithColumns`.
+`listPendingInvites` and `listInvitesForUser` both apply the TTL, and
+`INVITE_TTL_DAYS` lives here beside them. Callers do the permission check; these
+functions answer questions, they do not authorise — same division as
+`getBoardWithColumns`.
+
+**`listMembers` returns emails, and the server strips them before they reach a
+non-owner's browser.** "Only the owner sees email addresses" is a rule about
+what is *sent*, not about what is rendered: a dialog that receives every
+address and hides some of them has already published them to the client bundle
+and the network tab. The server component that opens the dialog drops the field
+unless the viewer is the owner, so a non-owner's props never carry one.
 
 ### `lib/actions/members.ts`
 
@@ -161,6 +169,11 @@ Four that are not mechanical:
 A control in the board header beside "New card", opening the existing `Dialog`
 primitive. Everyone on the board can open it; what is inside depends on role.
 
+The board layout passes it to `TopBar` unconditionally. `NewCardButton` is
+today's only `actions` child and it is gated on `atLeast(role, 'member')`, so
+the obvious edit — adding the members control inside that same conditional —
+would hide it from exactly the people most likely to want out of a board.
+
 - **Everyone sees** the member list — avatar via the existing `avatarHue` and
   `initials` helpers, name, role — and, if they are not the owner, "Leave board".
 - **Only the owner sees email addresses**, the invite field, and the pending
@@ -197,10 +210,15 @@ warning is that the second list is where an event goes to be silently
 undelivered.
 
 ```ts
-| { type: 'member.added'; userId: string; name: string | null; image: string | null; role: BoardRole }
+| { type: 'member.added'; userId: string; role: BoardRole }
 | { type: 'member.updated'; userId: string; role: BoardRole }
 | { type: 'member.removed'; userId: string }
 ```
+
+The payloads carry an id and a role and nothing else. An earlier draft had
+`member.added` carrying the new member's name and image; nothing consumes them.
+The dialog refetches when it is open, and the realtime ring derives its colour
+from `avatarHue(userId)`, which needs only the id.
 
 `acceptInvite` publishes `member.added`; `changeRole` publishes
 `member.updated`; `removeMember` and `leaveBoard` publish `member.removed`;
@@ -248,10 +266,13 @@ three things that are invariants rather than behaviours:
 - `transferOwnership` leaves exactly one `owner` row and a `boards.ownerId` that
   agrees with it.
 
-**`e2e/members.spec.ts`** runs two signed-in contexts through invite → accept →
-demote to viewer → remove. This is the first flow in the repository that creates
-a second `board_members` row through the UI rather than seeding it, so it also
-retires the seeding comment in the card-modal suite if that suite can now use it.
+**`e2e/members.spec.ts`** grows across the sections rather than landing whole.
+Section B drives the owner's dialog against a seeded second member — the way the
+card-modal suite already seeds one. Section C replaces the seed with the real
+invite → accept flow, making this the first test in the repository that creates
+a second `board_members` row through the UI. Section D adds the assertions that
+need two live clients: a demotion that removes the write controls without a
+reload, and a removal that lands the removed user on `/boards`.
 
 **`app/(legal)/privacy/page.test.tsx`** gains an assertion for the invited-address
 disclosure, alongside the region assertion it already makes.
