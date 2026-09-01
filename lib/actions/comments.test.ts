@@ -20,6 +20,13 @@ const MUTATION_ID = '11111111-1111-4111-8111-111111111111';
 
 type Op = { kind: 'insert' | 'update' | 'delete'; table: string; values?: unknown };
 const ops: Op[] = [];
+// Proof of ordering, not just of the call: touchBoard is the last write in
+// every transaction here, so a publish that can already see the boards update
+// ran after the transaction body rather than inside it.
+const opsWhenPublished: Op[] = [];
+const publishedAfterTransaction = () =>
+  opsWhenPublished.some((op) => op.kind === 'update' && op.table === 'boards');
+
 
 let cardRow: { id: string; boardId: string; columnId: string; rank: string } | undefined;
 let commentRow:
@@ -83,7 +90,10 @@ beforeEach(() => {
   authMock.mockReset();
   authMock.mockResolvedValue({ user: { id: 'user-1', name: 'Ada', image: null } });
   publish.mockReset();
-  publish.mockResolvedValue(undefined);
+  opsWhenPublished.length = 0;
+  publish.mockImplementation(async () => {
+    opsWhenPublished.push(...ops);
+  });
 });
 
 describe('addComment', () => {
@@ -146,6 +156,7 @@ describe('addComment', () => {
       createdAt: expect.any(String),
       author: { id: 'user-1', name: 'Ada', image: null },
     });
+    expect(publishedAfterTransaction()).toBe(true);
   });
 
   test('publishes nothing when the write is refused', async () => {
@@ -215,6 +226,7 @@ describe('editComment', () => {
       body: 'Rewritten',
       updatedAt: expect.any(String),
     });
+    expect(publishedAfterTransaction()).toBe(true);
   });
 
   // Authorship, not access: a member who is not the author is refused, and a
@@ -269,6 +281,7 @@ describe('deleteComment', () => {
       id: 'comment-1',
       cardId: 'card-1',
     });
+    expect(publishedAfterTransaction()).toBe(true);
   });
 
   test('publishes nothing when the caller is not the author', async () => {

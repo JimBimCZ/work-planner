@@ -20,6 +20,13 @@ const MUTATION_ID = '11111111-1111-4111-8111-111111111111';
 
 type Op = { kind: 'insert' | 'update' | 'delete'; table: string; values?: unknown };
 const ops: Op[] = [];
+// Proof of ordering, not just of the call: touchBoard is the last write in
+// every transaction here, so a publish that can already see the boards update
+// ran after the transaction body rather than inside it.
+const opsWhenPublished: Op[] = [];
+const publishedAfterTransaction = () =>
+  opsWhenPublished.some((op) => op.kind === 'update' && op.table === 'boards');
+
 
 let cardRow:
   | {
@@ -99,7 +106,10 @@ beforeEach(() => {
   authMock.mockReset();
   authMock.mockResolvedValue({ user: { id: 'user-1' } });
   publish.mockReset();
-  publish.mockResolvedValue(undefined);
+  opsWhenPublished.length = 0;
+  publish.mockImplementation(async () => {
+    opsWhenPublished.push(...ops);
+  });
 });
 
 describe('createCard', () => {
@@ -217,6 +227,7 @@ describe('createCard', () => {
       createdAt: expect.any(String),
       dueDate: null,
     });
+    expect(publishedAfterTransaction()).toBe(true);
   });
 
   test('publishes nothing when the write is refused', async () => {
@@ -288,6 +299,7 @@ describe('renameCard', () => {
       dueDate: null,
       descriptionChanged: false,
     });
+    expect(publishedAfterTransaction()).toBe(true);
   });
 
   test('publishes nothing when the write is refused', async () => {
@@ -338,6 +350,7 @@ describe('deleteCard', () => {
       actorId: 'user-1',
       id: 'card-1',
     });
+    expect(publishedAfterTransaction()).toBe(true);
   });
 
   test('publishes nothing when the write is refused', async () => {
@@ -407,6 +420,7 @@ describe('setCardDescription', () => {
     const [, event] = publish.mock.calls[0];
     expect(event).toMatchObject({ type: 'card.updated', descriptionChanged: true });
     expect(JSON.stringify(event)).not.toContain('xxxx');
+    expect(publishedAfterTransaction()).toBe(true);
   });
 
   test('publishes nothing when the write is refused', async () => {
@@ -467,6 +481,7 @@ describe('setCardDueDate', () => {
       dueDate: '2026-09-10',
       descriptionChanged: false,
     });
+    expect(publishedAfterTransaction()).toBe(true);
   });
 
   test('publishes nothing when the write is refused', async () => {
@@ -523,6 +538,7 @@ describe('moveCard', () => {
       columnId: 'col-1',
       rank: 'a0',
     });
+    expect(publishedAfterTransaction()).toBe(true);
   });
 
   // The event announces a write that happened. Announcing a rejected one puts

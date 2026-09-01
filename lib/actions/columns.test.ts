@@ -20,6 +20,13 @@ const MUTATION_ID = '11111111-1111-4111-8111-111111111111';
 
 type Op = { kind: 'insert' | 'update' | 'delete'; table: string; values?: unknown };
 const ops: Op[] = [];
+// Proof of ordering, not just of the call: touchBoard is the last write in
+// every transaction here, so a publish that can already see the boards update
+// ran after the transaction body rather than inside it.
+const opsWhenPublished: Op[] = [];
+const publishedAfterTransaction = () =>
+  opsWhenPublished.some((op) => op.kind === 'update' && op.table === 'boards');
+
 
 let columnRow: { id: string; boardId: string } | undefined;
 let boardColumnRows: { id: string; rank: string }[] = [];
@@ -81,7 +88,10 @@ beforeEach(() => {
   authMock.mockReset();
   authMock.mockResolvedValue({ user: { id: 'user-1' } });
   publish.mockReset();
-  publish.mockResolvedValue(undefined);
+  opsWhenPublished.length = 0;
+  publish.mockImplementation(async () => {
+    opsWhenPublished.push(...ops);
+  });
 });
 
 describe('addColumn', () => {
@@ -185,6 +195,7 @@ describe('addColumn', () => {
       name: 'Blocked',
       rank: expect.any(String),
     });
+    expect(publishedAfterTransaction()).toBe(true);
   });
 
   test('publishes nothing when the write is refused', async () => {
@@ -245,6 +256,7 @@ describe('renameColumn', () => {
       id: 'col-2',
       name: 'Doing',
     });
+    expect(publishedAfterTransaction()).toBe(true);
   });
 
   test('publishes nothing when the write is refused', async () => {
@@ -343,6 +355,7 @@ describe('moveColumn', () => {
       id: 'col-3',
       rank: expect.any(String),
     });
+    expect(publishedAfterTransaction()).toBe(true);
   });
 
   // A refused move announces nothing: the rank the client guessed is not the
@@ -473,6 +486,7 @@ describe('deleteColumn', () => {
         { id: 'card-y', columnId: 'col-1', rank: expect.any(String) },
       ],
     });
+    expect(publishedAfterTransaction()).toBe(true);
   });
 
   test('publishes nothing when the column is the last one', async () => {
