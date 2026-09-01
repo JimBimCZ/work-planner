@@ -107,10 +107,16 @@ describe('createLabel', () => {
     });
   });
 
+  // Checks the args a rejected call receives, and that a rejection actually
+  // blocks the insert — a mock recorded with the right args proves nothing
+  // about ordering on its own.
   test('demands member on the board before it writes anything', async () => {
     authMock.mockResolvedValue(signedIn);
-    await createLabel(input);
+    const { BoardAccessError } = await import('@/lib/permissions');
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await expect(createLabel(input)).resolves.toEqual({ ok: false, error: 'FORBIDDEN' });
     expect(assertBoardAccess).toHaveBeenCalledWith('user-1', 'board-1', 'member');
+    expect(ops).toEqual([]);
   });
 
   test('refuses the fifty-first label', async () => {
@@ -180,6 +186,17 @@ describe('renameLabel', () => {
     await expect(
       renameLabel({ labelId: 'label-1', name: 'Bug', mutationId: MUTATION_ID }),
     ).resolves.toEqual({ ok: false, error: 'DUPLICATE' });
+  });
+
+  test('refuses a viewer', async () => {
+    authMock.mockResolvedValue(signedIn);
+    labelRow = { id: 'label-1', boardId: 'board-1', name: 'bug' };
+    const { BoardAccessError } = await import('@/lib/permissions');
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await expect(
+      renameLabel({ labelId: 'label-1', name: 'chore', mutationId: MUTATION_ID }),
+    ).resolves.toEqual({ ok: false, error: 'FORBIDDEN' });
+    expect(ops).toEqual([]);
   });
 });
 
