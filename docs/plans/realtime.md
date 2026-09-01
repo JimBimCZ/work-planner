@@ -2193,10 +2193,10 @@ git commit -m "feat: converge the board canvas on a teammate's changes"
 
 ### Section 3 gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected.
-- [ ] Every card and column event has a consumer, proved by a two-context e2e each — **none of which reloads the receiving page.** A reload would make all of them pass with no realtime at all.
-- [ ] A column deleted remotely moves its cards rather than dropping them, asserted on the target column.
-- [ ] Dragging still works, and `e2e/board-dnd.spec.ts` passes unchanged.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected.
+- [x] Every card and column event has a consumer, proved by a two-context e2e each — **none of which reloads the receiving page.** A reload would make all of them pass with no realtime at all.
+- [x] A column deleted remotely moves its cards rather than dropping them, asserted on the target column.
+- [x] Dragging still works, and `e2e/board-dnd.spec.ts` passes unchanged.
 - [ ] Open the PR with a screen recording or paired screenshots of two windows. Stop. Start Section 4 in a fresh session.
 
 ---
