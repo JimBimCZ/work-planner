@@ -2,6 +2,7 @@ import { expect, test, type Browser, type Page } from '@playwright/test';
 import {
   boardColumns,
   closeSeedPool,
+  seedComment,
   removeSeededUser,
   seedBoard,
   seedCard,
@@ -552,3 +553,164 @@ test('a description over the payload ceiling still arrives', async ({ browser })
     await close();
   }
 });
+
+test('a comment posted elsewhere appears in an open thread', async ({ browser }) => {
+  const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+
+  try {
+    await pageA.goto(`/boards/${boardId}/cards/${cardId}`);
+    await pageB.goto(`/boards/${boardId}/cards/${cardId}`);
+    await subscribed(pageA);
+    await subscribed(pageB);
+
+    await pageA.getByRole('textbox', { name: 'Add a comment' }).fill('Looks right');
+    await pageA.getByRole('button', { name: 'Comment' }).click();
+
+    await expect(pageB.getByTestId('comment-body')).toHaveText(['Looks right'], {
+      timeout: 15_000,
+    });
+    // The poster sees exactly one row: their optimistic one, reconciled by the
+    // action's own response, never doubled by the echo of their own event.
+    await expect(pageA.getByTestId('comment-body')).toHaveText(['Looks right']);
+  } finally {
+    await close();
+  }
+});
+
+test('a comment edited elsewhere updates in an open thread', async ({ browser }) => {
+  const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+  await seedComment(cardId, alice.userId, 'First thought');
+
+  try {
+    await pageA.goto(`/boards/${boardId}/cards/${cardId}`);
+    await pageB.goto(`/boards/${boardId}/cards/${cardId}`);
+    await subscribed(pageA);
+    await subscribed(pageB);
+
+    await pageA.getByRole('button', { name: 'Edit comment: First thought', exact: true }).click();
+    await pageA.getByRole('textbox', { name: 'Edit comment: First thought' }).fill('Second thought');
+    await pageA.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(pageB.getByTestId('comment-body')).toHaveText(['Second thought'], {
+      timeout: 15_000,
+    });
+  } finally {
+    await close();
+  }
+});
+
+test('a comment deleted elsewhere leaves the thread', async ({ browser }) => {
+  const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+  await seedComment(cardId, alice.userId, 'Never mind');
+
+  try {
+    await pageA.goto(`/boards/${boardId}/cards/${cardId}`);
+    await pageB.goto(`/boards/${boardId}/cards/${cardId}`);
+    await subscribed(pageA);
+    await subscribed(pageB);
+    await expect(pageB.getByText('Never mind')).toBeVisible();
+
+    await pageA.getByRole('button', { name: 'Delete comment: Never mind', exact: true }).click();
+    // exact, or this also matches the row's own "Delete comment: Never mind".
+    await pageA.getByRole('button', { name: 'Delete comment', exact: true }).click();
+
+    await expect(pageB.getByText('Never mind')).toHaveCount(0, { timeout: 15_000 });
+  } finally {
+    await close();
+  }
+});
+
+// The gate's forced case. Both the textarea's maxLength and the body schema
+// count UTF-16 units, and an emoji is two, so 2,000 of them is the largest
+// comment anyone can actually post — and at 8,355 bytes it is over the 8,192
+// ceiling, so it can only arrive through the refetch. (The unit test drives
+// publishComment with 4,000 directly, where no input cap applies.)
+test('a comment too large to publish inline still reaches the thread', async ({ browser }) => {
+  const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+  const huge = '😀'.repeat(2_000);
+
+  try {
+    await pageA.goto(`/boards/${boardId}/cards/${cardId}`);
+    await pageB.goto(`/boards/${boardId}/cards/${cardId}`);
+    await subscribed(pageA);
+    await subscribed(pageB);
+
+    await pageA.getByRole('textbox', { name: 'Add a comment' }).fill(huge);
+    await pageA.getByRole('button', { name: 'Comment' }).click();
+
+    await expect(pageB.getByTestId('comment-body')).toHaveText([huge], { timeout: 15_000 });
+  } finally {
+    await close();
+  }
+});
+
+// A remote edit of the comment being edited locally must not reach into the
+// open textarea, by the same rule Section 5 applied to the card's fields. Only
+// a comment's author may edit it, so the only way to receive a remote edit of
+// the comment you are editing is to have the same account open twice — which
+// two tabs of one context are.
+test('a comment being edited locally is not clobbered', async ({ browser }) => {
+  const { boardId, alice, bob, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+  await seedComment(cardId, bob.userId, 'First thought');
+  const otherTab = await pageB.context().newPage();
+
+  try {
+    await pageB.goto(`/boards/${boardId}/cards/${cardId}`);
+    await otherTab.goto(`/boards/${boardId}/cards/${cardId}`);
+    await subscribed(pageB);
+
+    await pageB.getByRole('button', { name: 'Edit comment: First thought', exact: true }).click();
+    await pageB.getByRole('textbox', { name: 'Edit comment: First thought' }).fill('Half-written');
+
+    await otherTab
+      .getByRole('button', { name: 'Edit comment: First thought', exact: true })
+      .click();
+    await otherTab
+      .getByRole('textbox', { name: 'Edit comment: First thought' })
+      .fill('Sent from the other tab');
+    await otherTab.getByRole('button', { name: 'Save changes' }).click();
+
+    // The stored body follows the remote edit...
+    await expect(pageB.getByTestId('comment-body')).toHaveText(['Sent from the other tab'], {
+      timeout: 15_000,
+    });
+    // ...while the text this tab has not sent yet survives untouched.
+    await expect(pageB.getByRole('textbox', { name: /^Edit comment:/ })).toHaveValue(
+      'Half-written',
+    );
+  } finally {
+    await otherTab.close();
+    await close();
+  }
+});
+
