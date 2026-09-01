@@ -1,6 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -147,6 +147,98 @@ export async function declineInvite(input: unknown) {
   if (!invite) return { ok: false, error: 'NOT_FOUND' } as const;
 
   await db.delete(boardInvites).where(eq(boardInvites.id, invite.id));
+  revalidatePath('/boards');
+  return { ok: true } as const;
+}
+
+const memberRef = z.object({ boardId: id, userId: id });
+const roleSchema = memberRef.extend({ role: assignableRole });
+const boardRef = z.object({ boardId: id });
+
+async function targetMembership(boardId: string, userId: string) {
+  return db.query.boardMembers.findFirst({
+    where: (member, { and: both, eq: is }) =>
+      both(is(member.boardId, boardId), is(member.userId, userId)),
+    columns: { role: true },
+  });
+}
+
+export async function changeRole(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = roleSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  const { boardId, userId, role } = parsed.data;
+  try {
+    await assertBoardAccess(session.user.id, boardId, 'owner');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  const membership = await targetMembership(boardId, userId);
+  if (!membership) return { ok: false, error: 'NOT_FOUND' } as const;
+  if (membership.role === 'owner') return { ok: false, error: 'TARGET_IS_OWNER' } as const;
+
+  await db
+    .update(boardMembers)
+    .set({ role })
+    .where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
+
+  revalidatePath('/boards');
+  return { ok: true } as const;
+}
+
+export async function removeMember(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = memberRef.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  const { boardId, userId } = parsed.data;
+  try {
+    await assertBoardAccess(session.user.id, boardId, 'owner');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  const membership = await targetMembership(boardId, userId);
+  if (!membership) return { ok: false, error: 'NOT_FOUND' } as const;
+  if (membership.role === 'owner') return { ok: false, error: 'TARGET_IS_OWNER' } as const;
+
+  await db
+    .delete(boardMembers)
+    .where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
+
+  revalidatePath('/boards');
+  return { ok: true } as const;
+}
+
+export async function leaveBoard(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = boardRef.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  const { boardId } = parsed.data;
+  const userId = session.user.id;
+
+  let role;
+  try {
+    role = await assertBoardAccess(userId, boardId, 'viewer');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  if (role === 'owner') return { ok: false, error: 'OWNER_CANNOT_LEAVE' } as const;
+
+  await db
+    .delete(boardMembers)
+    .where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
+
   revalidatePath('/boards');
   return { ok: true } as const;
 }

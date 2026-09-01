@@ -920,7 +920,7 @@ git commit -m "feat: accept or decline an invite you were sent"
     -> { ok: true } | { ok: false, error: 'UNAUTHENTICATED' | 'INVALID' | 'NOT_FOUND' | 'FORBIDDEN' | 'OWNER_CANNOT_LEAVE' }
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/actions/members.test.ts`, extending the import line with `changeRole, leaveBoard, removeMember`:
 
@@ -993,7 +993,7 @@ describe('leaveBoard', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1001,7 +1001,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: FAIL — `changeRole is not a function`.
 
-- [ ] **Step 3: Write the three actions**
+- [x] **Step 3: Write the three actions**
 
 Add to `lib/actions/members.ts`:
 
@@ -1099,7 +1099,7 @@ export async function leaveBoard(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1107,7 +1107,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: PASS, 19 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/members.ts lib/actions/members.test.ts

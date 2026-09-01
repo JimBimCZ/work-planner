@@ -62,7 +62,8 @@ vi.mock('@/lib/db', () => ({
   db: { ...writer, transaction: (fn: (t: typeof writer) => Promise<unknown>) => fn(writer) },
 }));
 
-const { acceptInvite, declineInvite, inviteMember, revokeInvite } = await import('./members');
+const { acceptInvite, changeRole, declineInvite, inviteMember, leaveBoard, removeMember, revokeInvite } =
+  await import('./members');
 
 const signedIn = { user: { id: 'owner-1', email: 'owner@example.test' } };
 const invite = { boardId: 'board-1', email: 'new@example.test', role: 'member' as const };
@@ -231,5 +232,72 @@ describe('declineInvite', () => {
     });
     await expect(declineInvite({ inviteId: 'invite-1' })).resolves.toEqual({ ok: true });
     expect(ops).toEqual([{ kind: 'delete', table: 'board_invites' }]);
+  });
+});
+
+describe('changeRole and removeMember', () => {
+  test('refuse a target who is not on the board', async () => {
+    authMock.mockResolvedValue(signedIn);
+    membershipRow = undefined;
+    await expect(
+      changeRole({ boardId: 'board-1', userId: 'ghost', role: 'viewer' }),
+    ).resolves.toEqual({ ok: false, error: 'NOT_FOUND' });
+    await expect(removeMember({ boardId: 'board-1', userId: 'ghost' })).resolves.toEqual({
+      ok: false,
+      error: 'NOT_FOUND',
+    });
+    expect(ops).toEqual([]);
+  });
+
+  // There is one owner row, so this is also the guard against an owner
+  // demoting or removing themselves.
+  test('refuse to touch the owner', async () => {
+    authMock.mockResolvedValue(signedIn);
+    membershipRow = { role: 'owner' };
+    await expect(
+      changeRole({ boardId: 'board-1', userId: 'owner-1', role: 'viewer' }),
+    ).resolves.toEqual({ ok: false, error: 'TARGET_IS_OWNER' });
+    await expect(removeMember({ boardId: 'board-1', userId: 'owner-1' })).resolves.toEqual({
+      ok: false,
+      error: 'TARGET_IS_OWNER',
+    });
+    expect(ops).toEqual([]);
+  });
+
+  test('demote a member to viewer', async () => {
+    authMock.mockResolvedValue(signedIn);
+    membershipRow = { role: 'member' };
+    await expect(
+      changeRole({ boardId: 'board-1', userId: 'user-2', role: 'viewer' }),
+    ).resolves.toEqual({ ok: true });
+    expect(ops).toEqual([{ kind: 'update', table: 'board_members', values: { role: 'viewer' } }]);
+  });
+
+  test('remove a member', async () => {
+    authMock.mockResolvedValue(signedIn);
+    membershipRow = { role: 'member' };
+    await expect(removeMember({ boardId: 'board-1', userId: 'user-2' })).resolves.toEqual({
+      ok: true,
+    });
+    expect(ops).toEqual([{ kind: 'delete', table: 'board_members' }]);
+  });
+});
+
+describe('leaveBoard', () => {
+  test('refuses the owner, who has to hand the board over first', async () => {
+    authMock.mockResolvedValue(signedIn);
+    assertBoardAccess.mockResolvedValue('owner');
+    await expect(leaveBoard({ boardId: 'board-1' })).resolves.toEqual({
+      ok: false,
+      error: 'OWNER_CANNOT_LEAVE',
+    });
+    expect(ops).toEqual([]);
+  });
+
+  test('lets a viewer take themselves off', async () => {
+    authMock.mockResolvedValue(signedIn);
+    assertBoardAccess.mockResolvedValue('viewer');
+    await expect(leaveBoard({ boardId: 'board-1' })).resolves.toEqual({ ok: true });
+    expect(ops).toEqual([{ kind: 'delete', table: 'board_members' }]);
   });
 });
