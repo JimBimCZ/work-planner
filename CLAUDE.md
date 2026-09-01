@@ -135,9 +135,11 @@ lib/
                             # singleton; see "Deployment"
     migrations/
   actions/                  # 'use server' modules, one per aggregate
+    labels.ts               # createLabel, renameLabel, deleteLabel, setCardLabels
   permissions.ts            # single source of truth for access checks
   rank.ts                   # fractional index helpers
   events.ts                 # Pusher publish helpers + event types
+  labels.ts                 # label caps, boardLabels read
 docs/
   specs/                    # brainstorm output, one per feature
   plans/                    # implementation plans with checkboxes
@@ -164,6 +166,8 @@ columns            id, boardId, name, rank, createdAt
 cards              id, boardId, columnId, title, description,
                    dueDate, rank, createdById, createdAt, updatedAt
 comments           id, cardId, authorId, body, createdAt, updatedAt
+labels             id, boardId, name, createdAt                        unique (boardId, lower(name))
+card_labels        cardId, labelId                                     PK (cardId, labelId)
 ```
 
 Rules:
@@ -175,6 +179,7 @@ Rules:
 - Comments and cards are soft-delete free for now: hard delete, but only via an action that checks role.
 - Index `cards(columnId, rank)`, `cards(boardId)`, `comments(cardId, createdAt)`, `board_members(userId)`, `board_invites(email)`.
 - `board_invites` holds an invite only while it is pending — accept, decline and revoke all end with the row gone. It carries a unique `(boardId, email)` and a check constraint, `board_invites_role_not_owner`, refusing `owner`: ownership moves through `transferOwnership` and nowhere else. Expiry is filtered at read time against `INVITE_TTL_DAYS` (30) rather than purged, because Vercel rules out a scheduled job — so an expired row still holds its pair, which is why `inviteMember` upserts rather than inserts. `invitedById` sets null on delete; the board itself cascades.
+- `labels.boardId` cascades from `boards`: a label is board vocabulary, gone when the board is. `card_labels.labelId` and `card_labels.cardId` both cascade too, for different reasons — deleting a label takes it off every card, which is the promise a managed set makes (nothing dangles referencing a label that no longer exists); deleting a card takes its label assignments with it, the same way it takes its comments.
 - `cards.assigneeId` and `columns.wipLimit` were **dropped, not deferred.** Both were speculative — no requirement, no UI, no enforcement rule — and YAGNI says an unused column is a liability, not a head start. Adding either later is one migration; carrying a column nothing writes to costs a permanent explanation. Do not reintroduce them without a requirement that needs them.
 
 ## Ordering: fractional ranks
@@ -212,7 +217,7 @@ Postgres `LISTEN/NOTIFY` over SSE is **not** viable here. It needs a dedicated, 
 - Every mutating server action calls `publish(boardId, event)` after its transaction commits.
 - Clients subscribe with `pusher-js`; `/api/pusher/auth` authorises the channel by re-checking board membership. Channel names are never trusted — the route derives access from the session.
 - Client ignores events it caused itself, matched on a client-generated `mutationId` echoed in the payload.
-- Events, all fifteen: `card.created`, `card.updated`, `card.moved`, `card.deleted`, `column.created`, `column.updated`, `column.moved`, `column.deleted`, `comment.created`, `comment.created.truncated`, `comment.updated`, `comment.deleted`, `member.added`, `member.updated`, `member.removed`. `lib/events.ts`'s `BoardEvent` union and `components/board/realtime.tsx`'s `EVENT_NAMES` must list the same set — an event missing from the second is published and never delivered, which `lib/events.test.ts` now asserts by reading the second file.
+- Events, all nineteen: `card.created`, `card.updated`, `card.moved`, `card.deleted`, `column.created`, `column.updated`, `column.moved`, `column.deleted`, `comment.created`, `comment.created.truncated`, `comment.updated`, `comment.deleted`, `member.added`, `member.updated`, `member.removed`, `label.created`, `label.updated`, `label.deleted`, `card.labelled`. `lib/events.ts`'s `BoardEvent` union and `components/board/realtime.tsx`'s `EVENT_NAMES` must list the same set — an event missing from the second is published and never delivered, which `lib/events.test.ts` now asserts by reading the second file. The four label events are a recorded, temporary exception: `lib/actions/labels.ts` (Section A of `docs/plans/labels.md`) publishes them today, but nothing binds them yet — `EVENT_NAMES` and `lib/events.test.ts`'s coverage assertion both gain them in Section D, once a client exists to receive them. This is not a violation of the "must list the same set" rule; it is the rule's documented gap until Section D closes it.
 - The three `member.*` events carry a `userId` and, except for `member.removed`, the new role. `components/board/membership-watch.tsx` sends a member who was removed back to `/boards` and refreshes the board when their own role changes, because `canWrite` is computed in the layout from the role it fetched. `inviteMember` and `revokeInvite` publish nothing: only the owner ever sees a pending invite. A transfer publishes `member.updated` twice rather than earning a fourth event.
 - Payloads carry the changed entity, not a full board refetch, and stay under `PAYLOAD_CEILING` (8,192 bytes, headroom under Pusher's documented 10KB). The two fields that cannot fit are handled by saying so and letting the reader ask:
   - `card.updated` carries `descriptionChanged: boolean` rather than the description; an open card calls `readCardDescription`.
