@@ -159,6 +159,7 @@ verificationTokens                                             (Auth.js adapter 
 
 boards             id, name, ownerId, createdAt, updatedAt
 board_members      boardId, userId, role ('owner'|'member'|'viewer')   PK (boardId, userId)
+board_invites      id, boardId, email, role, invitedById, createdAt
 columns            id, boardId, name, rank, createdAt
 cards              id, boardId, columnId, title, description,
                    dueDate, rank, createdById, createdAt, updatedAt
@@ -172,7 +173,8 @@ Rules:
 - `cards.createdById` is nullable and sets null on delete, not cascade: `comments.cardId` cascades from `cards`, so a cascading `createdById` would delete every comment on a card once its creator's account is gone — including comments left by other people, on boards the creator never owned.
 - Deleting a column requires a target column to move its cards into. Never cascade-delete cards with the column.
 - Comments and cards are soft-delete free for now: hard delete, but only via an action that checks role.
-- Index `cards(columnId, rank)`, `cards(boardId)`, `comments(cardId, createdAt)`, `board_members(userId)`.
+- Index `cards(columnId, rank)`, `cards(boardId)`, `comments(cardId, createdAt)`, `board_members(userId)`, `board_invites(email)`.
+- `board_invites` holds an invite only while it is pending — accept, decline and revoke all end with the row gone. It carries a unique `(boardId, email)` and a check constraint, `board_invites_role_not_owner`, refusing `owner`: ownership moves through `transferOwnership` and nowhere else. Expiry is filtered at read time against `INVITE_TTL_DAYS` (30) rather than purged, because Vercel rules out a scheduled job — so an expired row still holds its pair, which is why `inviteMember` upserts rather than inserts. `invitedById` sets null on delete; the board itself cascades.
 - `cards.assigneeId` and `columns.wipLimit` were **dropped, not deferred.** Both were speculative — no requirement, no UI, no enforcement rule — and YAGNI says an unused column is a liability, not a head start. Adding either later is one migration; carrying a column nothing writes to costs a permanent explanation. Do not reintroduce them without a requirement that needs them.
 
 ## Ordering: fractional ranks
@@ -229,7 +231,7 @@ Ably is an acceptable substitute if Pusher's free tier proves too small. Polling
 - All checks go through `lib/permissions.ts`: `assertBoardAccess(userId, boardId, minRole)`. Never inline a membership query in an action.
 - `viewer` can read and comment; `member` can mutate cards and columns; `owner` can manage members and delete the board.
 - A comment's own author, and nobody else — not the board owner — can edit or delete it.
-- Invite flow: owner adds a member by email. If no user exists with that email, store a pending invite keyed on email and resolve it at first sign-in.
+- Invite flow: an owner invites by email address, whether or not an account exists for it. The invite is keyed on the address, not on a user id, and resolves when the invitee accepts it from `/boards` — there is no sign-in callback doing it for them. `acceptInvite` and `declineInvite` are the only actions that reach a board without `assertBoardAccess`, because the invitee is not on the board yet by definition; they are scoped by the session's own email matched against the invite row. An invite that has expired, never existed, or is addressed to somebody else all answer `NOT_FOUND`, so a guessed id learns nothing.
 
 **Neon Auth is deliberately not used, and stays disabled on every Neon branch.** The Vercel-managed
 Neon integration provisions it automatically, so it may come back — if it does, disable it rather than

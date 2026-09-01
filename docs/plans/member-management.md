@@ -1129,7 +1129,7 @@ git commit -m "feat: change a role, remove a member, leave a board"
                           | 'NAME_MISMATCH' | 'NOT_A_MEMBER' | 'TARGET_IS_OWNER' }
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/actions/members.test.ts`, extending the import line with `transferOwnership`:
 
@@ -1184,7 +1184,7 @@ describe('transferOwnership', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1192,7 +1192,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: FAIL — `transferOwnership is not a function`.
 
-- [ ] **Step 3: Write the action**
+- [x] **Step 3: Write the action**
 
 Add to `lib/actions/members.ts`, extending its schema import with `boards`:
 
@@ -1245,7 +1245,7 @@ export async function transferOwnership(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the whole gate**
+- [x] **Step 4: Run the whole gate**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TYPECHECK=$?"; tail -3 /tmp/tc.log
@@ -1255,7 +1255,7 @@ pnpm test      > /tmp/unit.log 2>&1; echo "TEST=$?"; tail -5 /tmp/unit.log
 
 Expected: all three `=0`, 23 tests in `lib/actions/members.test.ts`.
 
-- [ ] **Step 5: Commit and open the Section A pull request**
+- [x] **Step 5: Commit and open the Section A pull request**
 
 CLAUDE.md changes in this PR, because these are the section that makes them true — "keep this file current, in the same change":
 

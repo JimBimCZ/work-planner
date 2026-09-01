@@ -62,8 +62,16 @@ vi.mock('@/lib/db', () => ({
   db: { ...writer, transaction: (fn: (t: typeof writer) => Promise<unknown>) => fn(writer) },
 }));
 
-const { acceptInvite, changeRole, declineInvite, inviteMember, leaveBoard, removeMember, revokeInvite } =
-  await import('./members');
+const {
+  acceptInvite,
+  changeRole,
+  declineInvite,
+  inviteMember,
+  leaveBoard,
+  removeMember,
+  revokeInvite,
+  transferOwnership,
+} = await import('./members');
 
 const signedIn = { user: { id: 'owner-1', email: 'owner@example.test' } };
 const invite = { boardId: 'board-1', email: 'new@example.test', role: 'member' as const };
@@ -299,5 +307,54 @@ describe('leaveBoard', () => {
     assertBoardAccess.mockResolvedValue('viewer');
     await expect(leaveBoard({ boardId: 'board-1' })).resolves.toEqual({ ok: true });
     expect(ops).toEqual([{ kind: 'delete', table: 'board_members' }]);
+  });
+});
+
+describe('transferOwnership', () => {
+  const handover = { boardId: 'board-1', userId: 'user-2', confirmName: 'Roadmap' };
+
+  test('refuses a board name that does not match', async () => {
+    authMock.mockResolvedValue(signedIn);
+    boardRow = { name: 'Roadmap' };
+    await expect(transferOwnership({ ...handover, confirmName: 'roadmap' })).resolves.toEqual({
+      ok: false,
+      error: 'NAME_MISMATCH',
+    });
+    expect(ops).toEqual([]);
+  });
+
+  test('refuses a target who has not accepted an invite to this board', async () => {
+    authMock.mockResolvedValue(signedIn);
+    boardRow = { name: 'Roadmap' };
+    membershipRow = undefined;
+    await expect(transferOwnership(handover)).resolves.toEqual({
+      ok: false,
+      error: 'NOT_A_MEMBER',
+    });
+    expect(ops).toEqual([]);
+  });
+
+  // One owner row means "already the owner" and "is you" are one condition.
+  test('refuses a transfer to yourself', async () => {
+    authMock.mockResolvedValue(signedIn);
+    boardRow = { name: 'Roadmap' };
+    membershipRow = { role: 'owner' };
+    await expect(transferOwnership({ ...handover, userId: 'owner-1' })).resolves.toEqual({
+      ok: false,
+      error: 'TARGET_IS_OWNER',
+    });
+    expect(ops).toEqual([]);
+  });
+
+  test('moves the board, promotes the target, and demotes the caller to member', async () => {
+    authMock.mockResolvedValue(signedIn);
+    boardRow = { name: 'Roadmap' };
+    membershipRow = { role: 'member' };
+    await expect(transferOwnership(handover)).resolves.toEqual({ ok: true });
+    expect(ops).toEqual([
+      { kind: 'update', table: 'boards', values: { ownerId: 'user-2' } },
+      { kind: 'update', table: 'board_members', values: { role: 'owner' } },
+      { kind: 'update', table: 'board_members', values: { role: 'member' } },
+    ]);
   });
 });

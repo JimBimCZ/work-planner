@@ -6,7 +6,7 @@ import { z } from 'zod';
 
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { boardInvites, boardMembers } from '@/lib/db/schema';
+import { boardInvites, boardMembers, boards } from '@/lib/db/schema';
 import { findPendingInvite } from '@/lib/members';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 
@@ -238,6 +238,53 @@ export async function leaveBoard(input: unknown) {
   await db
     .delete(boardMembers)
     .where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
+
+  revalidatePath('/boards');
+  return { ok: true } as const;
+}
+
+const transferSchema = memberRef.extend({ confirmName: z.string() });
+
+export async function transferOwnership(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = transferSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  const { boardId, userId, confirmName } = parsed.data;
+  const previousOwnerId = session.user.id;
+
+  try {
+    await assertBoardAccess(previousOwnerId, boardId, 'owner');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  // Re-checked here because a client can skip the dialog that asked for it.
+  const board = await db.query.boards.findFirst({
+    where: (row, { eq: is }) => is(row.id, boardId),
+    columns: { name: true },
+  });
+  if (!board || board.name !== confirmName.trim()) {
+    return { ok: false, error: 'NAME_MISMATCH' } as const;
+  }
+
+  const membership = await targetMembership(boardId, userId);
+  if (!membership) return { ok: false, error: 'NOT_A_MEMBER' } as const;
+  if (membership.role === 'owner') return { ok: false, error: 'TARGET_IS_OWNER' } as const;
+
+  await db.transaction(async (tx) => {
+    await tx.update(boards).set({ ownerId: userId }).where(eq(boards.id, boardId));
+    await tx
+      .update(boardMembers)
+      .set({ role: 'owner' })
+      .where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
+    await tx
+      .update(boardMembers)
+      .set({ role: 'member' })
+      .where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, previousOwnerId)));
+  });
 
   revalidatePath('/boards');
   return { ok: true } as const;
