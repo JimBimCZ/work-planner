@@ -57,6 +57,11 @@ describe('privacy policy', () => {
     expect(html()).toMatch(/Last updated/i);
   });
 
+  test('says what happens to an address typed into an invite', () => {
+    expect(html()).toMatch(/invite/i);
+    expect(html()).toMatch(/until (the invitation is|it is) accepted, declined, withdrawn or expires/i);
+  });
+
   test('is statically rendered and titled', () => {
     expect(metadata.title).toBeTruthy();
   });

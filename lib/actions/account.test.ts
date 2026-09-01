@@ -9,11 +9,17 @@ let shared: { id: string; name: string }[] = [];
 const sharedMock = vi.fn(async () => shared);
 vi.mock('@/lib/account', () => ({ sharedBoardsOwnedBy: () => sharedMock() }));
 
-let deletedUserId: string | null = null;
+const deleted: string[] = [];
+
+function tableName(table: unknown): string {
+  const symbol = Object.getOwnPropertySymbols(table).find((s) => s.description === 'drizzle:Name');
+  return symbol ? (table as Record<symbol, string>)[symbol] : 'unknown';
+}
+
 const tx = {
-  delete: () => ({
+  delete: (table: unknown) => ({
     where: async () => {
-      deletedUserId = 'called';
+      deleted.push(tableName(table));
     },
   }),
 };
@@ -27,7 +33,7 @@ const signedIn = { user: { id: 'u1', email: 'me@example.test' } };
 
 beforeEach(() => {
   shared = [];
-  deletedUserId = null;
+  deleted.length = 0;
   authMock.mockReset();
   signOutMock.mockClear();
 });
@@ -52,7 +58,7 @@ describe('deleteAccount', () => {
       ok: false,
       error: 'EMAIL_MISMATCH',
     });
-    expect(deletedUserId).toBeNull();
+    expect(deleted).toEqual([]);
   });
 
   test('accepts the email whatever its case and surrounding space', async () => {
@@ -70,14 +76,22 @@ describe('deleteAccount', () => {
       error: 'OWNS_SHARED_BOARDS',
       boards: [{ id: 'b1', name: 'Roadmap' }],
     });
-    expect(deletedUserId).toBeNull();
+    expect(deleted).toEqual([]);
     expect(signOutMock).not.toHaveBeenCalled();
   });
 
   test('deletes the user and signs out without redirecting', async () => {
     authMock.mockResolvedValue(signedIn);
     await expect(deleteAccount({ confirmEmail: 'me@example.test' })).resolves.toEqual({ ok: true });
-    expect(deletedUserId).toBe('called');
     expect(signOutMock).toHaveBeenCalledWith({ redirect: false });
+  });
+
+  // board_invites keys on an email address and has no foreign key to cascade
+  // through, so nothing else removes an invite addressed to a departing user.
+  // /privacy promises the deletion is complete.
+  test('takes pending invites addressed to the departing user with it', async () => {
+    authMock.mockResolvedValue(signedIn);
+    await expect(deleteAccount({ confirmEmail: 'me@example.test' })).resolves.toEqual({ ok: true });
+    expect(deleted).toEqual(['board_invites', 'user']);
   });
 });
