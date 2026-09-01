@@ -9,6 +9,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import type { AdapterAccountType } from 'next-auth/adapters';
 
@@ -164,6 +165,41 @@ export const cards = pgTable(
   ],
 );
 
+export const labels = pgTable(
+  'labels',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    boardId: text('board_id')
+      .notNull()
+      .references(() => boards.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // lower(): 'Bug' and 'bug' must not become two filters. The same fold
+    // inviteMember applies to an address, for the same reason.
+    uniqueIndex('labels_board_id_name_key').on(t.boardId, sql`lower(${t.name})`),
+  ],
+);
+
+export const cardLabels = pgTable(
+  'card_labels',
+  {
+    cardId: text('card_id')
+      .notNull()
+      .references(() => cards.id, { onDelete: 'cascade' }),
+    labelId: text('label_id')
+      .notNull()
+      .references(() => labels.id, { onDelete: 'cascade' }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.cardId, t.labelId] }),
+    index('card_labels_label_id_idx').on(t.labelId),
+  ],
+);
+
 export const comments = pgTable(
   'comments',
   {
@@ -212,9 +248,20 @@ export const cardsRelations = relations(cards, ({ one, many }) => ({
   board: one(boards, { fields: [cards.boardId], references: [boards.id] }),
   column: one(columns, { fields: [cards.columnId], references: [columns.id] }),
   comments: many(comments),
+  cardLabels: many(cardLabels),
 }));
 
 export const commentsRelations = relations(comments, ({ one }) => ({
   card: one(cards, { fields: [comments.cardId], references: [cards.id] }),
   author: one(users, { fields: [comments.authorId], references: [users.id] }),
+}));
+
+export const labelsRelations = relations(labels, ({ one, many }) => ({
+  board: one(boards, { fields: [labels.boardId], references: [boards.id] }),
+  cardLabels: many(cardLabels),
+}));
+
+export const cardLabelsRelations = relations(cardLabels, ({ one }) => ({
+  card: one(cards, { fields: [cardLabels.cardId], references: [cards.id] }),
+  label: one(labels, { fields: [cardLabels.labelId], references: [labels.id] }),
 }));
