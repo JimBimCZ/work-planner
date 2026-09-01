@@ -38,6 +38,7 @@ function DueDate({ value }: { value: string }) {
 
 export function BoardCard({
   card,
+  ringHue,
   boardId,
   canWrite,
   columns,
@@ -46,6 +47,7 @@ export function BoardCard({
   onMoveTo,
 }: {
   card: StateCard;
+  ringHue?: number;
   boardId: string;
   canWrite: boolean;
   columns: { id: string; name: string }[];
@@ -75,8 +77,17 @@ export function BoardCard({
       data-card-id={card.id}
       {...attributes}
       {...listeners}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`card-enter group relative rounded-[var(--radius-card)] border border-line bg-surface px-3 py-2.5 shadow-[0_1px_2px_rgb(0_0_0/0.04)] ${
+      data-ring-hue={ringHue}
+      // A box-shadow rather than a border or an outline: it takes no space, so
+      // a teammate's change can never reflow a column under a drag in progress.
+      // The hue comes from avatarHue, which is constrained to 180°-300°, so the
+      // ring cannot stray warm and compete with the due-date signal.
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        boxShadow: ringHue === undefined ? undefined : `0 0 0 2px hsl(${ringHue} 55% 55% / 0.9)`,
+      }}
+      className={`card-enter group relative rounded-[var(--radius-card)] border border-line bg-surface px-3 py-2.5 shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition-shadow duration-200 ${
         // The overlay carries the card while it is dragged, so what is left
         // behind is the hole it came from, not a second copy.
         isDragging ? 'opacity-40' : ''
