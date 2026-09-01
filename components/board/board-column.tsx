@@ -19,6 +19,7 @@ export function BoardColumn({
   ref,
   column,
   cards,
+  filtering,
   rings,
   boardId,
   hue,
@@ -43,6 +44,7 @@ export function BoardColumn({
   ref?: Ref<HTMLElement>;
   column: StateColumn;
   cards: StateCard[];
+  filtering: boolean;
   rings: Map<string, number>;
   boardId: string;
   hue: number;
@@ -111,7 +113,9 @@ export function BoardColumn({
         </div>
 
         {cards.length === 0 ? (
-          <p className="px-1.5 pt-6 text-sm text-muted">Nothing here yet</p>
+          <p className="px-1.5 pt-6 text-sm text-muted">
+            {filtering ? 'Nothing here matches' : 'Nothing here yet'}
+          </p>
         ) : (
           <SortableContext
             items={cards.map((card) => card.id)}
@@ -127,6 +131,7 @@ export function BoardColumn({
                     canWrite={canWrite}
                     columns={columns}
                     labels={labels}
+                    filtering={filtering}
                     onRename={(title) => onRenameCard(card, title)}
                     onDelete={() => onDeleteCard(card)}
                     onMoveTo={(toColumnId) => onMoveCardTo(card, toColumnId)}

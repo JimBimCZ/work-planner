@@ -74,6 +74,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   // reload and a board.reseed, which replaces the reducer wholesale.
   const searchParams = useSearchParams();
   const filter = parseLabelFilter(searchParams, state.labels);
+  const filtering = filter.length > 0;
   const { subscribe: subscribeRealtime, claim, reconnected } = useRealtime();
   const catchUpWanted = useRef(false);
 
@@ -501,6 +502,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 }}
                 column={column}
                 cards={cardsIn(state, column.id).filter((card) => matchesFilter(card, filter))}
+                filtering={filtering}
                 rings={rings}
                 boardId={board.id}
                 hue={flowHue(index, total)}

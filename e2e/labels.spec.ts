@@ -97,3 +97,50 @@ test('the filter narrows the board and survives a reload', async ({ page, contex
     await removeSeededUser(userId);
   }
 });
+
+test('a filtered board does not let a card be dragged', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'No dragging');
+  const [first] = await boardColumns(boardId);
+  const cardId = await seedCard(first.id, { boardId, createdById: userId, title: 'Has bug' });
+  const labelId = await seedLabel(boardId, 'bug');
+
+  await assignLabel(cardId, labelId);
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    const card = page.locator(`[data-card-id="${cardId}"]`);
+    await expect(card).toHaveAttribute('aria-disabled', 'false');
+
+    await page.goto(`/boards/${boardId}?label=${labelId}`);
+    // aria-disabled, not tabindex: dnd-kit hardcodes tabIndex to 0 whatever
+    // `disabled` says (core.cjs:3404) and expresses the state through
+    // aria-disabled instead, returning `listeners: undefined` alongside it —
+    // so this one attribute is what proves pointer and keyboard are both off.
+    await expect(page.locator(`[data-card-id="${cardId}"]`)).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+test('a column emptied by a filter says so in its own words', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Nothing matches');
+  const [first] = await boardColumns(boardId);
+  await seedCard(first.id, { boardId, createdById: userId, title: 'Unlabelled' });
+  const labelId = await seedLabel(boardId, 'bug');
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await expect(page.getByText('Nothing here yet')).toHaveCount(4);
+
+    await page.goto(`/boards/${boardId}?label=${labelId}`);
+    await expect(page.getByText('Nothing here matches').first()).toBeVisible();
+    await expect(page.getByText('Nothing here yet')).toHaveCount(0);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});

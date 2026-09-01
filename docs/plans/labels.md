@@ -1903,7 +1903,7 @@ git commit -m "feat: narrow the board to the labels in the URL"
 **Interfaces:**
 - Consumes: `matchesFilter`, `parseLabelFilter`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/labels.spec.ts`:
 
@@ -1920,12 +1920,17 @@ test('a filtered board does not let a card be dragged', async ({ page, context }
   try {
     await page.goto(`/boards/${boardId}`);
     const card = page.locator(`[data-card-id="${cardId}"]`);
-    await expect(card).toHaveAttribute('tabindex', '0');
+    await expect(card).toHaveAttribute('aria-disabled', 'false');
 
     await page.goto(`/boards/${boardId}?label=${labelId}`);
-    // dnd-kit drops the draggable attributes when disabled, which is what
-    // makes the card unreachable by pointer and by keyboard alike.
-    await expect(page.locator(`[data-card-id="${cardId}"]`)).not.toHaveAttribute('tabindex', '0');
+    // aria-disabled, not tabindex: dnd-kit hardcodes tabIndex to 0 whatever
+    // `disabled` says (core.cjs:3404) and expresses the state through
+    // aria-disabled instead, returning `listeners: undefined` alongside it —
+    // so this one attribute is what proves pointer and keyboard are both off.
+    await expect(page.locator(`[data-card-id="${cardId}"]`)).toHaveAttribute(
+      'aria-disabled',
+      'true',
+    );
   } finally {
     await removeSeededUser(userId);
   }
@@ -1953,7 +1958,7 @@ test('a column emptied by a filter says so in its own words', async ({ page, con
 
 The count of 4 is the four empty columns of a five-column board whose first column holds one card. Check `e2e/board-view.spec.ts` for how the seeded columns are asserted elsewhere and match it.
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log
@@ -1961,7 +1966,7 @@ pnpm exec playwright test e2e/labels.spec.ts --reporter=line > /tmp/e2e.log 2>&1
 
 Expected: FAIL — the card is still draggable, and the column still reads "Nothing here yet".
 
-- [ ] **Step 3: Guard the drag, and fix the copy**
+- [x] **Step 3: Guard the drag, and fix the copy**
 
 In `components/board/board-canvas.tsx`, derive the filter and pass it down:
 
@@ -1989,7 +1994,7 @@ In `components/board/board-column.tsx`, the empty state takes the filter into ac
 
 "Nothing here yet" under a filter is simply false, and `CLAUDE.md`'s copy rule is that an empty state is an invitation rather than an apology — "Nothing here matches" says what happened without either.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/e2e.log
@@ -2000,7 +2005,7 @@ pnpm lint > /tmp/lint.log 2>&1; echo "LINT=$?"; tail -3 /tmp/lint.log
 
 Expected: all `=0`, and the e2e count run equal to the count collected — compare `pnpm exec playwright test --list` if anything looks short.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board e2e/labels.spec.ts
