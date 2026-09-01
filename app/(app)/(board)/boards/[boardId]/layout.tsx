@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { TopBar } from '@/components/app/top-bar';
 import { BoardActionsProvider } from '@/components/board/board-actions';
 import { MembersButton } from '@/components/board/members-button';
+import { MembershipWatch } from '@/components/board/membership-watch';
 import { NewCardButton } from '@/components/board/new-card-button';
 import { RealtimeProvider } from '@/components/board/realtime';
 import { auth } from '@/lib/auth';
@@ -39,6 +40,7 @@ export default async function BoardTitleLayout({
 
   return (
     <RealtimeProvider boardId={boardId}>
+      <MembershipWatch viewerId={session.user.id} />
       <BoardActionsProvider>
         <div className="flex h-screen flex-col overflow-hidden">
           <TopBar

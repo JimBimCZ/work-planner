@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { boardInvites, boardMembers, boards } from '@/lib/db/schema';
+import { publish } from '@/lib/events';
 import { findPendingInvite } from '@/lib/members';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 
@@ -130,6 +131,17 @@ export async function acceptInvite(input: unknown) {
     await tx.delete(boardInvites).where(eq(boardInvites.id, invite.id));
   });
 
+  // Generated here rather than taken from the client: /boards has no
+  // RealtimeProvider to claim an id from, and the accepting user is not
+  // subscribed to this board's channel yet, so there is no echo to suppress.
+  await publish(invite.boardId, {
+    type: 'member.added',
+    userId,
+    role: invite.role,
+    mutationId: crypto.randomUUID(),
+    actorId: userId,
+  });
+
   revalidatePath('/boards');
   return { ok: true, data: { boardId: invite.boardId } } as const;
 }
@@ -151,9 +163,10 @@ export async function declineInvite(input: unknown) {
   return { ok: true } as const;
 }
 
-const memberRef = z.object({ boardId: id, userId: id });
+const mutationId = z.string().min(1);
+const memberRef = z.object({ boardId: id, userId: id, mutationId });
 const roleSchema = memberRef.extend({ role: assignableRole });
-const boardRef = z.object({ boardId: id });
+const boardRef = z.object({ boardId: id, mutationId });
 
 async function targetMembership(boardId: string, userId: string) {
   return db.query.boardMembers.findFirst({
@@ -186,6 +199,14 @@ export async function changeRole(input: unknown) {
     .set({ role })
     .where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
 
+  await publish(boardId, {
+    type: 'member.updated',
+    userId,
+    role,
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+  });
+
   revalidatePath('/boards');
   return { ok: true } as const;
 }
@@ -211,6 +232,13 @@ export async function removeMember(input: unknown) {
   await db
     .delete(boardMembers)
     .where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
+
+  await publish(boardId, {
+    type: 'member.removed',
+    userId,
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+  });
 
   revalidatePath('/boards');
   return { ok: true } as const;
@@ -238,6 +266,13 @@ export async function leaveBoard(input: unknown) {
   await db
     .delete(boardMembers)
     .where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, userId)));
+
+  await publish(boardId, {
+    type: 'member.removed',
+    userId,
+    mutationId: parsed.data.mutationId,
+    actorId: userId,
+  });
 
   revalidatePath('/boards');
   return { ok: true } as const;
@@ -284,6 +319,23 @@ export async function transferOwnership(input: unknown) {
       .update(boardMembers)
       .set({ role: 'member' })
       .where(and(eq(boardMembers.boardId, boardId), eq(boardMembers.userId, previousOwnerId)));
+  });
+
+  // Two rows moved, so the board hears about both rather than gaining a
+  // fourth event for a case member.updated already describes.
+  await publish(boardId, {
+    type: 'member.updated',
+    userId,
+    role: 'owner',
+    mutationId: parsed.data.mutationId,
+    actorId: previousOwnerId,
+  });
+  await publish(boardId, {
+    type: 'member.updated',
+    userId: previousOwnerId,
+    role: 'member',
+    mutationId: parsed.data.mutationId,
+    actorId: previousOwnerId,
   });
 
   revalidatePath('/boards');

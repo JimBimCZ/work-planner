@@ -212,7 +212,8 @@ Postgres `LISTEN/NOTIFY` over SSE is **not** viable here. It needs a dedicated, 
 - Every mutating server action calls `publish(boardId, event)` after its transaction commits.
 - Clients subscribe with `pusher-js`; `/api/pusher/auth` authorises the channel by re-checking board membership. Channel names are never trusted — the route derives access from the session.
 - Client ignores events it caused itself, matched on a client-generated `mutationId` echoed in the payload.
-- Events, all twelve: `card.created`, `card.updated`, `card.moved`, `card.deleted`, `column.created`, `column.updated`, `column.moved`, `column.deleted`, `comment.created`, `comment.created.truncated`, `comment.updated`, `comment.deleted`. `lib/events.ts`'s `BoardEvent` union and `components/board/realtime.tsx`'s `EVENT_NAMES` must list the same set — an event missing from the second is published and never delivered.
+- Events, all fifteen: `card.created`, `card.updated`, `card.moved`, `card.deleted`, `column.created`, `column.updated`, `column.moved`, `column.deleted`, `comment.created`, `comment.created.truncated`, `comment.updated`, `comment.deleted`, `member.added`, `member.updated`, `member.removed`. `lib/events.ts`'s `BoardEvent` union and `components/board/realtime.tsx`'s `EVENT_NAMES` must list the same set — an event missing from the second is published and never delivered, which `lib/events.test.ts` now asserts by reading the second file.
+- The three `member.*` events carry a `userId` and, except for `member.removed`, the new role. `components/board/membership-watch.tsx` sends a member who was removed back to `/boards` and refreshes the board when their own role changes, because `canWrite` is computed in the layout from the role it fetched. `inviteMember` and `revokeInvite` publish nothing: only the owner ever sees a pending invite. A transfer publishes `member.updated` twice rather than earning a fourth event.
 - Payloads carry the changed entity, not a full board refetch, and stay under `PAYLOAD_CEILING` (8,192 bytes, headroom under Pusher's documented 10KB). The two fields that cannot fit are handled by saying so and letting the reader ask:
   - `card.updated` carries `descriptionChanged: boolean` rather than the description; an open card calls `readCardDescription`.
   - `comment.created` degrades to `comment.created.truncated` — id and cardId only — when the whole event would exceed the ceiling; an open thread calls `readComments`. `publishComment` in `lib/events.ts` is the only place that branch lives. The body cap and the ceiling measure different things: `maxLength`/Zod count UTF-16 units, the guard counts UTF-8 bytes, so 2,000 emoji is a legal 4,000-unit comment weighing 8,355 bytes.
@@ -619,8 +620,8 @@ on other people's boards survive with `authorId` null, so a request to remove th
 mailbox `/privacy` names *before* the account goes; the danger zone says so, because afterwards
 nothing links them back. `docs/specs/account-deletion.md` holds the reasoning.
 
-Remaining sub-projects: member management and invites has Sections A–C shipped, with Section D
-(realtime membership events) outstanding, then labels/tags, then attachments.
+Remaining sub-projects: member management and invites is shipped in full, Sections A–D. Next are
+labels/tags, then attachments.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

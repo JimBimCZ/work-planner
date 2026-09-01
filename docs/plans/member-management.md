@@ -2554,7 +2554,7 @@ Branch `feat/members-realtime` from `main` once B and C have landed.
   ```
   Every membership action gains a `mutationId: string` field in its input schema, matching the card and comment actions.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/actions/members.test.ts`. The harness already mocks `@/lib/events`; add the `publish` spy the comments suite uses:
 
@@ -2659,7 +2659,7 @@ describe('membership events', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/unit.log
@@ -2667,7 +2667,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: FAIL — `publish` was not called.
 
-- [ ] **Step 3: Add the events and publish them**
+- [x] **Step 3: Add the events and publish them**
 
 In `lib/events.ts`, add the three union members alongside the twelve already there. Import `BoardRole` as a type from `@/lib/permissions` — a value import would be a cycle, since `permissions` imports `db`.
 
@@ -2691,7 +2691,7 @@ await publish(invite.boardId, {
 
 Publishing inside a transaction would announce a write that may still roll back, which is why every call sits after it.
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -2699,7 +2699,7 @@ pnpm exec vitest run lib/actions/members.test.ts > /tmp/unit.log 2>&1; echo "EXI
 
 Expected: PASS, 29 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/events.ts lib/actions/members.ts lib/actions/members.test.ts
@@ -2720,7 +2720,7 @@ git commit -m "feat: announce a membership change on the board channel"
   export function MembershipWatch({ viewerId }: { viewerId: string }): null;
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `lib/events.test.ts` already asserts things about the event surface. Add the check that catches the failure mode CLAUDE.md warns about — an event in the union that nothing listens for:
 
@@ -2742,7 +2742,7 @@ test('every event the server can publish is one the client binds', async () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/events.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -2750,7 +2750,7 @@ pnpm exec vitest run lib/events.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; ta
 
 Expected: FAIL — `member.added is published but never delivered`.
 
-- [ ] **Step 3: Bind the names and watch for your own**
+- [x] **Step 3: Bind the names and watch for your own**
 
 Add the three names to `EVENT_NAMES` in `components/board/realtime.tsx`.
 
@@ -2802,7 +2802,7 @@ Mount it in the board layout inside `RealtimeProvider`:
 
 In `members-dialog.tsx`, subscribe to the same context and `router.refresh()` on any event whose type starts with `member.`, so an open dialog stops showing a membership that has changed underneath it. Every action in the dialog must now pass a `mutationId` — generate it with the context's `claim()`, exactly as the card and comment actions do, or your own change will come back as an echo and refresh the dialog under your hands.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec vitest run lib/events.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -2813,7 +2813,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"; tail -5 /tmp/build.log
 
 Expected: all `=0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/realtime.tsx components/board/membership-watch.tsx components/board/members-dialog.tsx "app/(app)/(board)/boards/[boardId]/layout.tsx" lib/events.test.ts
@@ -2825,7 +2825,7 @@ git commit -m "feat: act on a membership change while the board is open"
 **Files:**
 - Modify: `e2e/members.spec.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 test('a demotion takes the write controls away without a reload', async ({ browser }) => {
@@ -2884,7 +2884,7 @@ test('a removal sends the removed member back to the board list', async ({ brows
 
 These two need real Pusher credentials in `.env.local`. `e2e/realtime.spec.ts` already depends on them; follow whatever skip guard that file uses rather than inventing a second convention, and say in the PR whether they ran or were skipped.
 
-- [ ] **Step 2: Run the whole suite**
+- [x] **Step 2: Run the whole suite**
 
 ```bash
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -12 /tmp/e2e.log
@@ -2892,16 +2892,16 @@ pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; t
 
 Expected: `EXIT=0`, count run equal to count collected.
 
-- [ ] **Step 3: Update the documentation this section invalidates**
+- [x] **Step 3: Update the documentation this section invalidates**
 
 - `CLAUDE.md`, "Realtime": "Events, all twelve" becomes fifteen, and the three names join the list.
 - `CLAUDE.md`, "Open decisions": member management is resolved; replace the account-deletion entry's "there is no ownership transfer until member management lands" with what now exists.
 
-- [ ] **Step 4: Verify by hand, then screenshot**
+- [x] **Step 4: Verify by hand, then screenshot**
 
 Two real accounts, two browsers: demote one and watch "New card" disappear without a reload; remove them and watch the tab land on `/boards`. Confirm the removed tab's status strip goes to `failed` if it reconnects — `/api/pusher/auth` re-checks membership on every subscribe. Close everything you opened.
 
-- [ ] **Step 5: Commit and open the Section D pull request**
+- [x] **Step 5: Commit and open the Section D pull request**
 
 ```bash
 git add e2e/members.spec.ts CLAUDE.md docs/plans/member-management.md
