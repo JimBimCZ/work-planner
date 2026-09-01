@@ -415,7 +415,7 @@ What that constrains:
 - Local development uses the Neon `dev` branch, never production `main`. The integration scopes its variables to Production and Preview only, so a bare `vercel env pull` finds nothing; `pnpm db:dev-branch` creates the branch and registers it as Development-scoped, and `pnpm env:pull development` refreshes `.env.local` from it.
 - `AUTH_URL`/`AUTH_TRUST_HOST` need care on previews. Set `AUTH_TRUST_HOST=true` and let Auth.js infer the host rather than hardcoding.
 
-Docker (local/self-host): multi-stage deps → build → runner on `node:22-alpine`, `output: 'standalone'` enabled by `DOCKER_BUILD=1` in the build stage (Vercel builds must use Next's default output), non-root `nextjs` user, `HOSTNAME=0.0.0.0`. `docker-compose.yml` runs app + local Postgres. Add `/api/health` for the container healthcheck. Keep secrets out of `NEXT_PUBLIC_*` — those are inlined at build time.
+Docker (local/self-host): multi-stage deps → build → runner on `node:22-alpine`, `output: 'standalone'` enabled by `DOCKER_BUILD=1` in the build stage (Vercel builds must use Next's default output), non-root `nextjs` user, `HOSTNAME=0.0.0.0`. `docker-compose.yml` runs app + local Postgres. Add `/api/health` for the container healthcheck. Keep secrets out of `NEXT_PUBLIC_*` — those are inlined at build time. A self-hoster who wants realtime supplies `NEXT_PUBLIC_PUSHER_KEY` and `NEXT_PUBLIC_PUSHER_CLUSTER` as `docker compose` build arguments (`docker-compose.yml`'s `app.build.args`), not just runtime environment — the build stage inlines them, so a runtime-only value ships an undefined key to the client.
 
 Env vars:
 
