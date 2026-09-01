@@ -334,7 +334,7 @@ git commit -m "feat: add lib/events.ts, the board event contract and publisher"
 
 **Interfaces:**
 - Consumes: `pusherServer` and `channelFor` from `lib/events.ts`; `auth` from `lib/auth.ts`; `assertBoardAccess` and `BoardAccessError` from `lib/permissions.ts`.
-- Produces: `POST(request: Request): Promise<Response>` at `/api/pusher/auth`, returning `{ auth: string }` on success and 403 on every refusal.
+- Produces: `POST(request: Request): Promise<Response>` at `/api/pusher/auth`, returning `{ auth: string }` on success, 400 on a malformed request (missing or non-string form fields), and 403 on every access refusal.
 
 - [x] **Step 1: Write the failing test**
 
