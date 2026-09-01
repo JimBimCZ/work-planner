@@ -159,3 +159,36 @@ export async function seedComment(
   );
   return commentId;
 }
+
+export type UserRowCounts = { user: number; account: number; session: number; members: number };
+
+export async function userRowCounts(userId: string): Promise<UserRowCounts> {
+  const { rows } = await seedPool().query<{
+    user: string;
+    account: string;
+    session: string;
+    members: string;
+  }>(
+    `select
+       (select count(*) from "user" where id = $1) as user,
+       (select count(*) from "account" where "userId" = $1) as account,
+       (select count(*) from "session" where "userId" = $1) as session,
+       (select count(*) from board_members where user_id = $1) as members`,
+    [userId],
+  );
+  return {
+    user: Number(rows[0].user),
+    account: Number(rows[0].account),
+    session: Number(rows[0].session),
+    members: Number(rows[0].members),
+  };
+}
+
+// undefined means the row is gone; null means it is there with no author.
+export async function commentAuthorId(commentId: string): Promise<string | null | undefined> {
+  const { rows } = await seedPool().query<{ author_id: string | null }>(
+    'select author_id from comments where id = $1',
+    [commentId],
+  );
+  return rows.length === 0 ? undefined : rows[0].author_id;
+}
