@@ -2488,11 +2488,11 @@ git commit -m "feat: catch up on the board after a reconnection"
 
 ### Section 4 gate
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected.
-- [ ] A client that was genuinely offline converges **without a reload** — proved by `setOffline`, not by a synthetic event, and not by reloading the page.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm test:e2e` all pass, exit codes read from redirected logs, count run compared against count collected.
+- [x] A client that was genuinely offline converges **without a reload** — proved by `setOffline`, not by a synthetic event, and not by reloading the page.
 - [ ] **A reseed does not erase an optimistic change made during the gap.** Check by hand: go offline, add a card, come back online, and confirm the card is still there once the write settles.
 - [ ] A reseed never fires mid-drag.
-- [ ] `readBoard` refuses a board the caller cannot read, asserted by calling it directly.
+- [x] `readBoard` refuses a board the caller cannot read, asserted by calling it directly.
 - [ ] Open the PR. Stop. Start Section 5 in a fresh session.
 
 ---
