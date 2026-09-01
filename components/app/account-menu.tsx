@@ -96,6 +96,9 @@ export function AccountMenu({
 
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
+          <Link href="/account">Account</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           <Link href="/privacy">Privacy</Link>
         </DropdownMenuItem>
         <form action={signOutAction}>
