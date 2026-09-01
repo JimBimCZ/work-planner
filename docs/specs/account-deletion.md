@@ -116,6 +116,15 @@ The delete is one statement, because the schema already encodes every rule:
 | `comments.authorId` | set null | `/privacy`: other people's boards keep your comments |
 | `cards.createdById` | set null | a cascade here would delete other people's comments on a card you happened to create |
 
+One cascade in that chain has never been exercised and must be proved rather
+than reasoned about. `cards.columnId` references `columns` with `ON DELETE no
+action`, and deleting a user now cascades to `boards`, which cascades to
+`columns` and `cards` in the same statement. `NO ACTION` is checked at the end
+of the statement rather than immediately, so the constraint should be satisfied
+by the time it is looked at — but the only deletion ever proved against real
+data was a board delete, and that was proved before cards existed. The plan
+tests a user delete against a board holding columns, cards and comments.
+
 Then `signOut({ redirectTo: '/signin' })`.
 
 `revalidatePath('/boards')` for the board list. No Pusher event is published: by
@@ -168,6 +177,8 @@ that does nothing.
 - A comment that account left on another user's board is still readable by that
   user afterwards, with no name on it.
 - The old session cookie does not open `/boards` after deletion.
+- A user owning a board with columns, cards and comments deletes without the
+  `cards.columnId` `NO ACTION` constraint firing.
 - Screenshots of `/account` and the danger zone in both themes, at 1440px and
   390px.
 
