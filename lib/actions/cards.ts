@@ -30,7 +30,10 @@ const moveSchema = z.object({
   toColumnId: id,
   beforeCardId: id.nullable(),
   afterCardId: id.nullable(),
-  mutationId: id,
+  // Both call sites mint this with crypto.randomUUID(). Bounding it to a UUID
+  // keeps an oversized value from pushing the published event over
+  // PAYLOAD_CEILING and silently dropping it for every other viewer.
+  mutationId: z.uuid(),
 });
 
 export async function createCard(input: unknown) {

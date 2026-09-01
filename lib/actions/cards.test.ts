@@ -287,6 +287,8 @@ describe('setCardDueDate', () => {
   });
 });
 
+const MUTATION_ID = '11111111-1111-4111-8111-111111111111';
+
 describe('moveCard', () => {
   beforeEach(() => {
     columnRow = { id: 'col-2', boardId: 'b1' };
@@ -302,22 +304,37 @@ describe('moveCard', () => {
     ).resolves.toEqual({ ok: false, error: 'INVALID' });
   });
 
+  // Both call sites mint this with crypto.randomUUID(). Bounding it to a UUID
+  // keeps a client from posting an oversized value that pushes the published
+  // event over PAYLOAD_CEILING, silently dropping it for every other viewer.
+  test('refuses a mutationId that is not a UUID', async () => {
+    await expect(
+      moveCard({
+        cardId: 'card-1',
+        toColumnId: 'col-1',
+        beforeCardId: null,
+        afterCardId: null,
+        mutationId: 'x'.repeat(9_000),
+      }),
+    ).resolves.toEqual({ ok: false, error: 'INVALID' });
+  });
+
   test('publishes card.moved on the board, carrying the server rank', async () => {
     await moveCard({
       cardId: 'card-1',
       toColumnId: 'col-1',
       beforeCardId: null,
       afterCardId: null,
-      mutationId: 'm1',
+      mutationId: MUTATION_ID,
     });
 
     expect(publish).toHaveBeenCalledWith('b1', {
       type: 'card.moved',
-      mutationId: 'm1',
+      mutationId: MUTATION_ID,
       actorId: 'user-1',
       id: 'card-1',
       columnId: 'col-1',
-      rank: expect.any(String),
+      rank: 'a0',
     });
   });
 
@@ -330,7 +347,7 @@ describe('moveCard', () => {
       toColumnId: 'col-1',
       beforeCardId: null,
       afterCardId: null,
-      mutationId: 'm1',
+      mutationId: MUTATION_ID,
     });
     expect(publish).not.toHaveBeenCalled();
   });
@@ -343,7 +360,7 @@ describe('moveCard', () => {
         toColumnId: 'col-2',
         beforeCardId: null,
         afterCardId: null,
-        mutationId: 'm1',
+        mutationId: MUTATION_ID,
       }),
     ).resolves.toEqual({ ok: false, error: 'NOT_FOUND' });
   });
@@ -356,7 +373,7 @@ describe('moveCard', () => {
         toColumnId: 'col-2',
         beforeCardId: null,
         afterCardId: null,
-        mutationId: 'm1',
+        mutationId: MUTATION_ID,
       }),
     ).resolves.toEqual({ ok: false, error: 'INVALID' });
   });
@@ -368,7 +385,7 @@ describe('moveCard', () => {
         toColumnId: 'col-2',
         beforeCardId: 'card-from-elsewhere',
         afterCardId: null,
-        mutationId: 'm1',
+        mutationId: MUTATION_ID,
       }),
     ).resolves.toEqual({ ok: false, error: 'INVALID' });
   });
@@ -380,7 +397,7 @@ describe('moveCard', () => {
         toColumnId: 'col-2',
         beforeCardId: 'card-b',
         afterCardId: 'card-a',
-        mutationId: 'm1',
+        mutationId: MUTATION_ID,
       }),
     ).resolves.toEqual({ ok: false, error: 'INVALID' });
   });
@@ -393,7 +410,7 @@ describe('moveCard', () => {
         toColumnId: 'col-2',
         beforeCardId: null,
         afterCardId: null,
-        mutationId: 'm1',
+        mutationId: MUTATION_ID,
       }),
     ).resolves.toEqual({ ok: false, error: 'FORBIDDEN' });
   });
@@ -410,7 +427,7 @@ describe('moveCard', () => {
         toColumnId: 'col-2',
         beforeCardId: null,
         afterCardId: null,
-        mutationId: 'm1',
+        mutationId: MUTATION_ID,
       }),
     ).resolves.toEqual({ ok: false, error: 'NOT_FOUND' });
   });
@@ -421,7 +438,7 @@ describe('moveCard', () => {
       toColumnId: 'col-2',
       beforeCardId: 'card-a',
       afterCardId: 'card-b',
-      mutationId: 'm1',
+      mutationId: MUTATION_ID,
     });
 
     expect(result.ok).toBe(true);
@@ -435,7 +452,7 @@ describe('moveCard', () => {
       toColumnId: 'col-2',
       beforeCardId: null,
       afterCardId: 'card-a',
-      mutationId: 'm1',
+      mutationId: MUTATION_ID,
     });
 
     expect((result as { data: { rank: string } }).data.rank < 'a0').toBe(true);
@@ -449,7 +466,7 @@ describe('moveCard', () => {
       toColumnId: 'col-2',
       beforeCardId: 'card-a',
       afterCardId: 'card-b',
-      mutationId: 'm1',
+      mutationId: MUTATION_ID,
     });
 
     expect(ops.filter((op) => op.table === 'cards')).toHaveLength(1);
