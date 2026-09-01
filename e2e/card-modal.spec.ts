@@ -431,3 +431,43 @@ test('clearing a due date and pressing Escape keeps the card open and reverts th
     await removeSeededUser(userId);
   }
 });
+
+// The modal has no visible header — CardModal's DialogTitle is sr-only, so the
+// title input is the first thing in the content and shadcn's close button is
+// positioned over the same corner. Measured before the fix: a 16x16px overlap,
+// which put the ✕ on top of the input's border and stole the click from the
+// field's top-right corner.
+test('the modal close button does not sit on the title input', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  await seedCard(ready.id, { boardId, createdById: userId, title: 'Rank cards fractionally' });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await page.getByTestId('card-title').first().click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+
+    const close = await page
+      .getByRole('dialog')
+      .getByRole('button', { name: /close/i })
+      .boundingBox();
+    const input = await page.getByRole('textbox', { name: 'Card title' }).boundingBox();
+    expect(close).not.toBeNull();
+    expect(input).not.toBeNull();
+
+    // Rectangles must not intersect on both axes at once.
+    const overlapX =
+      Math.min(close!.x + close!.width, input!.x + input!.width) - Math.max(close!.x, input!.x);
+    const overlapY =
+      Math.min(close!.y + close!.height, input!.y + input!.height) - Math.max(close!.y, input!.y);
+    expect(overlapX > 0 && overlapY > 0).toBe(false);
+
+    // ...and the field still reaches most of the way across, rather than being
+    // cleared by shrinking it into a stub.
+    const dialog = (await page.getByRole('dialog').boundingBox())!;
+    expect(input!.width).toBeGreaterThan(dialog.width * 0.85);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
