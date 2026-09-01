@@ -1862,7 +1862,7 @@ git commit -m "feat: change a member role or remove them from the dialog"
 **Interfaces:**
 - Consumes: `transferOwnership` from A6; the `boardName` prop from B1.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 describe('MembersDialog transfer', () => {
@@ -1876,7 +1876,7 @@ describe('MembersDialog transfer', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1884,7 +1884,7 @@ pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>
 
 Expected: FAIL — no "Make owner" in the markup.
 
-- [ ] **Step 3: Add the transfer step**
+- [x] **Step 3: Add the transfer step**
 
 Delete `void boardName;`. Import `transferOwnership`. Add state for the second step and the typed confirmation:
 
@@ -1949,7 +1949,7 @@ And, beneath the list when `handingTo` is set:
 )}
 ```
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1960,7 +1960,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"; tail -5 /tmp/build.log
 
 Expected: all `=0`, 12 tests in the dialog file. Confirm no `void ` scaffolding statements remain in `members-dialog.tsx`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/members-dialog.tsx components/board/members-dialog.test.tsx

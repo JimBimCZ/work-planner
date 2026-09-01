@@ -10,6 +10,7 @@ import {
   leaveBoard,
   removeMember,
   revokeInvite,
+  transferOwnership,
 } from '@/lib/actions/members';
 import { avatarHue, initials } from '@/lib/avatar';
 import type { PendingInvite, VisibleMember } from '@/lib/members';
@@ -26,10 +27,19 @@ type MembersProps = {
 // Split from the Dialog shell so the panel can be rendered and asserted on
 // directly. Radix renders nothing but its trigger while the dialog is closed,
 // which would let every "does not offer" test pass against an empty string.
-export function MembersPanel({ boardId, viewerId, isOwner, members, invites }: MembersProps) {
+export function MembersPanel({
+  boardId,
+  boardName,
+  viewerId,
+  isOwner,
+  members,
+  invites,
+}: MembersProps) {
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'member' | 'viewer'>('member');
+  const [handingTo, setHandingTo] = useState<string | null>(null);
+  const [confirmName, setConfirmName] = useState('');
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -84,6 +94,24 @@ export function MembersPanel({ boardId, viewerId, isOwner, members, invites }: M
     });
   }
 
+  function transfer(userId: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await transferOwnership({ boardId, userId, confirmName });
+      if (!result.ok) {
+        setError(
+          result.error === 'NAME_MISMATCH'
+            ? `Type ${boardName} exactly to hand the board over.`
+            : 'The board could not be handed over. Try again.',
+        );
+        return;
+      }
+      setHandingTo(null);
+      setConfirmName('');
+      router.refresh();
+    });
+  }
+
   function revoke(inviteId: string) {
     startTransition(async () => {
       const result = await revokeInvite({ inviteId });
@@ -127,6 +155,13 @@ export function MembersPanel({ boardId, viewerId, isOwner, members, invites }: M
                 </select>
                 <button
                   type="button"
+                  onClick={() => setHandingTo(member.userId)}
+                  className="text-xs font-medium"
+                >
+                  Make owner
+                </button>
+                <button
+                  type="button"
                   onClick={() => remove(member.userId)}
                   className="text-xs font-medium text-time-over"
                 >
@@ -139,6 +174,28 @@ export function MembersPanel({ boardId, viewerId, isOwner, members, invites }: M
           </li>
         ))}
       </ul>
+      {handingTo && (
+        <div className="mt-4 rounded-[var(--radius-control)] border border-line p-3">
+          <p className="text-sm">
+            They become the owner and you become a member. Type <strong>{boardName}</strong> to
+            confirm.
+          </p>
+          <input
+            aria-label="Board name"
+            value={confirmName}
+            onChange={(event) => setConfirmName(event.target.value)}
+            className="mt-2 w-full rounded-[var(--radius-control)] border border-line bg-canvas px-3 py-2 text-[15px]"
+          />
+          <button
+            type="button"
+            onClick={() => transfer(handingTo)}
+            disabled={pending}
+            className="mt-2 rounded-[var(--radius-control)] px-3 py-1.5 text-sm font-medium text-time-over"
+          >
+            Hand over the board
+          </button>
+        </div>
+      )}
       {error && <p className="mt-3 text-sm text-time-over">{error}</p>}
       {isOwner && (
         <>

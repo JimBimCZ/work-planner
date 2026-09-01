@@ -9,6 +9,7 @@ vi.mock('@/lib/actions/members', () => ({
   revokeInvite: vi.fn(),
   changeRole: vi.fn(),
   removeMember: vi.fn(),
+  transferOwnership: vi.fn(),
 }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
@@ -98,5 +99,15 @@ describe('MembersPanel role controls', () => {
     const html = render();
     expect(html).not.toContain('aria-label="Role for Grace"');
     expect(html).not.toMatch(/remove/i);
+  });
+});
+
+describe('MembersPanel transfer', () => {
+  test('offers the owner a way to hand the board to a member', () => {
+    expect(render({ viewerId: 'u1', isOwner: true })).toMatch(/make owner/i);
+  });
+
+  test('offers a non-owner nothing of the kind', () => {
+    expect(render()).not.toMatch(/make owner/i);
   });
 });
