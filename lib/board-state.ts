@@ -2,6 +2,7 @@ import { toDateInputValue } from '@/lib/due';
 // import type, not import: lib/boards imports lib/db, which builds a pg pool
 // at module scope, and this module is in the client bundle.
 import type { BoardWithCards } from '@/lib/boards';
+import type { BoardLabel } from '@/lib/labels';
 
 export type StateCard = {
   id: string;
@@ -10,17 +11,19 @@ export type StateCard = {
   rank: string;
   createdAt: string;
   dueDate: string | null;
+  labelIds: string[];
   pending?: boolean;
 };
 
 export type StateColumn = { id: string; name: string; rank: string; pending?: boolean };
 
-export type BoardState = { columns: StateColumn[]; cards: StateCard[] };
+export type BoardState = { columns: StateColumn[]; cards: StateCard[]; labels: BoardLabel[] };
 
 // The initial render and a reconnect's catch-up build the same shape from the
 // same code, so the two can never disagree about dates or ordering.
 export function toBoardState(board: BoardWithCards): BoardState {
   return {
+    labels: board.labels,
     columns: board.columns.map(({ id, name, rank }) => ({ id, name, rank })),
     cards: board.columns.flatMap((column) =>
       column.cards.map((card) => ({
@@ -30,6 +33,7 @@ export function toBoardState(board: BoardWithCards): BoardState {
         rank: card.rank,
         createdAt: card.createdAt.toISOString(),
         dueDate: card.dueDate ? toDateInputValue(card.dueDate) : null,
+        labelIds: card.cardLabels.map((assignment) => assignment.labelId),
       })),
     ),
   };
@@ -142,6 +146,7 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
       const ranks = new Map(action.moves.map((move) => [move.id, move.rank]));
 
       return {
+        ...state,
         columns: state.columns.filter((column) => column.id !== columnId),
         // Membership comes from the column, the new rank from the card's id. A
         // card in the column that the moves do not name is one the sender had

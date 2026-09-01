@@ -1053,7 +1053,7 @@ The board carries labels and the card modal edits them. No filtering yet. Branch
 - Produces: `StateCard` gains `labelIds: string[]`; `BoardState` gains `labels: BoardLabel[]`; `BoardCardRow` gains `cardLabels: { labelId: string }[]`; `BoardWithCards` gains `labels: BoardLabel[]`.
 - Consumes: `BoardLabel` from `lib/labels.ts` — **`import type`, always**. `lib/board-state.ts` is imported by `'use client'` components and `lib/labels.ts` imports `lib/db`, so a value import here puts the pg pool in the browser bundle and only `pnpm build` says so.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/board-state.test.ts`, beside the existing `toBoardState` tests:
 
@@ -1118,7 +1118,7 @@ test('a card with no labels carries an empty array, never undefined', () => {
 
 The existing `toBoardState` tests in this file will stop compiling, because their fixtures lack `labels` and `cardLabels`. Adding those two keys to each is part of this step — the failures are where you notice, not a surprise.
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/unit.log
@@ -1126,7 +1126,7 @@ pnpm exec vitest run lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?
 
 Expected: FAIL — `labelIds` is `undefined`.
 
-- [ ] **Step 3: Carry them through**
+- [x] **Step 3: Carry them through**
 
 In `lib/boards.ts`, extend the types and the query:
 
@@ -1191,7 +1191,7 @@ and in `toBoardState`, `labels: board.labels` on the state, and on each card:
 
 Everywhere else that builds a `StateCard` — an optimistic `card.create` in `board-canvas.tsx`, and the `card.created` realtime handler — now needs `labelIds: []`. A new card carries no labels, and the field is an empty array rather than optional so nothing downstream has to ask whether it exists.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec vitest run > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1200,7 +1200,7 @@ pnpm typecheck > /tmp/tc.log 2>&1; echo "TYPECHECK=$?"; tail -5 /tmp/tc.log
 
 Expected: both `=0`. Typecheck is what finds every remaining `StateCard` literal.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/boards.ts lib/board-state.ts lib/board-state.test.ts components/board

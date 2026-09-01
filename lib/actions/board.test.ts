@@ -31,6 +31,7 @@ import { readBoard } from './board';
 const BOARD = {
   id: 'b1',
   name: 'Roadmap',
+  labels: [{ id: 'l1', name: 'bug' }],
   columns: [
     {
       id: 'col-1',
@@ -44,6 +45,7 @@ const BOARD = {
           rank: 'b0',
           createdAt: new Date('2026-08-31T10:00:00.000Z'),
           dueDate: new Date('2026-09-10T00:00:00.000Z'),
+          cardLabels: [{ labelId: 'l1' }],
         },
       ],
     },
@@ -97,6 +99,7 @@ test('returns the board in the shape the reducer holds', async () => {
   await expect(readBoard({ boardId: 'b1' })).resolves.toEqual({
     ok: true,
     data: {
+      labels: [{ id: 'l1', name: 'bug' }],
       columns: [{ id: 'col-1', name: 'Ready to Work', rank: 'a0' }],
       cards: [
         {
@@ -106,6 +109,7 @@ test('returns the board in the shape the reducer holds', async () => {
           rank: 'b0',
           createdAt: '2026-08-31T10:00:00.000Z',
           dueDate: '2026-09-10',
+          labelIds: ['l1'],
         },
       ],
     },
