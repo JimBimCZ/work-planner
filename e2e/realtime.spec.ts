@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Browser } from '@playwright/test';
 import {
   boardColumns,
   closeSeedPool,
@@ -152,5 +152,181 @@ test('a board the user cannot read never subscribes', async ({ page, context }) 
   } finally {
     await removeSeededUser(owner.userId);
     await removeSeededUser(outsider.userId);
+  }
+});
+
+// Both pages load after everything is seeded, so nothing below ever reloads
+// the receiving page. A reload would make all of these pass with no realtime
+// at all, which is the one thing they exist to rule out.
+async function twoBrowsers(
+  browser: Browser,
+  seed?: (boardId: string, ownerId: string) => Promise<void>,
+) {
+  const contextA = await browser.newContext();
+  const contextB = await browser.newContext();
+  const alice = await seedSession(contextA);
+  const boardId = await seedBoard(alice.userId, 'Roadmap');
+  const bob = await seedSession(contextB);
+  await seedMember(boardId, bob.userId, 'member');
+  await seed?.(boardId, alice.userId);
+
+  const pageA = await contextA.newPage();
+  const pageB = await contextB.newPage();
+  await pageA.goto(`/boards/${boardId}`);
+  await pageB.goto(`/boards/${boardId}`);
+  for (const page of [pageA, pageB]) {
+    await expect(page.locator('[data-realtime]')).toHaveAttribute('data-realtime', 'subscribed', {
+      timeout: 15_000,
+    });
+  }
+
+  const close = async () => {
+    await pageA.close();
+    await pageB.close();
+    await contextA.close();
+    await contextB.close();
+    await removeSeededUser(alice.userId);
+    await removeSeededUser(bob.userId);
+  };
+
+  return { boardId, alice, bob, pageA, pageB, close };
+}
+
+test('a card added in one browser appears in the other', async ({ browser }) => {
+  const { boardId, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+
+  try {
+    await pageA.getByRole('button', { name: `Add card to ${ready.name}` }).click();
+    await pageA.getByRole('textbox', { name: 'Card title' }).fill('From Alice');
+    await pageA.getByRole('textbox', { name: 'Card title' }).press('Enter');
+
+    await expect(pageB.getByTestId('card-title').filter({ hasText: 'From Alice' })).toBeVisible({
+      timeout: 15_000,
+    });
+  } finally {
+    await close();
+  }
+});
+
+test('a card renamed in one browser is renamed in the other', async ({ browser }) => {
+  let cardId = '';
+  const { pageA, pageB, close } = await twoBrowsers(browser, async (boardId, ownerId) => {
+    const [ready] = await boardColumns(boardId);
+    cardId = await seedCard(ready.id, { boardId, createdById: ownerId, title: 'Ship it' });
+  });
+
+  try {
+    await pageA.getByRole('button', { name: 'Card actions for Ship it' }).click();
+    await pageA.getByRole('menuitem', { name: 'Rename' }).click();
+    await pageA.getByRole('textbox', { name: 'Card title' }).fill('Shipped');
+    await pageA.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(pageB.locator(`[data-card-id="${cardId}"] [data-testid="card-title"]`)).toHaveText(
+      'Shipped',
+      { timeout: 15_000 },
+    );
+  } finally {
+    await close();
+  }
+});
+
+test('a card deleted in one browser disappears from the other', async ({ browser }) => {
+  let cardId = '';
+  const { pageA, pageB, close } = await twoBrowsers(browser, async (boardId, ownerId) => {
+    const [ready] = await boardColumns(boardId);
+    cardId = await seedCard(ready.id, { boardId, createdById: ownerId, title: 'Ship it' });
+  });
+
+  try {
+    await expect(pageB.locator(`[data-card-id="${cardId}"]`)).toBeVisible();
+
+    await pageA.getByRole('button', { name: 'Card actions for Ship it' }).click();
+    await pageA.getByRole('menuitem', { name: 'Delete' }).click();
+    await pageA.getByRole('button', { name: 'Delete card' }).click();
+
+    await expect(pageB.locator(`[data-card-id="${cardId}"]`)).toHaveCount(0, { timeout: 15_000 });
+  } finally {
+    await close();
+  }
+});
+
+test('a column added in one browser appears in the other', async ({ browser }) => {
+  const { boardId, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+
+  try {
+    await expect(pageB.locator('[data-column-id]')).toHaveCount(5);
+
+    await pageA.getByRole('button', { name: `Column actions for ${ready.name}` }).click();
+    await pageA.getByRole('menuitem', { name: 'Add column right' }).click();
+    await pageA.getByRole('textbox', { name: 'Column name' }).fill('Blocked');
+    await pageA.getByRole('button', { name: 'Add column' }).click();
+
+    await expect(pageB.locator('[data-column-id]')).toHaveCount(6, { timeout: 15_000 });
+    await expect(pageB.getByTestId('column-name').filter({ hasText: 'Blocked' })).toBeVisible();
+  } finally {
+    await close();
+  }
+});
+
+test('a column renamed in one browser is renamed in the other', async ({ browser }) => {
+  const { boardId, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+
+  try {
+    await pageA.getByRole('button', { name: `Column actions for ${ready.name}` }).click();
+    await pageA.getByRole('menuitem', { name: 'Rename' }).click();
+    await pageA.getByRole('textbox', { name: 'Column name' }).fill('Backlog');
+    await pageA.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(
+      pageB.locator(`[data-column-id="${ready.id}"]`).getByTestId('column-name'),
+    ).toHaveText('Backlog', { timeout: 15_000 });
+  } finally {
+    await close();
+  }
+});
+
+test('a column moved in one browser moves in the other', async ({ browser }) => {
+  const { boardId, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready, inProgress] = await boardColumns(boardId);
+
+  try {
+    await pageA.getByRole('button', { name: `Column actions for ${ready.name}` }).click();
+    await pageA.getByRole('menuitem', { name: 'Move right' }).click();
+
+    await expect(pageB.locator('[data-column-id]').first()).toHaveAttribute(
+      'data-column-id',
+      inProgress.id,
+      { timeout: 15_000 },
+    );
+  } finally {
+    await close();
+  }
+});
+
+// The cards do not vanish with the column; they move. Asserting the count on
+// the target column is what distinguishes "applied" from "dropped".
+test('a column deleted in one browser moves its cards in the other', async ({ browser }) => {
+  let cardId = '';
+  const { boardId, pageA, pageB, close } = await twoBrowsers(browser, async (id, ownerId) => {
+    const [ready] = await boardColumns(id);
+    cardId = await seedCard(ready.id, { boardId: id, createdById: ownerId, title: 'Ship it' });
+  });
+  const [ready, inProgress] = await boardColumns(boardId);
+
+  try {
+    await pageA.getByRole('button', { name: `Column actions for ${ready.name}` }).click();
+    await pageA.getByRole('menuitem', { name: 'Delete…' }).click();
+    await pageA.getByLabel('Move its cards to').selectOption(inProgress.id);
+    await pageA.getByRole('button', { name: 'Delete column' }).click();
+
+    await expect(
+      pageB.locator(`[data-column-id="${inProgress.id}"] [data-card-id="${cardId}"]`),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(pageB.locator(`[data-column-id="${ready.id}"]`)).toHaveCount(0);
+  } finally {
+    await close();
   }
 });

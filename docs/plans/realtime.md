@@ -1937,7 +1937,7 @@ git commit -m "feat: give the reducer one card patch action"
 - Consumes: `type BoardEvent` from `lib/events.ts`, `useRealtime` from `components/board/realtime.tsx`.
 - Produces: nothing new; the board simply converges.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/realtime.spec.ts`. A helper keeps the two-context setup from being written five times:
 
@@ -2087,12 +2087,12 @@ test('a column deleted in one browser moves its cards in the other', async ({ br
 
 **Every selector above must be checked against the real components** — `components/board/add-card.tsx`, `card-menu.tsx`, `column-menu.tsx` and `delete-column-dialog.tsx` — and corrected to match. If a name differs, the test is wrong, not the component.
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `pnpm exec playwright test realtime --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -30 /tmp/e2e.log`
 Expected: FAIL — B never converges, because only `card.moved` has a consumer.
 
-- [ ] **Step 3: Apply every event on the canvas**
+- [x] **Step 3: Apply every event on the canvas**
 
 Replace the single-event subscription from Section 1, Task 4 with the full handler:
 
@@ -2169,12 +2169,12 @@ Replace the single-event subscription from Section 1, Task 4 with the full handl
 
 Confirm against `lib/board-state.ts` that `column.delete`'s `ranks` is the list of new ranks for the moving cards in the order the reducer expects. If the reducer needs the cards themselves rather than bare ranks, pass `event.cards` and adjust — read the reducer, do not guess.
 
-- [ ] **Step 4: Run them and watch them pass**
+- [x] **Step 4: Run them and watch them pass**
 
 Run: `pnpm exec playwright test realtime --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/e2e.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Run everything**
+- [x] **Step 5: Run everything**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TC=$?"
@@ -2184,7 +2184,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "E2E=$?"; tail -3 /tmp/e2e.log
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/board/board-canvas.tsx e2e/realtime.spec.ts

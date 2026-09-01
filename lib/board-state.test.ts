@@ -152,7 +152,13 @@ describe('column actions', () => {
 
   test('delete moves the cards to the target and drops the column', () => {
     const next = boardReducer(base(), {
-      type: 'column.delete', columnId: 'col-1', targetColumnId: 'col-2', ranks: ['e0', 'e1'],
+      type: 'column.delete',
+      columnId: 'col-1',
+      targetColumnId: 'col-2',
+      moves: [
+        { id: 'card-a', rank: 'e0' },
+        { id: 'card-b', rank: 'e1' },
+      ],
     });
 
     expect(next.columns.map((c) => c.id)).toEqual(['col-2']);
@@ -162,9 +168,40 @@ describe('column actions', () => {
     ]);
   });
 
+  // Positional matching would slide the ranks onto the wrong cards whenever
+  // this client's view of the column differs from the sender's — a card still
+  // pending being the obvious case.
+  test('delete places each card by id, not by position', () => {
+    const withPending = boardReducer(base(), {
+      type: 'card.create',
+      card: {
+        id: 'tmp-1', columnId: 'col-1', title: 'Pending', rank: 'b00',
+        createdAt: '2026-01-03', dueDate: null, pending: true,
+      },
+    });
+
+    const next = boardReducer(withPending, {
+      type: 'column.delete',
+      columnId: 'col-1',
+      targetColumnId: 'col-2',
+      moves: [
+        { id: 'card-a', rank: 'e0' },
+        { id: 'card-b', rank: 'e1' },
+      ],
+    });
+
+    // The pending card is not in the moves — the sender has never seen it — so
+    // it travels on its own rank rather than borrowing card-b's.
+    expect(cardsIn(next, 'col-2').map((c) => [c.id, c.rank])).toEqual([
+      ['tmp-1', 'b00'],
+      ['card-a', 'e0'],
+      ['card-b', 'e1'],
+    ]);
+  });
+
   test('delete with no target drops an empty column', () => {
     const next = boardReducer(base(), {
-      type: 'column.delete', columnId: 'col-2', targetColumnId: null, ranks: [],
+      type: 'column.delete', columnId: 'col-2', targetColumnId: null, moves: [],
     });
     expect(next.columns.map((c) => c.id)).toEqual(['col-1']);
   });
@@ -205,13 +242,16 @@ describe('inverses', () => {
   });
 
   test('undo a column delete by restoring it and every card in it', () => {
-    // Annotated rather than `as const`: `as const` makes `ranks` a readonly
-    // tuple, which BoardAction's mutable string[] does not accept.
+    // Annotated rather than `as const`: `as const` makes `moves` readonly,
+    // which BoardAction's mutable array does not accept.
     const action: BoardAction = {
       type: 'column.delete',
       columnId: 'col-1',
       targetColumnId: 'col-2',
-      ranks: ['e0', 'e1'],
+      moves: [
+        { id: 'card-a', rank: 'e0' },
+        { id: 'card-b', rank: 'e1' },
+      ],
     };
     restoresTheBoard(action);
   });

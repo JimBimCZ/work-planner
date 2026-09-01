@@ -22,7 +22,16 @@ export type BoardAction =
   | { type: 'column.create'; column: StateColumn }
   | { type: 'column.rename'; columnId: string; name: string }
   | { type: 'column.move'; columnId: string; rank: string }
-  | { type: 'column.delete'; columnId: string; targetColumnId: string | null; ranks: string[] }
+  | {
+      type: 'column.delete';
+      columnId: string;
+      targetColumnId: string | null;
+      // Keyed by card id rather than by position: a remote delete carries the
+      // ranks the server assigned, and this client's own list of that column
+      // can differ from the server's — a card still pending, say — which would
+      // slide every rank onto the wrong card.
+      moves: { id: string; rank: string }[];
+    }
   | { type: 'column.settle'; tempId: string; id: string; rank: string };
 
 const byRank = <T extends { rank: string; id: string }>(a: T, b: T) =>
@@ -105,14 +114,18 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
       };
 
     case 'column.delete': {
-      const moving = cardsIn(state, action.columnId);
-      const ranks = new Map(moving.map((card, position) => [card.id, action.ranks[position]]));
+      const { columnId, targetColumnId } = action;
+      const ranks = new Map(action.moves.map((move) => [move.id, move.rank]));
 
       return {
-        columns: state.columns.filter((column) => column.id !== action.columnId),
+        columns: state.columns.filter((column) => column.id !== columnId),
+        // Membership comes from the column, the new rank from the card's id. A
+        // card in the column that the moves do not name is one the sender had
+        // never heard of — a create still in flight — so it travels too, keeping
+        // the rank it has rather than being left on a column that is now gone.
         cards: state.cards.map((card) =>
-          ranks.has(card.id) && action.targetColumnId
-            ? { ...card, columnId: action.targetColumnId, rank: ranks.get(card.id) ?? card.rank }
+          card.columnId === columnId && targetColumnId
+            ? { ...card, columnId: targetColumnId, rank: ranks.get(card.id) ?? card.rank }
             : card,
         ),
       };
@@ -170,7 +183,7 @@ export function inverse(state: BoardState, action: BoardAction): BoardAction[] {
 
     case 'column.create':
       return [
-        { type: 'column.delete', columnId: action.column.id, targetColumnId: null, ranks: [] },
+        { type: 'column.delete', columnId: action.column.id, targetColumnId: null, moves: [] },
       ];
 
     case 'column.rename': {
