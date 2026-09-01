@@ -413,6 +413,12 @@ What that constrains:
 - No in-memory state between requests — no module-level caches, no per-process job queues, no open sockets held across invocations. The pooled db client in `lib/db/index.ts` is the single deliberate exception: it's a connection pool reused within a warm instance, not state, and it must hold no request-scoped data.
 - Migrations do **not** run at boot, and never from `instrumentation.ts` or a route handler. CI runs `pnpm db:migrate` against its own throwaway Postgres on every pull request, which proves the migration applies to an empty database — it does not gate production. **Production is migrated by hand:** Vercel deploys straight from a push to `main`, so CI can race that promotion but cannot block it. Run `pnpm db:migrate` against production yourself when a migration lands.
 - Use Neon's pooled connection string in `DATABASE_URL`; drizzle-kit uses the direct (unpooled) URL via `DATABASE_URL_UNPOOLED`.
+- `vercel.json` pins `regions: ["fra1"]`. Functions defaulted to `iad1` — observed as
+  `x-vercel-id: fra1::iad1::…`, where the first segment is only the edge PoP — which put every read
+  and write of board data in the US while Neon sits in `eu-central-1`. `/privacy` now names Frankfurt
+  as the processing region, so this is a claim in a published legal document, not a latency
+  preference. `app/(legal)/privacy/page.test.tsx` asserts the two agree. Verify a change here with
+  the header on a **function** response (`/api/health`), never a static one.
 - Preview deployments get their own Neon branch. OAuth callback URLs must include the preview domain pattern or sign-in will fail on previews — expect to test auth on a stable preview alias.
 - Local development uses the Neon `dev` branch, never production `main`. The integration scopes its variables to Production and Preview only, so a bare `vercel env pull` finds nothing; `pnpm db:dev-branch` creates the branch and registers it as Development-scoped, and `pnpm env:pull development` refreshes `.env.local` from it.
 - `AUTH_URL`/`AUTH_TRUST_HOST` need care on previews. Set `AUTH_TRUST_HOST=true` and let Auth.js infer the host rather than hardcoding.
