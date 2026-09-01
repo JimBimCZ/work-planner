@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { leaveBoard } from '@/lib/actions/members';
+import { inviteMember, leaveBoard, revokeInvite } from '@/lib/actions/members';
 import { avatarHue, initials } from '@/lib/avatar';
 import type { PendingInvite, VisibleMember } from '@/lib/members';
 
@@ -20,9 +20,11 @@ type MembersProps = {
 // Split from the Dialog shell so the panel can be rendered and asserted on
 // directly. Radix renders nothing but its trigger while the dialog is closed,
 // which would let every "does not offer" test pass against an empty string.
-export function MembersPanel({ boardId, viewerId, isOwner, members }: MembersProps) {
+export function MembersPanel({ boardId, viewerId, isOwner, members, invites }: MembersProps) {
   const [error, setError] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<'member' | 'viewer'>('member');
+  const [pending, startTransition] = useTransition();
   const router = useRouter();
 
   function leave() {
@@ -33,6 +35,35 @@ export function MembersPanel({ boardId, viewerId, isOwner, members }: MembersPro
         return;
       }
       router.push('/boards');
+    });
+  }
+
+  function invite(event: React.FormEvent) {
+    event.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const result = await inviteMember({ boardId, email, role });
+      if (!result.ok) {
+        setError(
+          result.error === 'ALREADY_MEMBER'
+            ? 'They are already on this board.'
+            : 'That invite could not be sent. Check the address and try again.',
+        );
+        return;
+      }
+      setEmail('');
+      router.refresh();
+    });
+  }
+
+  function revoke(inviteId: string) {
+    startTransition(async () => {
+      const result = await revokeInvite({ inviteId });
+      if (!result.ok) {
+        setError('That invite could not be withdrawn. Try again.');
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -58,6 +89,57 @@ export function MembersPanel({ boardId, viewerId, isOwner, members }: MembersPro
         ))}
       </ul>
       {error && <p className="mt-3 text-sm text-time-over">{error}</p>}
+      {isOwner && (
+        <>
+          <form onSubmit={invite} className="mt-5 space-y-2">
+            <label className="block text-sm text-muted" htmlFor="invite-email">
+              Invite by email
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="invite-email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="flex-1 rounded-[var(--radius-control)] border border-line bg-canvas px-3 py-2 text-[15px]"
+              />
+              <select
+                aria-label="Role"
+                value={role}
+                onChange={(event) => setRole(event.target.value === 'viewer' ? 'viewer' : 'member')}
+                className="rounded-[var(--radius-control)] border border-line bg-canvas px-2 text-sm"
+              >
+                <option value="member">Member</option>
+                <option value="viewer">Viewer</option>
+              </select>
+              <button
+                type="submit"
+                disabled={pending}
+                className="rounded-[var(--radius-control)] bg-flow-mid px-3 py-1.5 text-sm font-medium text-white"
+              >
+                Send invite
+              </button>
+            </div>
+          </form>
+          {invites.length > 0 && (
+            <ul className="mt-4 space-y-2 border-t border-line pt-3">
+              {invites.map((invite) => (
+                <li key={invite.id} className="flex items-center gap-3 text-sm">
+                  <span className="flex-1">{invite.email}</span>
+                  <span className="font-mono text-xs text-muted">invited as {invite.role}</span>
+                  <button
+                    type="button"
+                    onClick={() => revoke(invite.id)}
+                    className="text-xs font-medium text-time-over"
+                  >
+                    Revoke
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
       {!isOwner && (
         <button
           type="button"

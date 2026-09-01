@@ -1585,7 +1585,7 @@ git commit -m "feat: show who is on the board, and let a member leave it"
 **Interfaces:**
 - Consumes: `inviteMember`, `revokeInvite` from A3; the `invites: PendingInvite[]` prop from B1.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `components/board/members-dialog.test.tsx`:
 
@@ -1619,7 +1619,7 @@ describe('MembersDialog, as the owner', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1627,7 +1627,7 @@ pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>
 
 Expected: FAIL — no invite field in the markup.
 
-- [ ] **Step 3: Add the owner's invite section**
+- [x] **Step 3: Add the owner's invite section**
 
 In `components/board/members-dialog.tsx`, delete `void invites;`, import `inviteMember` and `revokeInvite` alongside `leaveBoard`, and add state for the form:
 
@@ -1724,7 +1724,7 @@ And the pending list, still inside the owner block:
 
 Delete `void pending;` — the invite button now uses it.
 
-- [ ] **Step 4: Run it to watch it pass**
+- [x] **Step 4: Run it to watch it pass**
 
 ```bash
 pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1732,7 +1732,7 @@ pnpm exec vitest run components/board/members-dialog.test.tsx > /tmp/unit.log 2>
 
 Expected: PASS, 7 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/members-dialog.tsx components/board/members-dialog.test.tsx

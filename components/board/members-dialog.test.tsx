@@ -3,7 +3,11 @@ import { describe, expect, test, vi } from 'vitest';
 
 // The action module reaches next-auth, and through it next/server, which does
 // not resolve under vitest's node environment. These tests assert markup only.
-vi.mock('@/lib/actions/members', () => ({ leaveBoard: vi.fn() }));
+vi.mock('@/lib/actions/members', () => ({
+  leaveBoard: vi.fn(),
+  inviteMember: vi.fn(),
+  revokeInvite: vi.fn(),
+}));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 const { MembersPanel } = await import('./members-dialog');
@@ -43,5 +47,33 @@ describe('MembersPanel', () => {
     // Proves the panel rendered at all, so the absence below means something.
     expect(html).toContain('Ada');
     expect(html).not.toMatch(/leave board/i);
+  });
+});
+
+const invites = [
+  { id: 'i1', email: 'waiting@example.test', role: 'member' as const, createdAt: new Date(0) },
+];
+
+describe('MembersPanel, as the owner', () => {
+  const asOwner = { viewerId: 'u1', isOwner: true, invites };
+
+  test('offers a field to invite an address', () => {
+    const html = render(asOwner);
+    expect(html).toMatch(/invite by email/i);
+    expect(html).toContain('type="email"');
+  });
+
+  test('lists an invite that has not been answered yet', () => {
+    expect(render(asOwner)).toContain('waiting@example.test');
+  });
+
+  test('offers to take a pending invite back', () => {
+    expect(render(asOwner)).toMatch(/revoke/i);
+  });
+
+  test('shows a non-owner none of it', () => {
+    const html = render({ invites });
+    expect(html).not.toMatch(/invite by email/i);
+    expect(html).not.toContain('waiting@example.test');
   });
 });
