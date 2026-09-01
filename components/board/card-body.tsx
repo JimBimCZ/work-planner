@@ -1,9 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import {
   type Dispatch,
   type KeyboardEvent,
   type SetStateAction,
+  useEffect,
   useState,
   useTransition,
 } from 'react';
@@ -13,7 +15,12 @@ import { CardComments } from '@/components/board/card-comments';
 import { CardDueDate } from '@/components/board/card-due-date';
 import { useCardEscapeGuard } from '@/components/board/card-modal';
 import { useRealtime } from '@/components/board/realtime';
-import { renameCard, setCardDescription, setCardDueDate } from '@/lib/actions/cards';
+import {
+  readCardDescription,
+  renameCard,
+  setCardDescription,
+  setCardDueDate,
+} from '@/lib/actions/cards';
 import type { CardForView, Viewer } from '@/lib/cards';
 import { toDateInputValue } from '@/lib/due';
 
@@ -29,7 +36,7 @@ export function CardBody({
   showHeading?: boolean;
 }) {
   const { patchCard } = useBoardActions();
-  const { claim } = useRealtime();
+  const { claim, subscribe } = useRealtime();
   const [title, setTitle] = useState(card.title);
   const [savedTitle, setSavedTitle] = useState(card.title);
   const [description, setDescription] = useState(card.description ?? '');
@@ -49,7 +56,55 @@ export function CardBody({
     setDraftDueDate(dueDate ?? '');
   }
   const [error, setError] = useState<string | null>(null);
+  const [deleted, setDeleted] = useState(false);
   const [, startTransition] = useTransition();
+
+  // A field is dirty when its draft differs from the value last committed. A
+  // remote value lands in any field that is not dirty and is dropped for one
+  // that is: the reader keeps their text, and their own commit then wins under
+  // last-write-wins exactly as it would have. This is a rule about focus, not
+  // text merging.
+  useEffect(
+    () =>
+      subscribe((event) => {
+        if (event.type === 'card.deleted' && event.id === card.id) {
+          setDeleted(true);
+          return;
+        }
+        if (event.type !== 'card.updated' || event.id !== card.id) return;
+
+        if (title === savedTitle) {
+          setTitle(event.title);
+          setSavedTitle(event.title);
+        }
+
+        const remoteDue = event.dueDate;
+        if (draftDueDate === (dueDate ?? '')) {
+          setDueDate(remoteDue);
+          setDraftDueDate(remoteDue ?? '');
+          setLastDueDate(remoteDue);
+        }
+
+        if (event.descriptionChanged && description === savedDescription) {
+          void readCardDescription({ cardId: card.id }).then((result) => {
+            if (!result.ok) return;
+            const next = result.data.description ?? '';
+            setDescription(next);
+            setSavedDescription(next);
+          });
+        }
+      }),
+    [
+      subscribe,
+      card.id,
+      title,
+      savedTitle,
+      description,
+      savedDescription,
+      draftDueDate,
+      dueDate,
+    ],
+  );
 
   useCardEscapeGuard(
     () =>
@@ -161,6 +216,22 @@ export function CardBody({
       errorMessage: 'That description could not be saved. Try again.',
     });
   };
+
+  // Ahead of both returns below: the modal could close itself, but the
+  // canonical page is a route and cannot, so both surfaces say it instead.
+  if (deleted) {
+    return (
+      <article className="flex flex-col gap-4">
+        <p className="text-[15px] leading-6 text-ink">This card was deleted.</p>
+        <Link
+          href={`/boards/${card.boardId}`}
+          className="self-start text-sm text-muted hover:text-ink"
+        >
+          Back to the board
+        </Link>
+      </article>
+    );
+  }
 
   if (!canWrite) {
     return (
