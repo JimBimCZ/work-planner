@@ -235,10 +235,24 @@ git commit -m "feat: add labels and card_labels, folded on name"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `lib/labels.test.ts`. The db is mocked the way `lib/members.test.ts` mocks it — this asserts the query's shape and ordering, not Postgres:
+Create `lib/labels.test.ts`. The db is mocked the way `lib/members.test.ts` mocks it — this asserts the query's shape and ordering, not Postgres. The `where` and `orderBy` tests invoke the captured callbacks with stub column identifiers and stub operators, so a regression that drops the board scope or the case-fold fails the test rather than merely failing to be checked:
 
 ```ts
 import { beforeEach, expect, test, vi } from 'vitest';
+
+type EqCall = ['eq', unknown, unknown];
+type AscCall = ['asc', unknown];
+type SqlExpr = { strings: readonly string[]; values: unknown[] };
+type WhereHelpers = { eq: (column: unknown, value: unknown) => EqCall };
+type OrderHelpers = {
+  asc: (expr: unknown) => AscCall;
+  sql: (strings: TemplateStringsArray, ...values: unknown[]) => SqlExpr;
+};
+type Config = {
+  columns: Record<string, boolean>;
+  where: (cols: Record<string, string>, helpers: WhereHelpers) => unknown;
+  orderBy: (cols: Record<string, string>, helpers: OrderHelpers) => unknown[];
+};
 
 const findMany = vi.fn();
 vi.mock('@/lib/db', () => ({
@@ -246,6 +260,10 @@ vi.mock('@/lib/db', () => ({
 }));
 
 const { LABELS_PER_BOARD, LABEL_NAME_MAX, boardLabels } = await import('./labels');
+
+// Stub column identifiers, the same role `table` plays in members.test.ts:
+// the callback under test only needs to see *some* value per column name.
+const cols = { boardId: 'boardId', name: 'name' };
 
 beforeEach(() => {
   findMany.mockReset();
@@ -260,9 +278,31 @@ test('the caps are the numbers the payload maths depends on', () => {
 
 test('reads only this board, and only id and name', async () => {
   await boardLabels('board-1');
-  const [args] = findMany.mock.calls[0] as [{ columns: Record<string, boolean> }];
+  const [args] = findMany.mock.calls[0] as [Config];
   expect(args.columns).toEqual({ id: true, name: true });
   expect(findMany).toHaveBeenCalledTimes(1);
+
+  const eq = vi.fn((column: unknown, value: unknown): EqCall => ['eq', column, value]);
+  const clause = args.where(cols, { eq });
+  expect(eq).toHaveBeenCalledWith('boardId', 'board-1');
+  expect(clause).toEqual(['eq', 'boardId', 'board-1']);
+});
+
+test('orders case-folded by name, not the bare column', async () => {
+  await boardLabels('board-1');
+  const [args] = findMany.mock.calls[0] as [Config];
+
+  const asc = vi.fn((expr: unknown): AscCall => ['asc', expr]);
+  const sql = vi.fn(
+    (strings: TemplateStringsArray, ...values: unknown[]): SqlExpr => ({
+      strings: [...strings],
+      values,
+    }),
+  );
+  const [orderExpr] = args.orderBy(cols, { asc, sql });
+
+  expect(sql).toHaveBeenCalledTimes(1);
+  expect(orderExpr).toEqual(['asc', { strings: ['lower(', ')'], values: ['name'] }]);
 });
 
 test('hands back what the query returned, unchanged', async () => {
@@ -318,7 +358,7 @@ Ordering folds case for the same reason the unique index does: `Bug` must sit be
 pnpm exec vitest run lib/labels.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
 ```
 
-Expected: PASS, 3 tests.
+Expected: PASS, 4 tests.
 
 - [ ] **Step 5: Commit**
 
