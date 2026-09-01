@@ -1310,7 +1310,7 @@ git merge-base --is-ancestor origin/feat/members-actions origin/main && echo "ba
   }): Promise<React.ReactElement>;
   ```
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `lib/members.test.ts`:
 
@@ -1389,7 +1389,7 @@ describe('MembersDialog', () => {
 });
 ```
 
-- [ ] **Step 2: Run them to watch them fail**
+- [x] **Step 2: Run them to watch them fail**
 
 ```bash
 pnpm exec vitest run lib/members.test.ts components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/unit.log
@@ -1397,7 +1397,7 @@ pnpm exec vitest run lib/members.test.ts components/board/members-dialog.test.ts
 
 Expected: FAIL — `visibleMembers is not a function`, and the dialog module does not resolve.
 
-- [ ] **Step 3: Write the helper, the dialog and the button**
+- [x] **Step 3: Write the helper, the dialog and the button**
 
 In `lib/members.ts`:
 
@@ -1561,7 +1561,7 @@ actions={
 
 `NewCardButton` is today's only `actions` child and it sits inside `atLeast(role, 'member')`. Adding the members control inside that same conditional would hide it from viewers — the people most likely to want out of a board.
 
-- [ ] **Step 4: Run the tests and the bundler**
+- [x] **Step 4: Run the tests and the bundler**
 
 ```bash
 pnpm exec vitest run lib/members.test.ts components/board/members-dialog.test.tsx > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -1570,7 +1570,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"; tail -5 /tmp/build.log
 
 Expected: both `=0`. **The build is not optional here.** `members-dialog.tsx` is a client component importing from `@/lib/members`; a value import from `@/lib/permissions` or `@/lib/events` anywhere in that file's graph pulls the pg pool or the Pusher SDK into the browser bundle, and typecheck, lint and unit tests all pass on that mistake. `import type` is erased and is safe.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/members.ts lib/members.test.ts components/board/members-button.tsx components/board/members-dialog.tsx components/board/members-dialog.test.tsx "app/(app)/(board)/boards/[boardId]/layout.tsx"

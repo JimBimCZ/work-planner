@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import { TopBar } from '@/components/app/top-bar';
 import { BoardActionsProvider } from '@/components/board/board-actions';
+import { MembersButton } from '@/components/board/members-button';
 import { NewCardButton } from '@/components/board/new-card-button';
 import { RealtimeProvider } from '@/components/board/realtime';
 import { auth } from '@/lib/auth';
@@ -42,7 +43,17 @@ export default async function BoardTitleLayout({
         <div className="flex h-screen flex-col overflow-hidden">
           <TopBar
             title={board.name}
-            actions={atLeast(role, 'member') ? <NewCardButton /> : null}
+            actions={
+              <>
+                <MembersButton
+                  boardId={boardId}
+                  boardName={board.name}
+                  viewerId={session.user.id}
+                  role={role}
+                />
+                {atLeast(role, 'member') ? <NewCardButton /> : null}
+              </>
+            }
             userId={session.user.id}
             name={session.user.name ?? null}
             email={session.user.email ?? ''}
