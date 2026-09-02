@@ -97,7 +97,10 @@ describe('the attachment count', () => {
   // board except a due date. The count is muted mono, like every other meta.
   test('the count carries no colour of its own', () => {
     const html = render({ card: { ...card, attachmentCount: 3 } });
-    const line = html.slice(html.indexOf('data-testid="card-attachments"'));
+    // Bounded to this element: slicing to the end of the string would drag in
+    // CardMenu's markup and fail for something that is not this line's doing.
+    const start = html.indexOf('data-testid="card-attachments"');
+    const line = html.slice(start, html.indexOf('</p>', start));
     expect(line).toContain('text-muted');
     expect(line).not.toContain('text-time-');
   });

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { cards } from '@/lib/db/schema';
+import { attachments, cards } from '@/lib/db/schema';
 
 let boardRow: unknown;
 const findFirst = vi.fn(async (config: unknown) => {
@@ -14,6 +14,15 @@ const { getBoardWithColumns } = await import('./boards');
 type CardsRelationConfig = {
   columns: Record<string, boolean>;
   orderBy: (card: typeof cards, helpers: { asc: (column: unknown) => unknown }) => unknown[];
+  with: {
+    attachments: {
+      columns: Record<string, boolean>;
+      where: (
+        row: typeof attachments,
+        helpers: { eq: (column: unknown, value: unknown) => unknown },
+      ) => unknown;
+    };
+  };
 };
 
 type FindFirstConfig = { with: { columns: { with: { cards: CardsRelationConfig } } } };
@@ -71,6 +80,31 @@ describe('getBoardWithColumns', () => {
       rank: true,
       createdAt: true,
       dueDate: true,
+    });
+  });
+
+  test("asks for each card's attachment ids and nothing else", async () => {
+    // The card face shows a count. Pulling filenames onto every card of a
+    // board would be paying for data nothing renders.
+    await getBoardWithColumns('shape-check');
+
+    const config = findFirst.mock.calls[0][0] as FindFirstConfig;
+
+    expect(config.with.columns.with.cards.with.attachments.columns).toEqual({ id: true });
+  });
+
+  test('counts only ready attachments, never pending ones', async () => {
+    // The one line in this query that can be quietly wrong: a where that does
+    // not apply would raise a count on every other member's screen for an
+    // upload that may never land.
+    await getBoardWithColumns('shape-check');
+
+    const config = findFirst.mock.calls[0][0] as FindFirstConfig;
+    const eq = vi.fn((column: unknown, value: unknown) => ({ column, value }));
+
+    expect(config.with.columns.with.cards.with.attachments.where(attachments, { eq })).toEqual({
+      column: attachments.status,
+      value: 'ready',
     });
   });
 

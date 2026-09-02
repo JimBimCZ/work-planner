@@ -59,8 +59,9 @@ function LabelLine({ ids, labels }: { ids: string[]; labels: BoardLabel[] }) {
 function AttachmentCount({ count }: { count: number }) {
   if (count === 0) return null;
 
-  // Mono and muted, in the meta line beside the due date: CLAUDE.md gives data
-  // its own family and spends warm hues only on time and destructive actions.
+  // Its own line under the due date and the labels, the way those two stack.
+  // Mono and muted: CLAUDE.md gives data its own family and spends warm hues
+  // only on time and destructive actions.
   return (
     <p
       data-testid="card-attachments"

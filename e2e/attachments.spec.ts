@@ -22,7 +22,7 @@ const PIXEL_PNG = Buffer.from(
   'base64',
 );
 
-test('a stale pending row stops counting, a fresh one still does', async ({ context }) => {
+test('a stale pending row stops counting, a fresh one still does', async ({ page, context }) => {
   const { userId } = await seedSession(context);
   const boardId = await seedBoard(userId, 'Usage sums');
   const [first] = await boardColumns(boardId);
@@ -49,6 +49,13 @@ test('a stale pending row stops counting, a fresh one still does', async ({ cont
     );
     // ready + fresh pending, and emphatically not the stale one.
     expect(Number(rows[0].total)).toBe(1200);
+
+    // The same three rows seen from the board: one ready, two pending. The
+    // card face must count the ready one alone — a pending upload may never
+    // land, and must not raise a count on anybody's screen. This is the only
+    // check of that filter against real SQL rather than a query-config object.
+    await page.goto(`/boards/${boardId}`);
+    await expect(page.getByTestId('card-attachments')).toHaveText('1');
   } finally {
     await pool.end();
     await removeSeededUser(userId);
@@ -162,7 +169,7 @@ test.describe('an attachment that arrives while the board is open', () => {
     const boardId = await seedBoard(owner.userId, 'Live files');
     await seedMember(boardId, member.userId, 'member');
     const [first] = await boardColumns(boardId);
-    const cardId = await seedCard(first.id, { boardId, createdById: owner.userId });
+    await seedCard(first.id, { boardId, createdById: owner.userId, title: 'Carries a file' });
 
     try {
       // The watcher never reloads, so a pass cannot come from anything but the
@@ -172,8 +179,15 @@ test.describe('an attachment that arrives while the board is open', () => {
       await subscribed(watcher);
       await expect(watcher.getByTestId('card-attachments')).toHaveCount(0);
 
+      // The actor opens the card from the board rather than loading its URL
+      // cold, so the intercepted modal renders over their own board and their
+      // own card face is on screen behind it. That is what lets the last
+      // assertion in this test see it.
       const actor = await ownerContext.newPage();
-      await actor.goto(`/boards/${boardId}/cards/${cardId}`);
+      await actor.goto(`/boards/${boardId}`);
+      await subscribed(actor);
+      await actor.getByTestId('card-title').filter({ hasText: 'Carries a file' }).click();
+
       await actor
         .getByLabel('Add file')
         .setInputFiles({ name: 'live.png', mimeType: 'image/png', buffer: PIXEL_PNG });
@@ -181,10 +195,18 @@ test.describe('an attachment that arrives while the board is open', () => {
 
       await expect(watcher.getByTestId('card-attachments')).toHaveText('1', { timeout: 15_000 });
 
+      // The uploader's own card face, behind their own modal. It moves only
+      // because CardAttachments deliberately does not claim its mutationId, so
+      // the provider delivers this client its own attachment.added rather than
+      // swallowing it as an echo — see the comment at that line. Switching it
+      // to claim() must fail here rather than freeze the count silently.
+      await expect(actor.getByTestId('card-attachments')).toHaveText('1', { timeout: 15_000 });
+
       await actor.getByRole('button', { name: 'Delete live.png' }).click();
       await expect(actor.getByRole('img', { name: 'live.png' })).toHaveCount(0);
 
       await expect(watcher.getByTestId('card-attachments')).toHaveCount(0, { timeout: 15_000 });
+      await expect(actor.getByTestId('card-attachments')).toHaveCount(0, { timeout: 15_000 });
     } finally {
       await ownerContext.close();
       await memberContext.close();

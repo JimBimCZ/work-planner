@@ -107,8 +107,17 @@ export function CardAttachments({
       return;
     }
 
-    // Generated here rather than via useRealtime().claim(): this component
-    // also renders standalone in tests, outside a RealtimeProvider.
+    // Generated here rather than via useRealtime().claim(), and that is
+    // load-bearing rather than incidental. Claiming an id would make the
+    // provider swallow this client's own attachment.added as an echo — and the
+    // echo is the only thing that moves the count on the uploader's own card
+    // face, because this component writes into the modal's local state and
+    // board-actions.tsx carries no attachment bridge to the canvas reducer.
+    // So attachments are the documented exception to CLAUDE.md's "client
+    // ignores events it caused itself"; e2e/attachments.spec.ts asserts the
+    // actor's own count, so switching to claim() fails a test rather than
+    // silently freezing the uploader's card face. It also lets this component
+    // render standalone in tests, outside a RealtimeProvider.
     const mutationId = crypto.randomUUID();
     setPending((current) => ({ ...current, [mutationId]: { filename: file.name, progress: 0 } }));
 
