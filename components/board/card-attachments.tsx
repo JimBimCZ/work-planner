@@ -26,7 +26,8 @@ const REFUSALS: Record<string, string> = {
   NOT_FOUND: 'That card no longer exists.',
   INVALID: 'That file could not be attached. Check the name and try again.',
   UNAUTHENTICATED: 'Sign in again to attach a file.',
-  // Neither the request/confirm actions nor a dropped connection: see lib/attempt.ts.
+  // A request/confirm call that never reached the server, or whose response
+  // never came back: lib/attempt.ts turns that rejection into this code.
   UNREACHABLE: 'Could not reach the server. Try again.',
 };
 // Any code the actions module adds later still reads in the same voice
@@ -245,7 +246,7 @@ export function CardAttachments({
                     type="button"
                     aria-label={`Delete ${file.filename}`}
                     onClick={() => deleteFile(file.id)}
-                    className="shrink-0 rounded-[var(--radius-control)] px-2 py-1 text-xs font-medium text-time-over hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flow-mid focus-visible:ring-offset-2"
+                    className="shrink-0 rounded-[var(--radius-control)] px-2 py-1 text-xs font-medium text-time-over hover:underline"
                   >
                     Delete
                   </button>
@@ -272,7 +273,12 @@ export function CardAttachments({
           <p>Drop a file here, or</p>
           <label
             htmlFor={fileInputId}
-            className="cursor-pointer rounded-[var(--radius-control)] border border-line px-3 py-1.5 text-sm font-medium text-ink hover:border-flow-mid focus-within:outline-none focus-within:ring-2 focus-within:ring-flow-mid focus-within:ring-offset-2"
+            // The input itself is sr-only, so its own :focus-visible outline
+            // is clipped; this repeats the global rule's exact outline/offset
+            // on the label instead of the ring/ring-offset shorthand, which
+            // pulls in Tailwind's white default ring-offset color and draws a
+            // halo on the dark surface.
+            className="cursor-pointer rounded-[var(--radius-control)] border border-line px-3 py-1.5 text-sm font-medium text-ink hover:border-flow-mid focus-within:outline focus-within:outline-2 focus-within:outline-flow-mid focus-within:outline-offset-2"
           >
             Add file
             <input
