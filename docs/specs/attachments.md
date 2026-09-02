@@ -524,7 +524,16 @@ that did not actually check it.
       and that `drizzle.__drizzle_migrations` holds seven rows against the
       seven files in `lib/db/migrations/`.
 - [ ] `docker compose up --build` gives a working board with working
-      attachments against MinIO — no Cloudflare credentials present.
+      attachments against MinIO — no Cloudflare credentials present. Partly
+      observed on 2026-09-02: the image builds, `work-planner-app-1` reaches
+      `healthy`, `/api/health` answers `200 {"ok":true}`, `/signin` answers
+      `200`, and the container's environment carries all five `S3_*` variables
+      pointing at `http://minio:9000` with no Cloudflare credentials anywhere.
+      Left open because nobody signed in: driving a real upload through the
+      compose stack needs an OAuth session, and `playwright.config.ts` sets
+      `reuseExistingServer: false`, so the suite cannot be pointed at it
+      without editing that config. What is unproven is the upload round trip
+      against the compose MinIO, not the wiring.
 - [x] With the five `S3_*` variables unset, the board still loads and shows no
       attachment surface. Observed: with the `S3_*` lines removed from
       `.env.local` (they come from there, not the shell, so `env -u` would
