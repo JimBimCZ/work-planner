@@ -24,9 +24,21 @@ describe('privacy policy', () => {
 
   test('names every sub-processor the app actually uses', () => {
     const markup = html();
-    for (const processor of ['Vercel', 'Neon', 'Pusher', 'Google', 'GitHub']) {
+    for (const processor of ['Vercel', 'Neon', 'Pusher', 'Cloudflare R2', 'Google', 'GitHub']) {
       expect(markup).toContain(processor);
     }
+  });
+
+  test('the policy names the attachment store and its region', () => {
+    // CLAUDE.md: if a claim in the policy and the behaviour of the code
+    // disagree, one of them is the bug. This is the assertion that notices.
+    const markup = html();
+    expect(markup).toContain('Cloudflare R2');
+    expect(markup).toMatch(/EU — jurisdiction-restricted/);
+  });
+
+  test('the policy says files on other people’s boards outlive the account', () => {
+    expect(html()).toMatch(/files you attached to boards owned by other people/i);
   });
 
   test('does not name Neon Auth, which the project removed', () => {

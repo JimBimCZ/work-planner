@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: 'What Work Planner collects, why, and what you can ask us to do about it.',
 };
 
-const LAST_UPDATED = '1 September 2026';
+const LAST_UPDATED = '2 September 2026';
 
 const CONTROLLER = 'Vit Busek';
 const CONTACT_EMAIL = 'busek.vit@gmail.com';
@@ -17,6 +17,7 @@ const PROCESSORS = [
   ['Vercel', 'Hosting and serverless functions', 'EU — Frankfurt (fra1)'],
   ['Neon', 'Postgres database', 'EU — Frankfurt (eu-central-1)'],
   ['Pusher', 'Realtime board updates', 'EU'],
+  ['Cloudflare R2', 'Attachment storage', 'EU — jurisdiction-restricted'],
   ['Google', 'Sign-in, if you choose it', 'Per Google’s own policy'],
   ['GitHub', 'Sign-in, if you choose it', 'Per GitHub’s own policy'],
 ] as const;
@@ -63,7 +64,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="font-medium">What you create</strong> — boards, columns, cards,
-            descriptions, due dates, and comments, along with who made them and when.
+            descriptions, due dates, and comments, along with who made them and when, and any
+            files you attach to a card — their contents, filename, size and type.
           </li>
           <li>
             <strong className="font-medium">A session cookie</strong> — so the app knows you are
@@ -149,6 +151,12 @@ export default function PrivacyPage() {
           removed as well, email{' '}
           <span className="font-mono text-sm">{CONTACT_EMAIL}</span> before you delete your account,
           because afterwards nothing links them to you.
+        </p>
+        <p className="text-[15px]/6">
+          Files you attached to boards owned by other people stay on those boards after
+          you delete your account, and stop being linked to you. If you want them
+          removed, ask before you delete the account — afterwards nothing connects them
+          back to you.
         </p>
       </Section>
 
