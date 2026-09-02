@@ -55,6 +55,13 @@ describe('the label line', () => {
     expect(html).not.toContain('chore');
   });
 
+  test('reads in the board order, not the order the labels were applied', () => {
+    // The same two labels, assigned the other way round, must render the same
+    // way: the assignment order is whatever the picker was clicked in.
+    expect(render({ card: { ...card, labelIds: ['l2', 'l1'] } })).toContain('bug · blocked');
+    expect(render({ card: { ...card, labelIds: ['l1', 'l2'] } })).toContain('bug · blocked');
+  });
+
   test('renders nothing at all for a card with no labels', () => {
     const html = render({ card: { ...card, labelIds: [] } });
     expect(html).toContain('Fix the rank tie-break');

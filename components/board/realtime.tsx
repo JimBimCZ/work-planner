@@ -11,7 +11,7 @@ import type { BoardEvent } from '@/lib/events';
 type Handler = (event: BoardEvent) => void;
 type Status = 'off' | 'connecting' | 'subscribed' | 'failed';
 
-const EVENT_NAMES: BoardEvent['type'][] = [
+const EVENT_NAMES = [
   'card.created',
   'card.updated',
   'card.moved',
@@ -31,7 +31,21 @@ const EVENT_NAMES: BoardEvent['type'][] = [
   'label.updated',
   'label.deleted',
   'card.labelled',
-];
+] as const satisfies readonly BoardEvent['type'][];
+
+// An event the server can publish and this list omits is delivered nowhere, and
+// nothing at runtime can notice: Pusher simply never calls a handler nobody
+// bound. `satisfies` above catches a name that is not an event; this catches an
+// event that is not a name, which is the direction that actually breaks.
+//
+// The `T extends true` constraint is what does the work — an unbound event makes
+// the argument `false`, which fails the constraint and names this line. A bare
+// alias resolving to `never` would compile silently, which is what the first
+// version of this did.
+type Assert<T extends true> = T;
+export type EveryEventIsBound = Assert<
+  Exclude<BoardEvent['type'], (typeof EVENT_NAMES)[number]> extends never ? true : false
+>;
 
 // Bounded: an echo arrives within milliseconds of its action resolving, so the
 // window only has to outlive one round trip. Unbounded, this would grow for as

@@ -80,9 +80,6 @@ export type BoardAction =
   | { type: 'card.labels'; cardId: string; labelIds: string[] }
   | { type: 'board.reseed'; state: BoardState };
 
-// boardLabels orders by lower(name) under a code-point collation, so a label
-// created or renamed while the board is open has to land where a reload would
-// put it rather than at the end of the list.
 // The four the filter popover and the card modal dispatch from outside the
 // canvas, through the board-actions bridge: both live above the reducer in the
 // tree, and the reducer is what decides which cards are on screen.
@@ -91,6 +88,18 @@ export type LabelAction = Extract<
   { type: 'label.create' | 'label.rename' | 'label.delete' | 'card.labels' }
 >;
 
+// One ordering rule, written in three places that must agree: here, and the
+// `order by lower(name)` in lib/labels.ts and lib/boards.ts. A label created or
+// renamed while the board is open has to land where a reload would put it
+// rather than at the end of the list.
+//
+// The match is close, not exact, and the gap is cosmetic by construction: this
+// only decides the popover's display order until the next load, never a write,
+// a rank or a filter result. Two known divergences from Postgres — `<` on JS
+// strings is UTF-16 code-unit order while C.UTF-8 is code-point order, so they
+// disagree above the BMP; and toLowerCase() always folds the full Unicode range
+// while lower() follows the database's LC_CTYPE, which Neon sets to C.UTF-8 but
+// the postgres:17-alpine in docker-compose.yml leaves unpinned.
 const byLabelName = (a: BoardLabel, b: BoardLabel) => {
   const [left, right] = [a.name.toLowerCase(), b.name.toLowerCase()];
   return left < right ? -1 : left > right ? 1 : 0;
