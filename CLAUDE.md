@@ -29,7 +29,7 @@ Repository: `https://github.com/JimBimCZ/work-planner`
 | Data fetching | Server Components + Server Actions | TanStack Query only where realtime cache reconciliation needs it |
 | Realtime | Pusher Channels (hosted pub/sub) | Not `LISTEN/NOTIFY` — see "Realtime" |
 | Validation | Zod | One schema per action, shared client/server |
-| Tests | Vitest (unit), Playwright (e2e) | |
+| Tests | Vitest (unit), Playwright (e2e) | Component tests get a DOM via `jsdom`, `@testing-library/react`, `@testing-library/jest-dom` and `@testing-library/user-event`, scoped per file with a `// @vitest-environment jsdom` pragma at the top rather than by changing the global `environment: 'node'` |
 | Hosting | Vercel (production) | Docker image for local dev and self-host |
 
 Do not add a state management library. Server state lives on the server; local UI state uses `useState`/`useReducer`.

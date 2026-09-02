@@ -2645,15 +2645,15 @@ git commit -m "feat: delete an attachment from the card modal"
 
 ### Task C4: Section C verification and pull request
 
-- [ ] **Step 1: Add the end-to-end flow**
+- [x] **Step 1: Add the end-to-end flow**
 
 Extend `e2e/attachments.spec.ts`: attach a real file through the modal, see it listed, reload and see it still there, delete it and see it gone. Then a viewer-role session sees the file and no controls.
 
-- [ ] **Step 2: Look at it**
+- [x] **Step 2: Look at it**
 
 A UI change needs eyes and a screenshot for the PR body. `pnpm dev`, open a card, attach a PNG and a PDF. Check: the image renders at a sane height, the mono size line reads correctly, focus rings are visible on the picker and the delete control, and the section looks right in both light and dark.
 
-- [ ] **Step 3: Run everything**
+- [x] **Step 3: Run everything**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TYPECHECK=$?"
