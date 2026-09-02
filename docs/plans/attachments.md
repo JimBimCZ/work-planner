@@ -2240,7 +2240,7 @@ The surface. Branch `feat/attachments-modal` from `main` once Section B has land
 - Produces: `CardAttachments({ cardId, attachments, canWrite, viewerId, viewerIsOwner, storageEnabled, boardUsed, onChange })`.
 - Modifies: `getCardForRoute` also returns `attachments: CardAttachment[]`, `storageEnabled: boolean`, `boardUsed: number`, `viewerIsOwner: boolean`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 import { render, screen } from '@testing-library/react';
@@ -2341,7 +2341,7 @@ describe('CardAttachments', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c1.log
@@ -2349,7 +2349,7 @@ pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c1.log 2>
 
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Write the component**
+- [x] **Step 3: Write the component**
 
 Create `components/board/card-attachments.tsx`. Note the `import type` on the first import: `lib/attachments.ts` imports `lib/db`, which builds a pg pool at module scope, and this file is in the client bundle. A value import here passes typecheck, lint and test, and dies only in `pnpm build`.
 
@@ -2432,7 +2432,7 @@ export function CardAttachments({
 }
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c1.log
@@ -2440,11 +2440,11 @@ pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c1.log 2>
 
 Expected: PASS, 10 tests. The upload-control tests pass trivially at this point because no control exists yet — Task C2 is what makes them meaningful, and they must keep passing there.
 
-- [ ] **Step 5: Extend `getCardForRoute`**
+- [x] **Step 5: Extend `getCardForRoute`**
 
 In `lib/cards.ts`, add `attachments`, `storageEnabled`, `boardUsed` and `viewerIsOwner` to what it returns, using `cardAttachments`, `storageConfigured` and `boardUsage`. Both card routes already destructure this result — extend them rather than fetching separately, so a shared link on a cold load and the intercepted modal cannot disagree.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/board/card-attachments.tsx components/board/card-attachments.test.tsx lib/cards.ts
@@ -2464,7 +2464,7 @@ git commit -m "feat: show a card's attachments in the modal"
 
 The `PUT` goes through `XMLHttpRequest`, not `fetch`: only XHR reports upload progress, and 10 MB on a bad connection needs a bar.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 test('rejects a file over the size cap without calling the server', async () => {
@@ -2514,7 +2514,7 @@ test('does not add the file to the list when confirm rejects it', async () => {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail**
+- [x] **Step 2: Run and watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c2.log
@@ -2522,7 +2522,7 @@ pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c2.log 2>
 
 Expected: FAIL — no file input exists.
 
-- [ ] **Step 3: Add the uploader**
+- [x] **Step 3: Add the uploader**
 
 Add to `card-attachments.tsx`. The error copy is a lookup, so every refusal reads in the same voice:
 
@@ -2564,7 +2564,7 @@ The handler: refuse over `ATTACHMENT_SIZE_MAX` locally, call `requestUpload`, `p
 
 Add a visible drop target on the section as well as the picker. Both go through the same handler.
 
-- [ ] **Step 4: Run and watch it pass**
+- [x] **Step 4: Run and watch it pass**
 
 ```bash
 pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c2.log
@@ -2572,7 +2572,7 @@ pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c2.log 2>
 
 Expected: PASS, 15 tests — the Task C1 tests asserting that a viewer and an unconfigured deployment get no control must still pass, and now they mean something.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/card-attachments.tsx components/board/card-attachments.test.tsx
@@ -2588,7 +2588,7 @@ git commit -m "feat: upload an attachment from the card modal"
 - Modify: `components/board/card-attachments.test.tsx`
 - Modify: `components/board/card-body.tsx`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 test('the uploader sees a delete control on their own file', async () => {
@@ -2612,7 +2612,7 @@ test('the board owner sees a delete control on a file whose uploader is gone', a
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail**
+- [x] **Step 2: Run and watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c3.log
@@ -2620,21 +2620,21 @@ pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c3.log 2>
 
 Expected: FAIL — no delete button.
 
-- [ ] **Step 3: Add the control**
+- [x] **Step 3: Add the control**
 
-The predicate mirrors the server's exactly — `file.uploader?.id === viewerId || viewerIsOwner` — and the server re-checks it regardless, because a client-side predicate is presentation, never authorisation. The delete control is destructive, so it carries `--time-over`: that is one of the two sanctioned warm uses, transient and local, inside a control the user is already looking at.
+The predicate mirrors the server's exactly — `(canWrite && file.uploader?.id === viewerId) || viewerIsOwner` — and the server re-checks it regardless, because a client-side predicate is presentation, never authorisation. The delete control is destructive, so it carries `--time-over`: that is one of the two sanctioned warm uses, transient and local, inside a control the user is already looking at.
 
-- [ ] **Step 4: Slot the section into `card-body.tsx`**
+- [x] **Step 4: Slot the section into `card-body.tsx`**
 
 `CardBody` renders two branches — a viewer's and a writer's — and both render `CardLabels` and `CardComments`. Add `CardAttachments` to **both**, between labels and comments, passing the props through from `getCardForRoute`. Missing the viewer branch is the easy mistake here: a viewer must still see the files.
 
-- [ ] **Step 5: Run the whole component suite and watch it pass**
+- [x] **Step 5: Run the whole component suite and watch it pass**
 
 ```bash
 pnpm exec vitest run components/board > /tmp/c3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c3.log
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/board
@@ -2645,15 +2645,15 @@ git commit -m "feat: delete an attachment from the card modal"
 
 ### Task C4: Section C verification and pull request
 
-- [ ] **Step 1: Add the end-to-end flow**
+- [x] **Step 1: Add the end-to-end flow**
 
 Extend `e2e/attachments.spec.ts`: attach a real file through the modal, see it listed, reload and see it still there, delete it and see it gone. Then a viewer-role session sees the file and no controls.
 
-- [ ] **Step 2: Look at it**
+- [x] **Step 2: Look at it**
 
 A UI change needs eyes and a screenshot for the PR body. `pnpm dev`, open a card, attach a PNG and a PDF. Check: the image renders at a sane height, the mono size line reads correctly, focus rings are visible on the picker and the delete control, and the section looks right in both light and dark.
 
-- [ ] **Step 3: Run everything**
+- [x] **Step 3: Run everything**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TYPECHECK=$?"

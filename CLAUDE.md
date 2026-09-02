@@ -29,7 +29,7 @@ Repository: `https://github.com/JimBimCZ/work-planner`
 | Data fetching | Server Components + Server Actions | TanStack Query only where realtime cache reconciliation needs it |
 | Realtime | Pusher Channels (hosted pub/sub) | Not `LISTEN/NOTIFY` — see "Realtime" |
 | Validation | Zod | One schema per action, shared client/server |
-| Tests | Vitest (unit), Playwright (e2e) | |
+| Tests | Vitest (unit), Playwright (e2e) | Component tests get a DOM via `jsdom`, `@testing-library/react`, `@testing-library/jest-dom` and `@testing-library/user-event`, scoped per file with a `// @vitest-environment jsdom` pragma at the top rather than by changing the global `environment: 'node'`. `vitest.config.mts` does not set `globals: true`, so Testing Library's automatic `afterEach(cleanup)` — which only wires itself up when it detects a global `afterEach` — never registers; wire `afterEach(cleanup)` by hand at the top of each component test file, or DOM from one test leaks into the next |
 | Hosting | Vercel (production) | Docker image for local dev and self-host |
 
 Do not add a state management library. Server state lives on the server; local UI state uses `useState`/`useReducer`.
@@ -474,6 +474,14 @@ What that constrains:
   doesn't exist behind. Verify a change here by requesting the bucket against the plain endpoint and
   confirming it cannot be found, the same way `fra1` is verified from a response header rather than
   from `vercel.json`.
+- The browser PUTs a presigned upload straight to R2, which makes it a cross-origin request, and
+  Cloudflare documents that a bucket with no CORS policy refuses that upload even though the presigned
+  URL itself is valid (https://developers.cloudflare.com/r2/buckets/cors/). **Unverified against the
+  production bucket as of 2026-09-02.** Neither local MinIO nor CI's MinIO catches a missing policy —
+  both default to allowing every origin — so a green e2e run proves nothing about R2; check this the
+  way `fra1` and the EU-jurisdiction endpoint above are checked, from the outside against the real
+  endpoint, not from a dashboard reading. Until it's checked, a missing CORS policy would surface to a
+  user as the generic "That file could not be attached. Try again." — nothing in the app would say why.
 - Preview deployments get their own Neon branch. OAuth callback URLs must include the preview domain pattern or sign-in will fail on previews — expect to test auth on a stable preview alias.
 - Local development uses the Neon `dev` branch, never production `main`. The integration scopes its variables to Production and Preview only, so a bare `vercel env pull` finds nothing; `pnpm db:dev-branch` creates the branch and registers it as Development-scoped, and `pnpm env:pull development` refreshes `.env.local` from it.
 - `AUTH_URL`/`AUTH_TRUST_HOST` need care on previews. Set `AUTH_TRUST_HOST=true` and let Auth.js infer the host rather than hardcoding.

@@ -11,6 +11,7 @@ import {
 } from 'react';
 
 import { useBoardActions } from '@/components/board/board-actions';
+import { CardAttachments } from '@/components/board/card-attachments';
 import { CardComments } from '@/components/board/card-comments';
 import { CardDueDate } from '@/components/board/card-due-date';
 import { CardLabels } from '@/components/board/card-labels';
@@ -24,6 +25,7 @@ import {
 } from '@/lib/actions/cards';
 import { setCardLabels } from '@/lib/actions/labels';
 import { attempt } from '@/lib/attempt';
+import type { CardAttachment } from '@/lib/attachments';
 import type { CardForView, Viewer } from '@/lib/cards';
 import { toDateInputValue } from '@/lib/due';
 import type { BoardLabel } from '@/lib/labels';
@@ -33,12 +35,20 @@ export function CardBody({
   labels,
   canWrite,
   viewer,
+  attachments,
+  storageEnabled,
+  boardUsed,
+  viewerIsOwner,
   surface = 'page',
 }: {
   card: CardForView;
   labels: BoardLabel[];
   canWrite: boolean;
   viewer: Viewer;
+  attachments: CardAttachment[];
+  storageEnabled: boolean;
+  boardUsed: number;
+  viewerIsOwner: boolean;
   // The canonical page has no chrome of its own and no history entry to go
   // back to, so it carries the heading and the way out; the modal has a title
   // bar and a close button for both. One flag, because it is one distinction.
@@ -65,6 +75,7 @@ export function CardBody({
     setDraftDueDate(dueDate ?? '');
   }
   const [labelIds, setLabelIds] = useState(card.labelIds);
+  const [attachmentList, setAttachmentList] = useState(attachments);
   const [error, setError] = useState<string | null>(null);
   const [deleted, setDeleted] = useState(false);
   const [, startTransition] = useTransition();
@@ -282,6 +293,16 @@ export function CardBody({
             onChange={changeLabels}
           />
         </section>
+        <CardAttachments
+          cardId={card.id}
+          attachments={attachmentList}
+          canWrite={canWrite}
+          viewerId={viewer.id}
+          viewerIsOwner={viewerIsOwner}
+          storageEnabled={storageEnabled}
+          boardUsed={boardUsed}
+          onChange={setAttachmentList}
+        />
         <p className="whitespace-pre-wrap text-[15px] leading-6 text-ink">
           {savedDescription || <span className="text-muted">No description yet</span>}
         </p>
@@ -330,6 +351,16 @@ export function CardBody({
           onChange={changeLabels}
         />
       </section>
+      <CardAttachments
+        cardId={card.id}
+        attachments={attachmentList}
+        canWrite={canWrite}
+        viewerId={viewer.id}
+        viewerIsOwner={viewerIsOwner}
+        storageEnabled={storageEnabled}
+        boardUsed={boardUsed}
+        onChange={setAttachmentList}
+      />
       <textarea
         aria-label="Description"
         value={description}
