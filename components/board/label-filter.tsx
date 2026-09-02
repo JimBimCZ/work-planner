@@ -11,10 +11,12 @@ import { attempt } from '@/lib/attempt';
 // itself imports lib/db and would put a pg pool in this bundle; the type below
 // is safe because `import type` is erased.
 import { LABEL_NAME_MAX } from '@/lib/labels-limits';
+import { parseLabelFilter } from '@/lib/board-state';
+import type { LabelAction } from '@/lib/board-state';
 import type { BoardLabel } from '@/lib/labels';
 
 export function LabelFilter({
-  labels,
+  labels: seeded,
   boardId,
   canWrite,
 }: {
@@ -37,8 +39,12 @@ export function LabelFilter({
   // Counts come from the board's own state rather than a query, so the number
   // beside a label can never disagree with the cards on screen. The canvas has
   // not registered them on the first paint, hence the fallback below.
-  const { labelCounts } = useBoardActions();
-  const active = new Set(params.getAll('label'));
+  const { labelCounts, labels: live, dispatchLabel } = useBoardActions();
+  // The canvas's set, once it has mounted: the popover must not offer a label
+  // the board has already dropped, or the badge would count a filter that
+  // narrows nothing — which is the one thing the count exists to rule out.
+  const labels = live ?? seeded;
+  const active = new Set(parseLabelFilter(params, labels));
 
   // Escape closes it and click-outside dismisses it, both required by the
   // spec's quality floor. Bound only while open, so a closed popover costs
@@ -87,6 +93,14 @@ export function LabelFilter({
     replaceWith(next);
   }
 
+  // The board view applies the change to its reducer; the canonical card page
+  // has no canvas to dispatch into, so it falls back to the server render the
+  // board no longer needs.
+  function applyLocally(action: LabelAction) {
+    if (dispatchLabel) dispatchLabel(action);
+    else router.refresh();
+  }
+
   // A label that is gone must not keep narrowing the board from a stale URL.
   function dropFromFilter(labelId: string) {
     if (!active.has(labelId)) return;
@@ -119,7 +133,7 @@ export function LabelFilter({
         return;
       }
       setName('');
-      router.refresh();
+      applyLocally({ type: 'label.create', label: { id: result.data.id, name: trimmed } });
     });
   }
 
@@ -141,7 +155,7 @@ export function LabelFilter({
         return;
       }
       setEditing(null);
-      router.refresh();
+      applyLocally({ type: 'label.rename', labelId, name: trimmed });
     });
   }
 
@@ -154,7 +168,7 @@ export function LabelFilter({
         return;
       }
       dropFromFilter(labelId);
-      router.refresh();
+      applyLocally({ type: 'label.delete', labelId });
     });
   }
 

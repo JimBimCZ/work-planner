@@ -44,7 +44,7 @@ export function CardBody({
   // bar and a close button for both. One flag, because it is one distinction.
   surface?: 'page' | 'modal';
 }) {
-  const { patchCard } = useBoardActions();
+  const { patchCard, dispatchLabel } = useBoardActions();
   const { claim, subscribe } = useRealtime();
   const [title, setTitle] = useState(card.title);
   const [savedTitle, setSavedTitle] = useState(card.title);
@@ -214,7 +214,9 @@ export function CardBody({
       const result = await attempt(() =>
         setCardLabels({ cardId: card.id, labelIds: next, mutationId: claim() }),
       );
-      if (!result.ok) {
+      if (result.ok) {
+        dispatchLabel?.({ type: 'card.labels', cardId: card.id, labelIds: next });
+      } else {
         setLabelIds(previous);
         setError('Those labels could not be saved. Try again.');
       }
