@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react';
 
-import { confirmUpload, requestUpload } from '@/lib/actions/attachments';
+import { confirmUpload, deleteAttachment, requestUpload } from '@/lib/actions/attachments';
 import type { CardAttachment } from '@/lib/attachments';
 import { ATTACHMENT_SIZE_MAX, STORAGE_PER_BOARD, rendersInline } from '@/lib/attachments-limits';
 import { attempt } from '@/lib/attempt';
@@ -32,6 +32,9 @@ const REFUSALS: Record<string, string> = {
 // Any code the actions module adds later still reads in the same voice
 // instead of printing a raw error constant.
 const DEFAULT_REFUSAL = 'That file could not be attached. Try again.';
+// One message, not the REFUSALS table: NOT_FOUND there reads "That card no
+// longer exists", which is wrong for a file.
+const DELETE_REFUSAL = 'That file could not be deleted. Try again.';
 
 function refusal(error: string): string {
   return REFUSALS[error] ?? DEFAULT_REFUSAL;
@@ -63,6 +66,8 @@ export function CardAttachments({
   cardId,
   attachments,
   canWrite,
+  viewerId,
+  viewerIsOwner,
   storageEnabled,
   boardUsed,
   onChange,
@@ -164,6 +169,23 @@ export function CardAttachments({
     Array.from(files).forEach((file) => void uploadFile(file));
   };
 
+  // Optimistic, in the same shape as CardBody's changeLabels: drop the row,
+  // call the action, put it back and show the message if it fails.
+  const deleteFile = (attachmentId: string) => {
+    const previous = attachments;
+    onChange(attachments.filter((file) => file.id !== attachmentId));
+    setError(null);
+
+    void attempt(() =>
+      deleteAttachment({ attachmentId, mutationId: crypto.randomUUID() }),
+    ).then((result) => {
+      if (!result.ok) {
+        onChange(previous);
+        setError(DELETE_REFUSAL);
+      }
+    });
+  };
+
   return (
     <section>
       <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Attachments</h3>
@@ -172,28 +194,45 @@ export function CardAttachments({
         <p className="text-sm text-muted">Nothing attached yet</p>
       ) : (
         <ul className="mt-2 space-y-3">
-          {attachments.map((file) => (
-            <li key={file.id}>
-              {rendersInline(file.contentType) ? (
-                <a href={`/api/attachments/${file.id}`}>
-                  {/* Not next/image: the bytes live behind an access-checked
-                      redirect, so the optimiser cannot fetch them, and the
-                      dimensions are unknown until the image loads. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/api/attachments/${file.id}`}
-                    alt={file.filename}
-                    className="max-h-64 rounded-[10px] border border-line"
-                  />
-                </a>
-              ) : (
-                <a href={`/api/attachments/${file.id}`} className="text-sm text-ink underline">
-                  {file.filename}
-                </a>
-              )}
-              <p className="font-mono text-xs text-muted">{formatSize(file.size)}</p>
-            </li>
-          ))}
+          {attachments.map((file) => {
+            // Mirrors the server's `mine || role === 'owner'` exactly. This
+            // is presentation only — deleteAttachment re-checks regardless.
+            const canDelete = file.uploader?.id === viewerId || viewerIsOwner;
+            return (
+              <li key={file.id} className="flex items-start justify-between gap-2">
+                <div>
+                  {rendersInline(file.contentType) ? (
+                    <a href={`/api/attachments/${file.id}`}>
+                      {/* Not next/image: the bytes live behind an access-checked
+                          redirect, so the optimiser cannot fetch them, and the
+                          dimensions are unknown until the image loads. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/attachments/${file.id}`}
+                        alt={file.filename}
+                        className="max-h-64 rounded-[10px] border border-line"
+                      />
+                    </a>
+                  ) : (
+                    <a href={`/api/attachments/${file.id}`} className="text-sm text-ink underline">
+                      {file.filename}
+                    </a>
+                  )}
+                  <p className="font-mono text-xs text-muted">{formatSize(file.size)}</p>
+                </div>
+                {canDelete ? (
+                  <button
+                    type="button"
+                    aria-label={`Delete ${file.filename}`}
+                    onClick={() => deleteFile(file.id)}
+                    className="shrink-0 rounded-[var(--radius-control)] px-2 py-1 text-xs font-medium text-time-over hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-flow-mid focus-visible:ring-offset-2"
+                  >
+                    Delete
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       )}
 

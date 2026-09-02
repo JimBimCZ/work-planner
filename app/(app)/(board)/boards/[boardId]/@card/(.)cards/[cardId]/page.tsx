@@ -8,11 +8,22 @@ export default async function InterceptedCardPage({
   params: Promise<{ boardId: string; cardId: string }>;
 }) {
   const { boardId, cardId } = await params;
-  const { card, labels, canWrite, viewer } = await getCardForRoute(boardId, cardId);
+  const { card, labels, canWrite, viewer, attachments, storageEnabled, boardUsed, viewerIsOwner } =
+    await getCardForRoute(boardId, cardId);
 
   return (
     <CardModal title={card.title}>
-      <CardBody card={card} labels={labels} canWrite={canWrite} viewer={viewer} surface="modal" />
+      <CardBody
+        card={card}
+        labels={labels}
+        canWrite={canWrite}
+        viewer={viewer}
+        attachments={attachments}
+        storageEnabled={storageEnabled}
+        boardUsed={boardUsed}
+        viewerIsOwner={viewerIsOwner}
+        surface="modal"
+      />
     </CardModal>
   );
 }

@@ -15,7 +15,7 @@ vi.mock('@/lib/actions/attachments', () => ({
   deleteAttachment: vi.fn(),
 }));
 
-const { requestUpload, confirmUpload } = await import('@/lib/actions/attachments');
+const { requestUpload, confirmUpload, deleteAttachment } = await import('@/lib/actions/attachments');
 const { CardAttachments } = await import('@/components/board/card-attachments');
 
 // jsdom performs no network I/O, so a presigned PUT never actually happens and
@@ -67,6 +67,7 @@ beforeEach(() => {
     ok: true,
     data: { attachmentId: 'new-id' },
   });
+  vi.mocked(deleteAttachment).mockReset().mockResolvedValue({ ok: true });
   vi.stubGlobal('XMLHttpRequest', FakeXHR);
 });
 
@@ -214,5 +215,33 @@ describe('CardAttachments', () => {
     await userEvent.upload(screen.getByLabelText(/add file/i), new File(['x'], 'a.png'));
     await waitFor(() => expect(screen.getByText(/larger than/i)).toBeInTheDocument());
     expect(screen.queryByRole('link', { name: 'a.png' })).not.toBeInTheDocument();
+  });
+
+  test('the uploader sees a delete control on their own file', async () => {
+    render(
+      <CardAttachments
+        {...props}
+        viewerId="u1"
+        attachments={[file({ uploader: { id: 'u1', name: 'Alex', image: null } })]}
+      />,
+    );
+    expect(screen.getByRole('button', { name: /delete screenshot\.png/i })).toBeInTheDocument();
+  });
+
+  test('a plain member sees no delete control on somebody else’s file', async () => {
+    render(<CardAttachments {...props} viewerId="u2" viewerIsOwner={false} attachments={[file()]} />);
+    expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
+  });
+
+  test('the board owner sees a delete control on anybody’s file', async () => {
+    render(<CardAttachments {...props} viewerId="u2" viewerIsOwner attachments={[file()]} />);
+    expect(screen.getByRole('button', { name: /delete screenshot\.png/i })).toBeInTheDocument();
+  });
+
+  test('the board owner sees a delete control on a file whose uploader is gone', async () => {
+    render(
+      <CardAttachments {...props} viewerId="u2" viewerIsOwner attachments={[file({ uploader: null })]} />,
+    );
+    expect(screen.getByRole('button', { name: /delete screenshot\.png/i })).toBeInTheDocument();
   });
 });

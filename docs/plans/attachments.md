@@ -2588,7 +2588,7 @@ git commit -m "feat: upload an attachment from the card modal"
 - Modify: `components/board/card-attachments.test.tsx`
 - Modify: `components/board/card-body.tsx`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 test('the uploader sees a delete control on their own file', async () => {
@@ -2612,7 +2612,7 @@ test('the board owner sees a delete control on a file whose uploader is gone', a
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail**
+- [x] **Step 2: Run and watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c3.log
@@ -2620,21 +2620,21 @@ pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c3.log 2>
 
 Expected: FAIL — no delete button.
 
-- [ ] **Step 3: Add the control**
+- [x] **Step 3: Add the control**
 
 The predicate mirrors the server's exactly — `file.uploader?.id === viewerId || viewerIsOwner` — and the server re-checks it regardless, because a client-side predicate is presentation, never authorisation. The delete control is destructive, so it carries `--time-over`: that is one of the two sanctioned warm uses, transient and local, inside a control the user is already looking at.
 
-- [ ] **Step 4: Slot the section into `card-body.tsx`**
+- [x] **Step 4: Slot the section into `card-body.tsx`**
 
 `CardBody` renders two branches — a viewer's and a writer's — and both render `CardLabels` and `CardComments`. Add `CardAttachments` to **both**, between labels and comments, passing the props through from `getCardForRoute`. Missing the viewer branch is the easy mistake here: a viewer must still see the files.
 
-- [ ] **Step 5: Run the whole component suite and watch it pass**
+- [x] **Step 5: Run the whole component suite and watch it pass**
 
 ```bash
 pnpm exec vitest run components/board > /tmp/c3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c3.log
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/board
