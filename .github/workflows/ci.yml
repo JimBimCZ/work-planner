@@ -43,8 +43,29 @@ jobs:
       PUSHER_SECRET: ${{ secrets.PUSHER_SECRET }}
       NEXT_PUBLIC_PUSHER_KEY: ${{ secrets.NEXT_PUBLIC_PUSHER_KEY }}
       NEXT_PUBLIC_PUSHER_CLUSTER: ${{ secrets.NEXT_PUBLIC_PUSHER_CLUSTER }}
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_BUCKET: kanban-attachments
+      S3_ACCESS_KEY_ID: kanban
+      S3_SECRET_ACCESS_KEY: kanban-ci-only
     steps:
       - uses: actions/checkout@v7
+      # Not a `services:` entry: that block runs the image's default command
+      # and cannot override it, and minio/minio needs `server /data`.
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=kanban \
+            -e MINIO_ROOT_PASSWORD=kanban-ci-only \
+            minio/minio:RELEASE.2025-09-07T16-13-09Z server /data
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:9000/minio/health/live; then break; fi
+            sleep 1
+          done
+          curl -sf http://localhost:9000/minio/health/live
+          docker run --rm --network host --entrypoint sh minio/mc:RELEASE.2025-08-13T08-35-41Z -c "
+            mc alias set ci http://localhost:9000 kanban kanban-ci-only &&
+            mc mb --ignore-existing ci/kanban-attachments"
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:

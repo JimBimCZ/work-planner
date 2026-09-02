@@ -473,11 +473,11 @@ One section, one branch, one PR, in this order:
 
 - **A — storage foundation.** The table and its migration,
   `lib/attachments-limits.ts`, `lib/storage.ts`, MinIO in `docker-compose.yml`
-  and in CI, `.env.example`, and the `/privacy` changes. No UI, no actions.
+  and in CI, `.env.example`. No UI, no actions.
   Branch `feat/attachments-storage`.
 - **B — actions and the download route.** The three actions, the route handler,
   the permission matrix, the sweep, both storage totals enforced in both phases,
-  and their tests. Branch `feat/attachments-actions`.
+  the `/privacy` changes, and their tests. Branch `feat/attachments-actions`.
 - **C — the card modal.** The list, inline images, upload with progress, delete,
   and the 80% usage line. Branch `feat/attachments-modal`.
 - **D — face and realtime.** The board-query count, `toBoardState`, the two
@@ -488,9 +488,14 @@ B depends on A, C on B, D on C. Branch each from `main` once its parent has
 landed rather than stacking — `CLAUDE.md` records two stacks that stranded a
 child PR on a consumed base.
 
-`/privacy` moves in Section A rather than at the end, because that is the PR in
-which Cloudflare becomes a sub-processor. A policy that lags the infrastructure
-by three PRs is the drift `CLAUDE.md` says to stop and raise.
+`/privacy` moves in Section B rather than Section A. Section A ships no code
+that reaches Cloudflare — no account or bucket exists, and there is no action
+or interface yet through which a user could attach anything — so naming
+Cloudflare as a sub-processor and asserting an EU-residency claim in Section A
+would be publishing a legal document about a system that has not sent it a
+single byte. Section B is the pull request in which Cloudflare first can
+receive one: the actions and the download route exist there, even with no UI
+in front of them yet.
 
 ## Verification
 

@@ -252,3 +252,89 @@ test('deleting a label takes it off every card that carried it', async ({ contex
     await removeSeededUser(userId);
   }
 });
+
+test('deleting a card takes its attachments with it', async ({ context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Attachment cascade');
+  const [first] = await boardColumns(boardId);
+  const cardId = await seedCard(first.id, { boardId, createdById: userId });
+
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    await pool.query(
+      `insert into attachments
+         (id, board_id, card_id, uploader_id, key, filename, content_type, size, status)
+       values ($1, $2, $3, $4, $5, 'notes.pdf', 'application/pdf', 1024, 'ready')`,
+      ['att-cascade', boardId, cardId, userId, `boards/${boardId}/att-cascade`],
+    );
+
+    await pool.query('delete from cards where id = $1', [cardId]);
+
+    const { rows } = await pool.query<{ n: number }>(
+      'select count(*)::int as n from attachments where card_id = $1',
+      [cardId],
+    );
+    expect(rows[0].n, 'attachments should be empty').toBe(0);
+  } finally {
+    await pool.end();
+    await removeSeededUser(userId);
+  }
+});
+
+test('deleting the uploader keeps the file and nulls the uploader', async ({ context }) => {
+  // The mirror of comments.authorId: /privacy promises boards owned by other
+  // people keep what you contributed. A cascade here would delete a colleague's
+  // spec from a board you never owned.
+  const { userId } = await seedSession(context);
+  const owner = await seedSession(context);
+  const boardId = await seedBoard(owner.userId, 'Uploader leaves');
+  await seedMember(boardId, userId, 'member');
+  const [first] = await boardColumns(boardId);
+  const cardId = await seedCard(first.id, { boardId, createdById: owner.userId });
+
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    await pool.query(
+      `insert into attachments
+         (id, board_id, card_id, uploader_id, key, filename, content_type, size, status)
+       values ($1, $2, $3, $4, $5, 'spec.pdf', 'application/pdf', 2048, 'ready')`,
+      ['att-survives', boardId, cardId, userId, `boards/${boardId}/att-survives`],
+    );
+
+    await removeSeededUser(userId);
+
+    const { rows } = await pool.query<{ uploader_id: string | null }>(
+      'select uploader_id from attachments where id = $1',
+      ['att-survives'],
+    );
+    expect(rows, 'the attachment should still exist').toHaveLength(1);
+    expect(rows[0].uploader_id, 'the uploader should be null').toBeNull();
+  } finally {
+    await pool.end();
+    await removeSeededUser(owner.userId);
+  }
+});
+
+test('two attachments cannot share an object key', async ({ context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Key uniqueness');
+  const [first] = await boardColumns(boardId);
+  const cardId = await seedCard(first.id, { boardId, createdById: userId });
+
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  try {
+    const insert = (id: string) =>
+      pool.query(
+        `insert into attachments
+           (id, board_id, card_id, uploader_id, key, filename, content_type, size, status)
+         values ($1, $2, $3, $4, 'boards/shared/key', 'a.png', 'image/png', 10, 'ready')`,
+        [id, boardId, cardId, userId],
+      );
+
+    await insert('att-key-1');
+    await expect(insert('att-key-2')).rejects.toThrow(/duplicate key/i);
+  } finally {
+    await pool.end();
+    await removeSeededUser(userId);
+  }
+});
