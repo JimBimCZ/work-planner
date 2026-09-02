@@ -2240,15 +2240,18 @@ Add the four names to `EVENT_NAMES` in `components/board/realtime.tsx`.
 Add the four actions to `BoardAction` and to `boardReducer` in `lib/board-state.ts`:
 
 ```ts
+    // Corrected during execution: this plan originally appended, and renamed in
+    // place. `boardLabels` orders by `lower(name)`, so either left the popover's
+    // list in an order a reload would silently change. Both re-sort.
     case 'label.create':
-      return { ...state, labels: [...state.labels, action.label] };
+      return { ...state, labels: [...state.labels, action.label].sort(byLabelName) };
 
     case 'label.rename':
       return {
         ...state,
-        labels: state.labels.map((label) =>
-          label.id === action.labelId ? { ...label, name: action.name } : label,
-        ),
+        labels: state.labels
+          .map((label) => (label.id === action.labelId ? { ...label, name: action.name } : label))
+          .sort(byLabelName),
       };
 
     // The row is gone, so every assignment to it is gone too — the same
@@ -2293,7 +2296,7 @@ git commit -m "feat: apply a label change while the board is open"
 **Files:**
 - Modify: `e2e/labels.spec.ts`, `CLAUDE.md`, `docs/plans/labels.md`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/labels.spec.ts`, behind the same credentials guard `e2e/realtime.spec.ts` uses — copy that guard rather than inventing a second convention, and scope it to a `test.describe` so the rest of this file still runs without Pusher:
 
@@ -2339,7 +2342,7 @@ test.describe('a label that changes while the board is open', () => {
 });
 ```
 
-- [ ] **Step 2: Run the whole suite**
+- [x] **Step 2: Run the whole suite**
 
 ```bash
 pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "EXIT=$?"; tail -12 /tmp/e2e.log
@@ -2348,7 +2351,7 @@ pnpm exec playwright test --list > /tmp/list.log 2>&1; tail -2 /tmp/list.log
 
 Expected: `EXIT=0`, and the count run equal to the count collected. Say in the PR whether the live test ran or skipped — a skipped realtime test is indistinguishable from a passing one in the summary line.
 
-- [ ] **Step 3: Update the documentation this sub-project invalidates**
+- [x] **Step 3: Update the documentation this sub-project invalidates**
 
 - `CLAUDE.md`, "Data model": `labels` and `card_labels`, both cascades, and the two caps with the payload reason for `LABELS_PER_BOARD`.
 - `CLAUDE.md`, "Realtime": "all fifteen" becomes nineteen, with the four names added to the list.
@@ -2356,11 +2359,11 @@ Expected: `EXIT=0`, and the count run equal to the count collected. Say in the P
 - `CLAUDE.md`, "Design": one line recording that labels are deliberately colourless, pointing at `docs/specs/labels.md`, so the three-role rule is not quietly broken by a later session.
 - `CLAUDE.md`, "Open decisions": labels/tags resolved; attachments remains, still carrying its blob-store conflict.
 
-- [ ] **Step 4: Verify by hand, then screenshot**
+- [x] **Step 4: Verify by hand, then screenshot**
 
 Two accounts, two browsers: apply a label in one and watch it appear on the other's card face without a reload; delete a label in one and watch it leave the other's cards. Screenshot the popover open, a narrowed board, and a labelled card into `docs/screenshots/labels-section-d/`. Close everything you opened.
 
-- [ ] **Step 5: Commit and open the Section D pull request**
+- [x] **Step 5: Commit and open the Section D pull request**
 
 ```bash
 git add e2e/labels.spec.ts CLAUDE.md docs/plans/labels.md docs/screenshots/labels-section-d

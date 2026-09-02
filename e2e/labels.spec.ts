@@ -260,3 +260,53 @@ test('the popover closes on Escape', async ({ page, context }) => {
     await removeSeededUser(userId);
   }
 });
+
+// playwright.config.ts loads .env and .env.local into process.env before this
+// runs. Without credentials the app is correctly non-realtime, so this test
+// would pass vacuously — skipping says so instead of pretending.
+const configured = Boolean(
+  process.env.PUSHER_APP_ID &&
+    process.env.PUSHER_SECRET &&
+    process.env.NEXT_PUBLIC_PUSHER_KEY &&
+    process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+);
+
+test.describe('a label that changes while the board is open', () => {
+  test.skip(!configured, 'Pusher credentials are not configured');
+
+  test('a label applied by someone else appears on the card face', async ({ browser }) => {
+    const ownerContext = await browser.newContext();
+    const memberContext = await browser.newContext();
+    const owner = await seedSession(ownerContext);
+    const member = await seedSession(memberContext);
+    const boardId = await seedBoard(owner.userId, 'Live labels');
+    await seedMember(boardId, member.userId, 'member');
+    const [first] = await boardColumns(boardId);
+    const cardId = await seedCard(first.id, { boardId, createdById: owner.userId });
+    await seedLabel(boardId, 'bug');
+
+    try {
+      // The watcher never reloads, so a pass cannot come from anything but the
+      // event — which means it has to be subscribed before the actor writes.
+      const watcher = await memberContext.newPage();
+      await watcher.goto(`/boards/${boardId}`);
+      await expect(watcher.locator('[data-realtime]')).toHaveAttribute(
+        'data-realtime',
+        'subscribed',
+        { timeout: 15_000 },
+      );
+      await expect(watcher.getByTestId('card-labels')).toHaveCount(0);
+
+      const actor = await ownerContext.newPage();
+      await actor.goto(`/boards/${boardId}/cards/${cardId}`);
+      await actor.getByRole('checkbox', { name: 'bug' }).check();
+
+      await expect(watcher.getByTestId('card-labels')).toHaveText('bug', { timeout: 15_000 });
+    } finally {
+      await ownerContext.close();
+      await memberContext.close();
+      await removeSeededUser(member.userId);
+      await removeSeededUser(owner.userId);
+    }
+  });
+});
