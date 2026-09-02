@@ -1006,7 +1006,7 @@ git merge-base --is-ancestor origin/main HEAD && echo "base is real"
   - `uploaderUsage(userId: string, now?: Date): Promise<number>`
   - `pendingCutoff(now?: Date): Date`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/attachments.test.ts`. The db mock follows the shape `lib/actions/labels.test.ts` already uses — a hand-rolled object, not a library. What matters here is the *predicate*, so the test drives the `where` callback rather than asserting on SQL strings:
 
@@ -1033,7 +1033,7 @@ describe('pendingCutoff', () => {
 
 The sums themselves are proved against a real database in Task B2's e2e, because what they must get right — that a stale pending row stops counting — is a `where` clause Postgres evaluates, not arithmetic TypeScript does.
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/attachments.test.ts > /tmp/b1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b1.log
@@ -1041,7 +1041,7 @@ pnpm exec vitest run lib/attachments.test.ts > /tmp/b1.log 2>&1; echo "EXIT=$?";
 
 Expected: FAIL — `Failed to resolve import "@/lib/attachments"`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 Create `lib/attachments.ts`:
 
@@ -1110,7 +1110,7 @@ export async function cardAttachments(cardId: string): Promise<CardAttachment[]>
 }
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/attachments.test.ts > /tmp/b1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b1.log
@@ -1118,7 +1118,7 @@ pnpm exec vitest run lib/attachments.test.ts > /tmp/b1.log 2>&1; echo "EXIT=$?";
 
 Expected: PASS, 2 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/attachments.ts lib/attachments.test.ts
