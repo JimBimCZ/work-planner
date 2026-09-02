@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -90,6 +91,18 @@ const props = {
   boardUsed: 0,
   onChange: () => {},
 };
+
+// The component calls onChange rather than holding the list itself, so these
+// two tests drive it with a tiny stateful wrapper that holds the list and
+// feeds it back as the attachments prop — the same shape CardBody uses with
+// its own useState.
+function ManagedCardAttachments(
+  managedProps: Omit<typeof props, 'onChange'> & { initial?: CardAttachment[] },
+) {
+  const { initial, ...rest } = managedProps;
+  const [list, setList] = useState<CardAttachment[]>(initial ?? []);
+  return <CardAttachments {...rest} attachments={list} onChange={setList} />;
+}
 
 describe('CardAttachments', () => {
   test('renders an inline-safe image as an image', () => {
@@ -243,6 +256,60 @@ describe('CardAttachments', () => {
       <CardAttachments {...props} viewerId="u2" viewerIsOwner attachments={[file({ uploader: null })]} />,
     );
     expect(screen.getByRole('button', { name: /delete screenshot\.png/i })).toBeInTheDocument();
+  });
+
+  test('the uploader can delete the file they just uploaded, before a reload', async () => {
+    render(
+      <ManagedCardAttachments
+        cardId="c1"
+        canWrite
+        viewerId="u1"
+        viewerIsOwner={false}
+        storageEnabled
+        boardUsed={0}
+      />,
+    );
+    await userEvent.upload(screen.getByLabelText(/add file/i), new File(['x'], 'a.png'));
+    await waitFor(() => expect(confirmUpload).toHaveBeenCalled());
+    expect(await screen.findByRole('button', { name: /delete a\.png/i })).toBeInTheDocument();
+  });
+
+  test('two files dropped at once both end up in the list', async () => {
+    vi.mocked(requestUpload)
+      .mockReset()
+      .mockResolvedValueOnce({
+        ok: true,
+        data: { attachmentId: 'id-a', url: 'https://example.com/put-a' },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        data: { attachmentId: 'id-b', url: 'https://example.com/put-b' },
+      });
+    vi.mocked(confirmUpload)
+      .mockReset()
+      .mockResolvedValueOnce({ ok: true, data: { attachmentId: 'id-a' } })
+      .mockResolvedValueOnce({ ok: true, data: { attachmentId: 'id-b' } });
+
+    render(
+      <ManagedCardAttachments
+        cardId="c1"
+        canWrite
+        viewerId="u1"
+        viewerIsOwner={false}
+        storageEnabled
+        boardUsed={0}
+      />,
+    );
+
+    const fileA = new File(['a'], 'a.png');
+    const fileB = new File(['b'], 'b.png');
+    const dropzone = screen.getByText('Drop a file here, or').parentElement!;
+    const dataTransfer = { files: [fileA, fileB] };
+    fireEvent.drop(dropzone, { dataTransfer });
+
+    await waitFor(() => expect(confirmUpload).toHaveBeenCalledTimes(2));
+    expect(await screen.findByRole('link', { name: 'a.png' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'b.png' })).toBeInTheDocument();
   });
 
   test('a demoted uploader sees no delete control on their own file', async () => {

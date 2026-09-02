@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { type Dispatch, type SetStateAction, useId, useState } from 'react';
 
 import { confirmUpload, deleteAttachment, requestUpload } from '@/lib/actions/attachments';
 import type { CardAttachment } from '@/lib/attachments';
@@ -79,11 +79,13 @@ export function CardAttachments({
   viewerIsOwner: boolean;
   storageEnabled: boolean;
   boardUsed: number;
-  onChange: (next: CardAttachment[]) => void;
+  onChange: Dispatch<SetStateAction<CardAttachment[]>>;
 }) {
   const fileInputId = useId();
   const [pending, setPending] = useState<Record<string, PendingUpload>>({});
-  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+
+  const addError = (message: string) => setErrors((current) => [...current, message]);
 
   // No bucket and nothing to show: the section does not exist rather than
   // presenting an empty state for a feature this deployment does not have.
@@ -99,10 +101,8 @@ export function CardAttachments({
     });
 
   const uploadFile = async (file: File) => {
-    setError(null);
-
     if (file.size > ATTACHMENT_SIZE_MAX) {
-      setError(refusal('TOO_LARGE'));
+      addError(refusal('TOO_LARGE'));
       return;
     }
 
@@ -121,7 +121,7 @@ export function CardAttachments({
       }),
     );
     if (!requested.ok) {
-      setError(refusal(requested.error));
+      addError(refusal(requested.error));
       dropPending(mutationId);
       return;
     }
@@ -135,7 +135,7 @@ export function CardAttachments({
         );
       });
     } catch {
-      setError(DEFAULT_REFUSAL);
+      addError(DEFAULT_REFUSAL);
       dropPending(mutationId);
       return;
     }
@@ -145,44 +145,61 @@ export function CardAttachments({
     );
     dropPending(mutationId);
     if (!confirmed.ok) {
-      setError(refusal(confirmed.error));
+      addError(refusal(confirmed.error));
       return;
     }
 
     // The declared name/type/size, not what headObject actually read back —
     // that reconciliation happens on the next load and, later, over Pusher.
-    onChange([
-      ...attachments,
+    // Attributed to the viewer, not left null: it is this browser's own
+    // upload, and the delete predicate below needs an id to match against
+    // before a reload brings back the row the server actually recorded.
+    onChange((current) => [
+      ...current,
       {
         id: confirmed.data.attachmentId,
         filename: file.name,
         contentType: file.type || 'application/octet-stream',
         size: file.size,
         createdAt: new Date(),
-        uploader: null,
+        uploader: { id: viewerId, name: null, image: null },
       },
     ]);
   };
 
   const uploadFiles = (files: FileList | null) => {
     if (!files) return;
+    setErrors([]);
     Array.from(files).forEach((file) => void uploadFile(file));
   };
 
   // Optimistic, in the same shape as CardBody's changeLabels: drop the row,
-  // call the action, put it back and show the message if it fails.
+  // call the action, put it back and show the message if it fails. Both the
+  // drop and the restore are functional updates over `onChange` — two
+  // deletes (or a delete racing an upload) must not clobber each other the
+  // way two concurrent uploads did before this fix.
   const deleteFile = (attachmentId: string) => {
-    const previous = attachments;
-    onChange(attachments.filter((file) => file.id !== attachmentId));
-    setError(null);
+    setErrors([]);
+    let removed: { file: CardAttachment; index: number } | null = null;
+    onChange((current) => {
+      const index = current.findIndex((file) => file.id === attachmentId);
+      if (index === -1) return current;
+      removed = { file: current[index], index };
+      return current.filter((file) => file.id !== attachmentId);
+    });
 
     void attempt(() =>
       deleteAttachment({ attachmentId, mutationId: crypto.randomUUID() }),
     ).then((result) => {
-      if (!result.ok) {
-        onChange(previous);
-        setError(DELETE_REFUSAL);
-      }
+      if (result.ok) return;
+      addError(DELETE_REFUSAL);
+      if (!removed) return;
+      const { file, index } = removed;
+      onChange((current) => {
+        const next = [...current];
+        next.splice(index, 0, file);
+        return next;
+      });
     });
   };
 
@@ -287,9 +304,11 @@ export function CardAttachments({
         </ul>
       ) : null}
 
-      <p role="status" aria-live="polite" className="mt-2 min-h-4 text-xs text-time-over">
-        {error}
-      </p>
+      <div role="status" aria-live="polite" className="mt-2 min-h-4 text-xs text-time-over">
+        {errors.map((message, index) => (
+          <p key={index}>{message}</p>
+        ))}
+      </div>
     </section>
   );
 }
