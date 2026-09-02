@@ -7,7 +7,8 @@ import { z } from 'zod';
 import { sharedBoardsOwnedBy } from '@/lib/account';
 import { auth, signOut } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { boardInvites, users } from '@/lib/db/schema';
+import { attachments, boardInvites, boards, users } from '@/lib/db/schema';
+import { forgetObjects } from '@/lib/storage';
 
 const schema = z.object({ confirmEmail: z.string() });
 
@@ -26,6 +27,16 @@ export async function deleteAccount(input: unknown) {
     return { ok: false, error: 'EMAIL_MISMATCH' } as const;
   }
 
+  // Scoped to boards this user OWNS, never to rows they merely uploaded: a
+  // file on somebody else's board keeps its bytes and loses its uploader,
+  // which is what /privacy's retention section promises. Read before the
+  // transaction, because the boards cascade away with the user row.
+  const keys = await db
+    .select({ key: attachments.key })
+    .from(attachments)
+    .innerJoin(boards, eq(attachments.boardId, boards.id))
+    .where(eq(boards.ownerId, userId));
+
   const outcome = await db.transaction(async (tx) => {
     // Re-checked inside the transaction because a client can skip the page
     // that showed the list, and because membership could change under it.
@@ -43,6 +54,8 @@ export async function deleteAccount(input: unknown) {
   });
 
   if (!outcome.ok) return outcome;
+
+  await forgetObjects(keys.map((row) => row.key));
 
   // After the transaction commits, never inside it: the session row is already
   // gone by cascade, so this clears the cookie and nothing else.

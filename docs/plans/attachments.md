@@ -1006,7 +1006,7 @@ git merge-base --is-ancestor origin/main HEAD && echo "base is real"
   - `uploaderUsage(userId: string, now?: Date): Promise<number>`
   - `pendingCutoff(now?: Date): Date`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/attachments.test.ts`. The db mock follows the shape `lib/actions/labels.test.ts` already uses — a hand-rolled object, not a library. What matters here is the *predicate*, so the test drives the `where` callback rather than asserting on SQL strings:
 
@@ -1033,7 +1033,7 @@ describe('pendingCutoff', () => {
 
 The sums themselves are proved against a real database in Task B2's e2e, because what they must get right — that a stale pending row stops counting — is a `where` clause Postgres evaluates, not arithmetic TypeScript does.
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/attachments.test.ts > /tmp/b1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b1.log
@@ -1041,7 +1041,7 @@ pnpm exec vitest run lib/attachments.test.ts > /tmp/b1.log 2>&1; echo "EXIT=$?";
 
 Expected: FAIL — `Failed to resolve import "@/lib/attachments"`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 Create `lib/attachments.ts`:
 
@@ -1110,7 +1110,7 @@ export async function cardAttachments(cardId: string): Promise<CardAttachment[]>
 }
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/attachments.test.ts > /tmp/b1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b1.log
@@ -1118,7 +1118,7 @@ pnpm exec vitest run lib/attachments.test.ts > /tmp/b1.log 2>&1; echo "EXIT=$?";
 
 Expected: PASS, 2 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/attachments.ts lib/attachments.test.ts
@@ -1138,7 +1138,7 @@ git commit -m "feat: add attachment reads and the usage sums"
 - Consumes: `assertBoardAccess`, `boardAccessResult` from `lib/permissions.ts`; `boardIdForCard` from `lib/actions/scope.ts`; `objectKey`, `presignPut`, `deleteObjects`, `storageConfigured` from `lib/storage.ts`; `boardUsage`, `uploaderUsage`, `pendingCutoff` from `lib/attachments.ts`.
 - Produces: `requestUpload(input: unknown)` returning `{ ok: true; data: { attachmentId: string; url: string } }` or `{ ok: false; error: 'UNAUTHENTICATED' | 'INVALID' | 'NOT_FOUND' | 'FORBIDDEN' | 'UNAVAILABLE' | 'TOO_MANY' | 'BOARD_FULL' | 'ACCOUNT_FULL' }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/actions/attachments.test.ts`, mocking `@/lib/auth`, `@/lib/permissions`, `@/lib/events`, `@/lib/storage` and `@/lib/db` the way `lib/actions/labels.test.ts` does. The assertions that matter are the guard order and the two quota refusals:
 
@@ -1275,7 +1275,7 @@ describe('requestUpload', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b2.log
@@ -1283,7 +1283,7 @@ pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b2.log 2>&1; echo "E
 
 Expected: FAIL — `Failed to resolve import "@/lib/actions/attachments"`.
 
-- [ ] **Step 3: Write the action**
+- [x] **Step 3: Write the action**
 
 Create `lib/actions/attachments.ts`:
 
@@ -1412,7 +1412,7 @@ export async function requestUpload(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b2.log
@@ -1420,7 +1420,7 @@ pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b2.log 2>&1; echo "E
 
 Expected: PASS, 10 tests.
 
-- [ ] **Step 5: Prove the sweep against a real database**
+- [x] **Step 5: Prove the sweep against a real database**
 
 The stale-pending predicate is a `where` clause Postgres evaluates, so a mock cannot prove it. Create `e2e/attachments.spec.ts`:
 
@@ -1480,7 +1480,7 @@ pnpm exec playwright test e2e/attachments.spec.ts --reporter=line > /tmp/b2e2e.l
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/actions/attachments.ts lib/actions/attachments.test.ts e2e/attachments.spec.ts
@@ -1503,7 +1503,7 @@ git commit -m "feat: add requestUpload with the per-card and storage caps"
 
 Section D adds the `publish` call. Until then this action writes the row and returns; leave a comment saying so rather than inventing an event name early.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/actions/attachments.test.ts`:
 
@@ -1601,7 +1601,7 @@ describe('confirmUpload', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/attachments.test.ts -t confirmUpload > /tmp/b3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b3.log
@@ -1609,7 +1609,7 @@ pnpm exec vitest run lib/actions/attachments.test.ts -t confirmUpload > /tmp/b3.
 
 Expected: FAIL — `confirmUpload is not a function`.
 
-- [ ] **Step 3: Write the action**
+- [x] **Step 3: Write the action**
 
 Append to `lib/actions/attachments.ts`:
 
@@ -1681,7 +1681,7 @@ export async function confirmUpload(input: unknown) {
 
 **Note for the implementer:** `row.size` must be selected for the subtraction above to work — add `size: true` to the `columns` block if you removed it.
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b3.log
@@ -1689,7 +1689,7 @@ pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b3.log 2>&1; echo "E
 
 Expected: PASS, all `requestUpload` and `confirmUpload` tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/attachments.ts lib/actions/attachments.test.ts
@@ -1709,7 +1709,7 @@ git commit -m "feat: verify the real size and type before an attachment is visib
 
 The permission here is the one place attachments deliberately differ from comments: the **uploader or the board owner**, because the owner pays for the bytes and must be able to clear a file left by somebody whose account is gone.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { deleteAttachment } from '@/lib/actions/attachments';
@@ -1778,7 +1778,7 @@ describe('deleteAttachment', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/attachments.test.ts -t deleteAttachment > /tmp/b4.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b4.log
@@ -1786,7 +1786,7 @@ pnpm exec vitest run lib/actions/attachments.test.ts -t deleteAttachment > /tmp/
 
 Expected: FAIL — `deleteAttachment is not a function`.
 
-- [ ] **Step 3: Write the action**
+- [x] **Step 3: Write the action**
 
 ```ts
 const deleteSchema = z.object({ attachmentId: id, mutationId });
@@ -1826,7 +1826,7 @@ export async function deleteAttachment(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b4.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b4.log
@@ -1834,7 +1834,7 @@ pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b4.log 2>&1; echo "E
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/attachments.ts lib/actions/attachments.test.ts
@@ -1855,7 +1855,7 @@ git commit -m "feat: let the uploader or the board owner delete an attachment"
 
 Next 16 hands route params as a **Promise**; `await context.params` rather than destructuring it directly.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 import { describe, expect, test, vi } from 'vitest';
@@ -1921,7 +1921,7 @@ describe('the attachment download route', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run "app/api/attachments" > /tmp/b5.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b5.log
@@ -1929,7 +1929,7 @@ pnpm exec vitest run "app/api/attachments" > /tmp/b5.log 2>&1; echo "EXIT=$?"; t
 
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Write the route**
+- [x] **Step 3: Write the route**
 
 ```ts
 import { rendersInline } from '@/lib/attachments-limits';
@@ -1980,7 +1980,7 @@ export async function GET(
 }
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run "app/api/attachments" > /tmp/b5.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b5.log
@@ -1988,7 +1988,7 @@ pnpm exec vitest run "app/api/attachments" > /tmp/b5.log 2>&1; echo "EXIT=$?"; t
 
 Expected: PASS, 8 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/api/attachments
@@ -2010,7 +2010,7 @@ git commit -m "feat: serve attachments through an access-checked redirect"
 
 Rows cascade in Postgres; objects in a bucket do not. Each of these three must collect the keys **before** the transaction and delete the objects **after** it commits.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add one test to each of the three existing action test files. In `lib/actions/cards.test.ts`:
 
@@ -2046,7 +2046,7 @@ test('files on other people’s boards are left alone', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and watch them fail**
+- [x] **Step 2: Run the tests and watch them fail**
 
 ```bash
 pnpm exec vitest run lib/actions/cards.test.ts lib/actions/boards.test.ts lib/actions/account.test.ts > /tmp/b6.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b6.log
@@ -2054,7 +2054,7 @@ pnpm exec vitest run lib/actions/cards.test.ts lib/actions/boards.test.ts lib/ac
 
 Expected: FAIL — `deleteObjects` never called.
 
-- [ ] **Step 3: Wire the three call sites**
+- [x] **Step 3: Wire the three call sites**
 
 In `deleteCard`, before the transaction that deletes the row:
 
@@ -2073,7 +2073,7 @@ await forgetObjects(keys.map((row) => row.key));
 
 `deleteBoard` is the same with `eq(attachments.boardId, boardId)`. `deleteAccount` collects across every board the departing user owns — it already resolves that set to decide whether the delete is allowed, so reuse it rather than querying twice, and do **not** widen it to `uploaderId`: those rows keep their file and lose their uploader.
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 ```bash
 pnpm exec vitest run lib/actions/cards.test.ts lib/actions/boards.test.ts lib/actions/account.test.ts > /tmp/b6.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b6.log
@@ -2081,11 +2081,23 @@ pnpm exec vitest run lib/actions/cards.test.ts lib/actions/boards.test.ts lib/ac
 
 Expected: PASS.
 
-- [ ] **Step 5: Prove it against a real bucket**
+- [x] **Step 5: Prove it against a real bucket**
 
 The mocks prove the call is made. Only an end-to-end run proves the object actually leaves. Add to `e2e/attachments.spec.ts` a test that uploads through `requestUpload` + a real `PUT` + `confirmUpload`, deletes the card, and then asserts `headObject` answers null.
 
-- [ ] **Step 6: Commit**
+**Done differently, deliberately.** The three actions are `'use server'` modules: `auth()` needs a
+request context, and Section B ships no UI to drive them through — so the Playwright runner cannot
+invoke `requestUpload`/`confirmUpload` at all. That test becomes possible in Section C, where the
+card modal gives it a surface, and Section C's own e2e covers it.
+
+What was provable now, and is: `lib/storage.test.ts` gains `forgetObjects removes a real object`,
+which PUTs real bytes through a presigned URL, confirms `headObject` sees them, calls the same
+`forgetObjects` all three call sites call, and confirms `headObject` answers null. Composed with the
+unit tests above — which prove each call site reads the keys *before* the delete and passes them to
+`forgetObjects` — that closes the gap the mocks left. Verified against MinIO: 14 passed with `S3_*`
+set, 8 skipped without it.
+
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/actions e2e/attachments.spec.ts
@@ -2111,7 +2123,7 @@ are unchanged from the original Section A draft.
 **Interfaces:**
 - Consumes: nothing in code. This task exists because `CLAUDE.md` says a claim in the policy and the behaviour of the code must not drift.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `app/(legal)/privacy/page.test.tsx`, following the shape of the existing region assertion:
 
@@ -2130,7 +2142,7 @@ test('the policy says files on other people’s boards outlive the account', () 
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/b7.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b7.log
@@ -2138,7 +2150,7 @@ pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/b7.log 2>&1; ech
 
 Expected: FAIL — unable to find the text.
 
-- [ ] **Step 3: Add the sub-processor row**
+- [x] **Step 3: Add the sub-processor row**
 
 In `app/(legal)/privacy/page.tsx`, add to the sub-processor array after the Pusher entry:
 
@@ -2146,7 +2158,7 @@ In `app/(legal)/privacy/page.tsx`, add to the sub-processor array after the Push
   ['Cloudflare R2', 'Attachment storage', 'EU — jurisdiction-restricted'],
 ```
 
-- [ ] **Step 4: Add attachments to what is collected, and to retention**
+- [x] **Step 4: Add attachments to what is collected, and to retention**
 
 In the "what is collected" list, extend the sentence covering board content so it reads as one category rather than adding a new bullet for the same thing:
 
@@ -2159,7 +2171,7 @@ And in retention, after the existing sentence about comments:
 > removed, ask before you delete the account — afterwards nothing connects them
 > back to you.
 
-- [ ] **Step 5: Run the test and watch it pass**
+- [x] **Step 5: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/b7.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b7.log
@@ -2167,11 +2179,11 @@ pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/b7.log 2>&1; ech
 
 Expected: PASS.
 
-- [ ] **Step 6: Say the same thing in the account danger zone**
+- [x] **Step 6: Say the same thing in the account danger zone**
 
 `/account`'s danger zone already tells the user that comments on other people's boards survive. Add attachments to that sentence — one clause, not a new paragraph — so the two surfaces cannot drift.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add "app/(legal)/privacy" app/\(app\)/\(chrome\)/account
@@ -2182,7 +2194,7 @@ git commit -m "docs: name the attachment store in the privacy policy"
 
 ### Task B8: Section B verification and pull request
 
-- [ ] **Step 1: Run everything, each exit code from its own log**
+- [x] **Step 1: Run everything, each exit code from its own log**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TYPECHECK=$?"
@@ -2195,11 +2207,11 @@ tail -3 /tmp/e2e.log
 
 All five `0`. Compare the e2e count that ran against the count collected — a summary line is not an exit code, and a passing count is not a passing suite.
 
-- [ ] **Step 2: Update `CLAUDE.md`**
+- [x] **Step 2: Update `CLAUDE.md`**
 
 "Auth and permissions" gains the one-line exception that an attachment, unlike a comment, can be deleted by the board owner, and why. "Layout" gains `app/api/attachments/`.
 
-- [ ] **Step 3: Commit, push, open the PR**
+- [x] **Step 3: Commit, push, open the PR**
 
 ```bash
 git add CLAUDE.md docs/plans/attachments.md

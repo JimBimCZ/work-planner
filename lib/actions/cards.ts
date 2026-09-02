@@ -6,11 +6,12 @@ import { z } from 'zod';
 
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { cards } from '@/lib/db/schema';
+import { attachments, cards } from '@/lib/db/schema';
 import { fromDateInputValue, toDateInputValue } from '@/lib/due';
 import { publish } from '@/lib/events';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 import { ranksAfter, rankBetween } from '@/lib/rank';
+import { forgetObjects } from '@/lib/storage';
 
 import { boardIdForCard, boardIdForColumn, cardEventScope, touchBoard } from './scope';
 
@@ -255,10 +256,19 @@ export async function deleteCard(input: unknown) {
     return boardAccessResult(error);
   }
 
+  // Read before the delete: rows cascade in Postgres, objects in a bucket do
+  // not, and after the cascade there is nothing left to read the keys from.
+  const keys = await db
+    .select({ key: attachments.key })
+    .from(attachments)
+    .where(eq(attachments.cardId, parsed.data.cardId));
+
   await db.transaction(async (tx) => {
     await tx.delete(cards).where(eq(cards.id, parsed.data.cardId));
     await touchBoard(tx, boardId);
   });
+
+  await forgetObjects(keys.map((row) => row.key));
 
   revalidatePath('/boards');
   await publish(boardId, {
