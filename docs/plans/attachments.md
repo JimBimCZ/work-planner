@@ -1855,7 +1855,7 @@ git commit -m "feat: let the uploader or the board owner delete an attachment"
 
 Next 16 hands route params as a **Promise**; `await context.params` rather than destructuring it directly.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 import { describe, expect, test, vi } from 'vitest';
@@ -1921,7 +1921,7 @@ describe('the attachment download route', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run "app/api/attachments" > /tmp/b5.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b5.log
@@ -1929,7 +1929,7 @@ pnpm exec vitest run "app/api/attachments" > /tmp/b5.log 2>&1; echo "EXIT=$?"; t
 
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Write the route**
+- [x] **Step 3: Write the route**
 
 ```ts
 import { rendersInline } from '@/lib/attachments-limits';
@@ -1980,7 +1980,7 @@ export async function GET(
 }
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run "app/api/attachments" > /tmp/b5.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b5.log
@@ -1988,7 +1988,7 @@ pnpm exec vitest run "app/api/attachments" > /tmp/b5.log 2>&1; echo "EXIT=$?"; t
 
 Expected: PASS, 8 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add app/api/attachments
