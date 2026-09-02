@@ -2240,7 +2240,7 @@ The surface. Branch `feat/attachments-modal` from `main` once Section B has land
 - Produces: `CardAttachments({ cardId, attachments, canWrite, viewerId, viewerIsOwner, storageEnabled, boardUsed, onChange })`.
 - Modifies: `getCardForRoute` also returns `attachments: CardAttachment[]`, `storageEnabled: boolean`, `boardUsed: number`, `viewerIsOwner: boolean`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 import { render, screen } from '@testing-library/react';
@@ -2341,7 +2341,7 @@ describe('CardAttachments', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c1.log
@@ -2349,7 +2349,7 @@ pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c1.log 2>
 
 Expected: FAIL — module not found.
 
-- [ ] **Step 3: Write the component**
+- [x] **Step 3: Write the component**
 
 Create `components/board/card-attachments.tsx`. Note the `import type` on the first import: `lib/attachments.ts` imports `lib/db`, which builds a pg pool at module scope, and this file is in the client bundle. A value import here passes typecheck, lint and test, and dies only in `pnpm build`.
 
@@ -2432,7 +2432,7 @@ export function CardAttachments({
 }
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c1.log
@@ -2440,11 +2440,11 @@ pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c1.log 2>
 
 Expected: PASS, 10 tests. The upload-control tests pass trivially at this point because no control exists yet — Task C2 is what makes them meaningful, and they must keep passing there.
 
-- [ ] **Step 5: Extend `getCardForRoute`**
+- [x] **Step 5: Extend `getCardForRoute`**
 
 In `lib/cards.ts`, add `attachments`, `storageEnabled`, `boardUsed` and `viewerIsOwner` to what it returns, using `cardAttachments`, `storageConfigured` and `boardUsage`. Both card routes already destructure this result — extend them rather than fetching separately, so a shared link on a cold load and the intercepted modal cannot disagree.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/board/card-attachments.tsx components/board/card-attachments.test.tsx lib/cards.ts

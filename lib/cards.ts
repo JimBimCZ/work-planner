@@ -1,10 +1,12 @@
 import { cache } from 'react';
 import { notFound, redirect } from 'next/navigation';
 
+import { boardUsage, cardAttachments, type CardAttachment } from '@/lib/attachments';
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { boardLabels, type BoardLabel } from '@/lib/labels';
 import { assertBoardAccess, atLeast, BoardAccessError } from '@/lib/permissions';
+import { storageConfigured } from '@/lib/storage';
 
 export type CardComment = {
   id: string;
@@ -71,6 +73,10 @@ export async function getCardForRoute(
   labels: BoardLabel[];
   canWrite: boolean;
   viewer: Viewer;
+  attachments: CardAttachment[];
+  storageEnabled: boolean;
+  boardUsed: number;
+  viewerIsOwner: boolean;
 }> {
   const session = await auth();
   if (!session?.user?.id) redirect('/signin');
@@ -88,15 +94,26 @@ export async function getCardForRoute(
     throw error;
   }
 
-  return {
-    card,
+  const storageEnabled = storageConfigured();
+  const [labels, attachments, boardUsed] = await Promise.all([
     // The board's whole set, so the picker can offer every label rather than
     // only the ones already on this card.
-    labels: await boardLabels(card.boardId),
+    boardLabels(card.boardId),
+    cardAttachments(card.id),
+    storageEnabled ? boardUsage(card.boardId) : Promise.resolve(0),
+  ]);
+
+  return {
+    card,
+    labels,
     canWrite: atLeast(role, 'member'),
     viewer: {
       id: session.user.id,
       name: session.user.name ?? null,
     },
+    attachments,
+    storageEnabled,
+    boardUsed,
+    viewerIsOwner: role === 'owner',
   };
 }
