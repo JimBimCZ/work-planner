@@ -244,4 +244,20 @@ describe('CardAttachments', () => {
     );
     expect(screen.getByRole('button', { name: /delete screenshot\.png/i })).toBeInTheDocument();
   });
+
+  test('a demoted uploader sees no delete control on their own file', async () => {
+    // deleteAttachment requires role >= member even for one's own file — only
+    // the owner branch is unconditional. A viewer who once uploaded this file
+    // would always get FORBIDDEN, so the control must not render for them.
+    render(
+      <CardAttachments
+        {...props}
+        canWrite={false}
+        viewerId="u1"
+        viewerIsOwner={false}
+        attachments={[file({ uploader: { id: 'u1', name: 'Alex', image: null } })]}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
+  });
 });

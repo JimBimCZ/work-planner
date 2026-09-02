@@ -2622,7 +2622,7 @@ Expected: FAIL — no delete button.
 
 - [x] **Step 3: Add the control**
 
-The predicate mirrors the server's exactly — `file.uploader?.id === viewerId || viewerIsOwner` — and the server re-checks it regardless, because a client-side predicate is presentation, never authorisation. The delete control is destructive, so it carries `--time-over`: that is one of the two sanctioned warm uses, transient and local, inside a control the user is already looking at.
+The predicate mirrors the server's exactly — `(canWrite && file.uploader?.id === viewerId) || viewerIsOwner` — and the server re-checks it regardless, because a client-side predicate is presentation, never authorisation. The delete control is destructive, so it carries `--time-over`: that is one of the two sanctioned warm uses, transient and local, inside a control the user is already looking at.
 
 - [x] **Step 4: Slot the section into `card-body.tsx`**
 

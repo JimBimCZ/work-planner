@@ -195,9 +195,12 @@ export function CardAttachments({
       ) : (
         <ul className="mt-2 space-y-3">
           {attachments.map((file) => {
-            // Mirrors the server's `mine || role === 'owner'` exactly. This
-            // is presentation only — deleteAttachment re-checks regardless.
-            const canDelete = file.uploader?.id === viewerId || viewerIsOwner;
+            // Mirrors the server's `mine || role === 'owner'` exactly: the
+            // server also requires role >= member even for one's own file —
+            // only the owner branch is unconditional — so "mine" here is
+            // gated on canWrite too. Presentation only — deleteAttachment
+            // re-checks regardless.
+            const canDelete = (canWrite && file.uploader?.id === viewerId) || viewerIsOwner;
             return (
               <li key={file.id} className="flex items-start justify-between gap-2">
                 <div>
