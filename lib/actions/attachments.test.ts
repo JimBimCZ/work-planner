@@ -20,14 +20,22 @@ vi.mock('@/lib/events', async () => {
 // assigns to it throws instead of changing the answer.
 let storageOn = true;
 const presignPut = vi.fn();
+const headObject = vi.fn();
+// forgetObjects is mocked rather than deleteObjects: forgetObjects calls
+// deleteObjects through a module-local binding, so replacing the exported leaf
+// would not be observable from here. Asserting on the wrapper is also the
+// stronger check — best-effort deletion is the contract these actions owe.
 const forgetObjects = vi.fn();
+const deleteObjects = vi.fn();
 vi.mock('@/lib/storage', async () => {
   const actual = await vi.importActual<typeof import('@/lib/storage')>('@/lib/storage');
   return {
     ...actual,
     storageConfigured: () => storageOn,
     presignPut: (...a: unknown[]) => presignPut(...a),
+    headObject: (...a: unknown[]) => headObject(...a),
     forgetObjects: (...a: unknown[]) => forgetObjects(...a),
+    deleteObjects: (...a: unknown[]) => deleteObjects(...a),
   };
 });
 
@@ -50,14 +58,28 @@ function tableName(table: unknown): string {
   return symbol ? (table as Record<symbol, string>)[symbol] : 'unknown';
 }
 
+type AttachmentRow = {
+  id: string;
+  boardId: string;
+  cardId: string;
+  uploaderId: string | null;
+  key: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  status: string;
+};
+
 let cardRow: { boardId: string } | undefined;
 let cardCount = 0;
 let staleRows: { id: string; key: string }[] = [];
+let attachmentRow: AttachmentRow | undefined;
 
 const query = {
   cards: { findFirst: async () => cardRow },
   attachments: {
     findMany: async () => Array.from({ length: cardCount }, (_, i) => ({ id: `att-${i}` })),
+    findFirst: async () => attachmentRow,
   },
 };
 
@@ -76,6 +98,13 @@ const writer = {
       ops.push({ kind: 'insert', table: tableName(table), values });
     },
   }),
+  update: (table: unknown) => ({
+    set: (values: unknown) => ({
+      where: async () => {
+        ops.push({ kind: 'update', table: tableName(table), values });
+      },
+    }),
+  }),
   delete: (table: unknown) => ({
     where: async () => {
       ops.push({ kind: 'delete', table: tableName(table) });
@@ -90,7 +119,10 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
-const { requestUpload } = await import('./attachments');
+// Imported after the mocks, not statically: a top-level import of a module
+// that reaches @/lib/db runs the db mock factory before `writer` exists.
+const { BoardAccessError } = await import('@/lib/permissions');
+const { confirmUpload, requestUpload } = await import('./attachments');
 
 const valid = {
   cardId: 'c1',
@@ -109,14 +141,18 @@ beforeEach(() => {
   publish.mockReset();
   presignPut.mockReset();
   presignPut.mockResolvedValue('https://bucket.example/put');
+  headObject.mockReset();
   forgetObjects.mockReset();
   forgetObjects.mockResolvedValue(undefined);
+  deleteObjects.mockReset();
+  deleteObjects.mockResolvedValue(undefined);
   storageOn = true;
   boardTotal = 0;
   accountTotal = 0;
   cardCount = 0;
   staleRows = [];
   cardRow = { boardId: 'b1' };
+  attachmentRow = undefined;
 });
 
 describe('requestUpload', () => {
@@ -204,6 +240,103 @@ describe('requestUpload', () => {
     // verified it. Publishing here would show every other client a file that
     // may never finish uploading.
     await requestUpload(valid);
+    expect(publish).not.toHaveBeenCalled();
+  });
+});
+
+describe('confirmUpload', () => {
+  const MUTATION_ID = '33333333-3333-4333-8333-333333333333';
+
+  beforeEach(() => {
+    attachmentRow = {
+      id: 'a1',
+      boardId: 'b1',
+      cardId: 'c1',
+      uploaderId: 'u1',
+      key: 'boards/b1/a1',
+      filename: 'screenshot.png',
+      contentType: 'image/png',
+      size: 1024,
+      status: 'pending',
+    };
+    headObject.mockResolvedValue({ size: 1024, contentType: 'image/png' });
+  });
+
+  test('refuses when the object never landed', async () => {
+    headObject.mockResolvedValue(null);
+    expect(await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID })).toEqual({
+      ok: false,
+      error: 'NOT_FOUND',
+    });
+  });
+
+  test('stores the real size, not the declared one', async () => {
+    // The row claimed 1024. The bucket says 4096. The row must end up saying
+    // 4096 — otherwise every quota downstream is computed from a client's word.
+    headObject.mockResolvedValue({ size: 4096, contentType: 'image/png' });
+    await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID });
+    const update = ops.find((op) => op.kind === 'update' && op.table === 'attachments');
+    expect(update?.values).toMatchObject({ size: 4096, status: 'ready' });
+  });
+
+  test('stores the real content type, not the declared one', async () => {
+    // A file declared image/png that is actually text/html must not be
+    // remembered as an image — the inline allowlist reads this column.
+    headObject.mockResolvedValue({ size: 1024, contentType: 'text/html' });
+    await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID });
+    const update = ops.find((op) => op.kind === 'update' && op.table === 'attachments');
+    expect(update?.values).toMatchObject({ contentType: 'text/html' });
+  });
+
+  test('rejects an object larger than the per-file cap and deletes it', async () => {
+    headObject.mockResolvedValue({ size: 20 * 1024 * 1024, contentType: 'image/png' });
+    expect(await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID })).toEqual({
+      ok: false,
+      error: 'TOO_LARGE',
+    });
+    expect(forgetObjects).toHaveBeenCalledWith(['boards/b1/a1']);
+    expect(ops.some((op) => op.kind === 'delete' && op.table === 'attachments')).toBe(true);
+  });
+
+  test('rejects an object whose declared size fitted the board quota but whose real size does not', async () => {
+    // The whole reason the quota is checked twice. requestUpload reserved
+    // against 1024; the bucket holds something far larger.
+    boardTotal = 1024 * 1024 * 1024 - 2048;
+    headObject.mockResolvedValue({ size: 8 * 1024 * 1024, contentType: 'image/png' });
+    expect(await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID })).toEqual({
+      ok: false,
+      error: 'BOARD_FULL',
+    });
+    expect(forgetObjects).toHaveBeenCalledWith(['boards/b1/a1']);
+  });
+
+  test('refuses to confirm somebody else’s pending row', async () => {
+    attachmentRow = { ...attachmentRow!, uploaderId: 'someone-else' };
+    expect(await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID })).toEqual({
+      ok: false,
+      error: 'NOT_FOUND',
+    });
+  });
+
+  test('refuses to confirm a row that is already ready', async () => {
+    attachmentRow = { ...attachmentRow!, status: 'ready' };
+    expect(await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID })).toEqual({
+      ok: false,
+      error: 'NOT_FOUND',
+    });
+  });
+
+  test('checks board access before it touches the bucket', async () => {
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    expect(await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID })).toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+    expect(headObject).not.toHaveBeenCalled();
+  });
+
+  test('publishes nothing yet — Section D adds the event', async () => {
+    await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID });
     expect(publish).not.toHaveBeenCalled();
   });
 });

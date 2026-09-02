@@ -1503,7 +1503,7 @@ git commit -m "feat: add requestUpload with the per-card and storage caps"
 
 Section D adds the `publish` call. Until then this action writes the row and returns; leave a comment saying so rather than inventing an event name early.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/actions/attachments.test.ts`:
 
@@ -1601,7 +1601,7 @@ describe('confirmUpload', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/attachments.test.ts -t confirmUpload > /tmp/b3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b3.log
@@ -1609,7 +1609,7 @@ pnpm exec vitest run lib/actions/attachments.test.ts -t confirmUpload > /tmp/b3.
 
 Expected: FAIL — `confirmUpload is not a function`.
 
-- [ ] **Step 3: Write the action**
+- [x] **Step 3: Write the action**
 
 Append to `lib/actions/attachments.ts`:
 
@@ -1681,7 +1681,7 @@ export async function confirmUpload(input: unknown) {
 
 **Note for the implementer:** `row.size` must be selected for the subtraction above to work — add `size: true` to the `columns` block if you removed it.
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b3.log
@@ -1689,7 +1689,7 @@ pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b3.log 2>&1; echo "E
 
 Expected: PASS, all `requestUpload` and `confirmUpload` tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/attachments.ts lib/actions/attachments.test.ts

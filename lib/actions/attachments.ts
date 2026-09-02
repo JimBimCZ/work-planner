@@ -15,7 +15,13 @@ import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { attachments } from '@/lib/db/schema';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
-import { forgetObjects, objectKey, presignPut, storageConfigured } from '@/lib/storage';
+import {
+  forgetObjects,
+  headObject,
+  objectKey,
+  presignPut,
+  storageConfigured,
+} from '@/lib/storage';
 import { boardIdForCard } from './scope';
 
 const id = z.string().min(1);
@@ -111,4 +117,74 @@ export async function requestUpload(input: unknown) {
     ok: true,
     data: { attachmentId, url: await presignPut(key, contentType) },
   } as const;
+}
+
+const confirmSchema = z.object({ attachmentId: id, mutationId });
+
+export async function confirmUpload(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = confirmSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  const row = await db.query.attachments.findFirst({
+    where: (a, { eq: is }) => is(a.id, parsed.data.attachmentId),
+    columns: {
+      id: true,
+      boardId: true,
+      cardId: true,
+      uploaderId: true,
+      key: true,
+      filename: true,
+      size: true,
+      status: true,
+    },
+  });
+  // Somebody else's row, or one already confirmed, answers the same as a row
+  // that never existed: a guessed id learns nothing either way.
+  if (!row || row.status !== 'pending' || row.uploaderId !== session.user.id) {
+    return { ok: false, error: 'NOT_FOUND' } as const;
+  }
+
+  try {
+    await assertBoardAccess(session.user.id, row.boardId, 'member');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  const head = await headObject(row.key);
+  if (!head) {
+    // The upload never landed. Drop the reservation so it stops holding a slot.
+    await db.delete(attachments).where(eq(attachments.id, row.id));
+    return { ok: false, error: 'NOT_FOUND' } as const;
+  }
+
+  // Everything from here uses head.size and head.contentType. The values the
+  // client declared at requestUpload are not consulted again.
+  const reject = async (error: 'TOO_LARGE' | 'BOARD_FULL' | 'ACCOUNT_FULL') => {
+    await db.delete(attachments).where(eq(attachments.id, row.id));
+    await forgetObjects([row.key]);
+    return { ok: false, error } as const;
+  };
+
+  if (head.size > ATTACHMENT_SIZE_MAX) return reject('TOO_LARGE');
+
+  // Both sums still include this row's own pending reservation, so subtract it
+  // before comparing — otherwise a file is measured against itself.
+  const [board, account] = await Promise.all([
+    boardUsage(row.boardId),
+    uploaderUsage(session.user.id),
+  ]);
+  if (board - row.size + head.size > STORAGE_PER_BOARD) return reject('BOARD_FULL');
+  if (account - row.size + head.size > STORAGE_PER_ACCOUNT) return reject('ACCOUNT_FULL');
+
+  await db
+    .update(attachments)
+    .set({ size: head.size, contentType: head.contentType, status: 'ready' })
+    .where(eq(attachments.id, row.id));
+
+  // Section D publishes attachment.added here, after this write has committed.
+
+  return { ok: true, data: { attachmentId: row.id } } as const;
 }
