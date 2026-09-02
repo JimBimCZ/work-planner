@@ -60,7 +60,17 @@ docker compose up --build          # app + postgres locally
 docker build -t kanban .           # app image only, self-host
 ```
 
-`db:migrate` uses `DATABASE_URL_UNPOOLED` and never runs at application startup. CI runs it against its own throwaway Postgres on every pull request, which proves the migration applies to an empty database. **Production is migrated by hand.** Vercel deploys straight from a push to `main`, so CI can race that promotion but cannot gate it; rather than describe a gate that does not exist, run `pnpm db:migrate` against production yourself when a migration lands. The window in which the deployed app expects tables that are not there yet is minutes, and costs nothing until the service has users.
+`db:migrate` uses `DATABASE_URL_UNPOOLED` and never runs at application startup. CI runs it against its own throwaway Postgres on every pull request, which proves the migration applies to an empty database. **Production is migrated by hand.** Vercel deploys straight from a push to `main`, so CI can race that promotion but cannot gate it; rather than describe a gate that does not exist, run `pnpm db:migrate` against production yourself **in the same sitting as the merge that carries the migration** — not at the end of the sub-project, and not when the feature that reads the new tables lands.
+
+That sentence used to end "the window ... is minutes, and costs nothing until the service has users." Both halves were wrong, and the labels sub-project proved it. Migration `0005` (the `labels` and `card_labels` tables) landed on `main` in Section A's PR #82 at 19:20 on 2026-09-01 and was never applied. Section B merged the board query that joins `card_labels` at 19:56, Vercel promoted it, and from **20:41 to 20:44 production answered `/boards/[boardId]` with `relation "card_labels" does not exist`** — eleven times, to a real user, who then stopped. It was found the next day, by checking rather than by a report. The window is as long as nobody looks, and the service already has users.
+
+So: **verify, do not assume.** The success line lies about the target (see `MIGRATE_URL` below), and it says nothing at all about a migration that never ran. Read the table list back:
+
+```bash
+select table_name from information_schema.tables where table_schema='public';
+```
+
+The count of applied rows in `drizzle.__drizzle_migrations` must equal the number of files in `lib/db/migrations/`. Five against six is what this incident looked like from the outside.
 
 `drizzle.config.ts` loads `.env.local` itself and lets it override `.env`. drizzle-kit only auto-loads
 `.env`, so without that the app talks to Neon while migrations silently hit the docker Postgres in
@@ -69,7 +79,7 @@ docker build -t kanban .           # app image only, self-host
 **`MIGRATE_URL` names the database outright, and is how production is migrated:**
 
 ```bash
-MIGRATE_URL="$(npx --yes neonctl@4 connection-string main --project-id withered-glade-54206401)" pnpm db:migrate
+MIGRATE_URL="$(npx --yes neonctl@4 connection-string main --project-id withered-glade-54206401 --org-id org-silent-block-21833986)" pnpm db:migrate
 ```
 
 It exists because provenance cannot be inferred. drizzle-kit loads `.env` into `process.env` before
@@ -81,6 +91,11 @@ matched `.env`, read as "not from the shell", and migrated the Neon dev branch w
 `migrations applied successfully!`. `MIGRATE_URL` carries no value to be confused with.
 
 `lib/db/migrate-target.ts` holds the rule and its tests.
+
+`--org-id` is not decoration. The account reaches Neon through the Vercel integration, so `neonctl`
+now resolves more than one organisation and asks which — an interactive prompt the surrounding `$( )`
+swallows exactly the way it swallows the `npx` confirmation below. The command appears to hang, and
+`MIGRATE_URL` ends up empty.
 
 `--yes` is not decoration either. `npx` re-resolves `neonctl` on every invocation — it is never
 cached — and an interactive terminal answers that with a confirmation prompt the surrounding
@@ -426,7 +441,7 @@ Empty states are invitations, not apologies: an empty column reads "Nothing here
 What that constrains:
 
 - No in-memory state between requests — no module-level caches, no per-process job queues, no open sockets held across invocations. The pooled db client in `lib/db/index.ts` is the single deliberate exception: it's a connection pool reused within a warm instance, not state, and it must hold no request-scoped data.
-- Migrations do **not** run at boot, and never from `instrumentation.ts` or a route handler. CI runs `pnpm db:migrate` against its own throwaway Postgres on every pull request, which proves the migration applies to an empty database — it does not gate production. **Production is migrated by hand:** Vercel deploys straight from a push to `main`, so CI can race that promotion but cannot block it. Run `pnpm db:migrate` against production yourself when a migration lands.
+- Migrations do **not** run at boot, and never from `instrumentation.ts` or a route handler. CI runs `pnpm db:migrate` against its own throwaway Postgres on every pull request, which proves the migration applies to an empty database — it does not gate production. **Production is migrated by hand:** Vercel deploys straight from a push to `main`, so CI can race that promotion but cannot block it. Run `pnpm db:migrate` against production yourself in the same sitting as the merge, and read the table list back to confirm it — see "Commands" for the incident that makes both halves of that a rule rather than advice.
 - Use Neon's pooled connection string in `DATABASE_URL`; drizzle-kit uses the direct (unpooled) URL via `DATABASE_URL_UNPOOLED`.
 - `vercel.json` pins `regions: ["fra1"]`. Functions defaulted to `iad1` — observed as
   `x-vercel-id: fra1::iad1::…`, where the first segment is only the edge PoP — which put every read
@@ -580,6 +595,7 @@ One section of the plan, one branch, one PR. Ship the PR as soon as the section 
 - Commit as you go, one concern per commit, imperative subject line. Each commit leaves the app working.
 - Tick the plan's checkboxes in the same PR that does the work, so the plan document and the branch never disagree.
 - Open the PR with `gh pr create`. The body states: which spec and plan section this implements, what was verified and how (actual observed output, not intent), anything deliberately left out, and screenshots for any UI change.
+- **If the section carried a migration, apply it to production the moment the PR merges**, and confirm by reading the table list back. The merge is the deploy; a migration sitting unapplied is a production outage waiting for the next reader. See "Commands".
 - Then stop and hand back. Opening the PR is the checkpoint — start the next section in a fresh session from the plan document rather than continuing on a full context.
 - Do not merge your own PR. Wait for review.
 - If a section depends on one still in review, stack it: branch from that branch and set the PR base to it. Say so in the body.
