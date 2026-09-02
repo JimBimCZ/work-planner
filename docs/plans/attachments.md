@@ -1138,7 +1138,7 @@ git commit -m "feat: add attachment reads and the usage sums"
 - Consumes: `assertBoardAccess`, `boardAccessResult` from `lib/permissions.ts`; `boardIdForCard` from `lib/actions/scope.ts`; `objectKey`, `presignPut`, `deleteObjects`, `storageConfigured` from `lib/storage.ts`; `boardUsage`, `uploaderUsage`, `pendingCutoff` from `lib/attachments.ts`.
 - Produces: `requestUpload(input: unknown)` returning `{ ok: true; data: { attachmentId: string; url: string } }` or `{ ok: false; error: 'UNAUTHENTICATED' | 'INVALID' | 'NOT_FOUND' | 'FORBIDDEN' | 'UNAVAILABLE' | 'TOO_MANY' | 'BOARD_FULL' | 'ACCOUNT_FULL' }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/actions/attachments.test.ts`, mocking `@/lib/auth`, `@/lib/permissions`, `@/lib/events`, `@/lib/storage` and `@/lib/db` the way `lib/actions/labels.test.ts` does. The assertions that matter are the guard order and the two quota refusals:
 
@@ -1275,7 +1275,7 @@ describe('requestUpload', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b2.log
@@ -1283,7 +1283,7 @@ pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b2.log 2>&1; echo "E
 
 Expected: FAIL — `Failed to resolve import "@/lib/actions/attachments"`.
 
-- [ ] **Step 3: Write the action**
+- [x] **Step 3: Write the action**
 
 Create `lib/actions/attachments.ts`:
 
@@ -1412,7 +1412,7 @@ export async function requestUpload(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b2.log
@@ -1420,7 +1420,7 @@ pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b2.log 2>&1; echo "E
 
 Expected: PASS, 10 tests.
 
-- [ ] **Step 5: Prove the sweep against a real database**
+- [x] **Step 5: Prove the sweep against a real database**
 
 The stale-pending predicate is a `where` clause Postgres evaluates, so a mock cannot prove it. Create `e2e/attachments.spec.ts`:
 
@@ -1480,7 +1480,7 @@ pnpm exec playwright test e2e/attachments.spec.ts --reporter=line > /tmp/b2e2e.l
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/actions/attachments.ts lib/actions/attachments.test.ts e2e/attachments.spec.ts
