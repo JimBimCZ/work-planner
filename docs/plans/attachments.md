@@ -2958,6 +2958,6 @@ curl -sI -b "$COOKIE" http://localhost:3000/api/attachments/<id> | grep -i locat
 # then follow that URL and check its content-disposition says attachment
 ```
 
-- [ ] **Step 4: Run `/superpowers:review` on the whole branch**, on Opus. The final review reads the branch against the spec, the plan and `CLAUDE.md` at once, which is where breadth pays for itself.
+- [x] **Step 4: Run `/superpowers:review` on the whole branch**, on Opus. The final review reads the branch against the spec, the plan and `CLAUDE.md` at once, which is where breadth pays for itself.
 
-- [ ] **Step 5: Commit, push, open the PR**, then stop and hand back.
+- [x] **Step 5: Commit, push, open the PR**, then stop and hand back.
