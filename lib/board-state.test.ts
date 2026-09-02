@@ -466,3 +466,91 @@ describe('parseLabelFilter', () => {
     expect(parseLabelFilter(new URLSearchParams(''), labels)).toEqual([]);
   });
 });
+
+describe('label actions', () => {
+  const card = (labelIds: string[]): StateCard => ({
+    id: 'card-1',
+    columnId: 'col-1',
+    title: 'First',
+    rank: 'b0',
+    createdAt: '2026-01-01',
+    dueDate: null,
+    labelIds,
+  });
+
+  test('a created label joins the board vocabulary', () => {
+    const before: BoardState = { columns: [], labels: [], cards: [] };
+    const after = boardReducer(before, {
+      type: 'label.create',
+      label: { id: 'l1', name: 'bug' },
+    });
+
+    expect(after.labels).toEqual([{ id: 'l1', name: 'bug' }]);
+  });
+
+  test('a created label lands where a reload would put it, not at the end', () => {
+    const before: BoardState = {
+      columns: [],
+      labels: [
+        { id: 'l1', name: 'api' },
+        { id: 'l2', name: 'zebra' },
+      ],
+      cards: [],
+    };
+    const after = boardReducer(before, {
+      type: 'label.create',
+      label: { id: 'l3', name: 'Bug' },
+    });
+
+    expect(after.labels.map((label) => label.name)).toEqual(['api', 'Bug', 'zebra']);
+  });
+
+  test('a renamed label moves to its new place in the order', () => {
+    const before: BoardState = {
+      columns: [],
+      labels: [
+        { id: 'l1', name: 'api' },
+        { id: 'l2', name: 'zebra' },
+      ],
+      cards: [],
+    };
+    const after = boardReducer(before, { type: 'label.rename', labelId: 'l1', name: 'zzz' });
+
+    expect(after.labels.map((label) => label.name)).toEqual(['zebra', 'zzz']);
+  });
+
+  test('a deleted label leaves every card that carried it', () => {
+    const before: BoardState = {
+      columns: [],
+      labels: [{ id: 'l1', name: 'bug' }],
+      cards: [card(['l1', 'l2'])],
+    };
+    const after = boardReducer(before, { type: 'label.delete', labelId: 'l1' });
+
+    expect(after.labels).toEqual([]);
+    expect(after.cards[0].labelIds).toEqual(['l2']);
+  });
+
+  test('a renamed label repaints every card without touching one', () => {
+    const before: BoardState = {
+      columns: [],
+      labels: [{ id: 'l1', name: 'bug' }],
+      cards: [card(['l1'])],
+    };
+    const after = boardReducer(before, { type: 'label.rename', labelId: 'l1', name: 'defect' });
+
+    expect(after.labels).toEqual([{ id: 'l1', name: 'defect' }]);
+    expect(after.cards[0]).toBe(before.cards[0]);
+  });
+
+  test('card.labels replaces the whole set', () => {
+    const before: BoardState = { columns: [], labels: [], cards: [card(['l1'])] };
+    const after = boardReducer(before, {
+      type: 'card.labels',
+      cardId: 'card-1',
+      labelIds: ['l2', 'l3'],
+    });
+
+    expect(after.cards[0].labelIds).toEqual(['l2', 'l3']);
+  });
+});

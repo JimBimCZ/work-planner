@@ -230,6 +230,18 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
               moves: event.cards.map(({ id, rank }) => ({ id, rank })),
             });
             return;
+          case 'label.created':
+            dispatch({ type: 'label.create', label: { id: event.id, name: event.name } });
+            return;
+          case 'label.updated':
+            dispatch({ type: 'label.rename', labelId: event.id, name: event.name });
+            return;
+          case 'label.deleted':
+            dispatch({ type: 'label.delete', labelId: event.id });
+            return;
+          case 'card.labelled':
+            dispatch({ type: 'card.labels', cardId: event.id, labelIds: event.labelIds });
+            return;
           default:
             // Comment events belong to the open card, not the canvas.
             return;

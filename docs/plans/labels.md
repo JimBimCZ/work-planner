@@ -2175,7 +2175,7 @@ The four events published since Section A finally get delivered. Branch `feat/la
   | { type: 'card.labels'; cardId: string; labelIds: string[] }
   ```
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Extend the existing every-event-is-bound assertion in `lib/events.test.ts` — it reads `realtime.tsx` and is the guard `CLAUDE.md` describes:
 
@@ -2225,7 +2225,7 @@ test('card.labels replaces the whole set', () => {
 
 `toBe` in the rename test is deliberate: the card object must be the same reference, which is what proves a rename repaints from `state.labels` rather than rewriting every card.
 
-- [ ] **Step 2: Run it to watch it fail**
+- [x] **Step 2: Run it to watch it fail**
 
 ```bash
 pnpm exec vitest run lib/events.test.ts lib/board-state.test.ts > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/unit.log
@@ -2233,7 +2233,7 @@ pnpm exec vitest run lib/events.test.ts lib/board-state.test.ts > /tmp/unit.log 
 
 Expected: FAIL — `label.created is published but never delivered`.
 
-- [ ] **Step 3: Bind them and apply them**
+- [x] **Step 3: Bind them and apply them**
 
 Add the four names to `EVENT_NAMES` in `components/board/realtime.tsx`.
 
@@ -2270,7 +2270,7 @@ Add the four actions to `BoardAction` and to `boardReducer` in `lib/board-state.
 
 Then map the four events to those actions in the canvas's realtime handler, beside the card and column cases already there.
 
-- [ ] **Step 4: Run the gate**
+- [x] **Step 4: Run the gate**
 
 ```bash
 pnpm exec vitest run > /tmp/unit.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/unit.log
@@ -2281,7 +2281,7 @@ pnpm build > /tmp/build.log 2>&1; echo "BUILD=$?"; tail -5 /tmp/build.log
 
 Expected: all `=0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board lib/board-state.ts lib/board-state.test.ts lib/events.test.ts
