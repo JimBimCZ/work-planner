@@ -83,7 +83,12 @@ export async function presignGet(
     new GetObjectCommand({
       Bucket: bucket,
       Key: key,
-      ResponseContentDisposition: `${disposition}; filename="${filename.replace(/"/g, '')}"`,
+      // Strip both quotes and backslashes: an unescaped quote would close the
+      // quoted-string early, and a trailing backslash would escape the closing
+      // quote and leave it unterminated. This is a display name, not a
+      // security boundary — the SDK percent-encodes the query value, so
+      // header/CRLF injection is already mitigated at the transport layer.
+      ResponseContentDisposition: `${disposition}; filename="${filename.replace(/["\\]/g, '')}"`,
     }),
     {
       expiresIn: SIGNED_URL_TTL_SECONDS,

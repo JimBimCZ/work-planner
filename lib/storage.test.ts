@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from 'vitest';
+import { beforeAll, describe, expect, test, vi } from 'vitest';
 
 import {
   deleteObjects,
@@ -48,16 +48,40 @@ describe.skipIf(!storageConfigured())('round trip against a real bucket', () => 
     expect(response.headers.get('content-disposition')).toContain('attachment');
   });
 
-  test('two signatures inside one window produce the same URL', async () => {
+  test('two signings inside one five-minute window produce the same URL', async () => {
     // The cost argument rests on this: a fresh URL per render is a browser cache
-    // miss and another billable Class B operation. If this cannot be made to
-    // pass, delete the optimisation rather than keeping an option that does
-    // nothing — see the note in presignGet.
-    const [a, b] = await Promise.all([
-      presignGet(key, 'x.png', true),
-      presignGet(key, 'x.png', true),
-    ]);
-    expect(a).toBe(b);
+    // miss and another billable Class B operation. Driving the clock is the
+    // point — two calls in the same Promise.all land in the same JS tick, and
+    // SigV4's X-Amz-Date has second granularity, so that would pass even with
+    // the rounding deleted. If this cannot be made to pass, delete the
+    // optimisation rather than keeping an option that does nothing — see the
+    // note in presignGet.
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-01-01T12:00:10.000Z'));
+      const a = await presignGet(key, 'x.png', true);
+      vi.setSystemTime(new Date('2026-01-01T12:03:20.000Z'));
+      const b = await presignGet(key, 'x.png', true);
+      expect(a).toBe(b);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test('two signings across a five-minute window boundary produce different URLs', async () => {
+    // The other half of the same guard: without this case, the test above
+    // could pass with the window made arbitrarily wide (or infinite) and
+    // never notice.
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-01-01T12:04:59.000Z'));
+      const a = await presignGet(key, 'x.png', true);
+      vi.setSystemTime(new Date('2026-01-01T12:05:01.000Z'));
+      const b = await presignGet(key, 'x.png', true);
+      expect(a).not.toBe(b);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   test('deleteObjects removes it', async () => {
