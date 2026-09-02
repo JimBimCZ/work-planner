@@ -348,9 +348,21 @@ And add this step immediately after `- uses: actions/checkout@v7`, before the pn
             sleep 1
           done
           curl -sf http://localhost:9000/minio/health/live
+          docker run --rm --network host --entrypoint sh minio/mc:latest -c "
+            mc alias set ci http://localhost:9000 kanban kanban-ci-only &&
+            mc mb --ignore-existing ci/kanban-attachments"
 ```
 
 The final unpiped `curl` is the gate: if MinIO never came up, the step fails here rather than thirty lines later inside a confusing test failure.
+
+**The bucket must be created here, not in a test's `beforeAll`.** CI has no
+`minio-init` — compose does — so without this the storage tests meet
+`NoSuchBucket` in CI while passing locally. Creation stays in infrastructure
+because the app must never create its own bucket; putting it in a suite's setup
+would hide the same gap from any future non-test consumer. Note `--entrypoint sh`:
+the `minio/mc` image's entrypoint is `mc` itself, so `sh -c` alone does not work —
+the same form `minio-init` already uses. The credentials here are CI's
+(`kanban-ci-only`), not compose's.
 
 - [ ] **Step 6: Document the five variables in `.env.example`**
 
