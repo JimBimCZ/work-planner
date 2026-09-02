@@ -145,6 +145,10 @@ test('every event the server can publish is one the client binds', async () => {
     'member.added',
     'member.updated',
     'member.removed',
+    'label.created',
+    'label.updated',
+    'label.deleted',
+    'card.labelled',
   ]) {
     expect(bound, `${name} is published but never delivered`).toContain(`'${name}'`);
   }

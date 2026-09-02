@@ -74,7 +74,19 @@ export type BoardAction =
       moves: { id: string; rank: string }[];
     }
   | { type: 'column.settle'; tempId: string; id: string; rank: string }
+  | { type: 'label.create'; label: BoardLabel }
+  | { type: 'label.rename'; labelId: string; name: string }
+  | { type: 'label.delete'; labelId: string }
+  | { type: 'card.labels'; cardId: string; labelIds: string[] }
   | { type: 'board.reseed'; state: BoardState };
+
+// boardLabels orders by lower(name) under a code-point collation, so a label
+// created or renamed while the board is open has to land where a reload would
+// put it rather than at the end of the list.
+const byLabelName = (a: BoardLabel, b: BoardLabel) => {
+  const [left, right] = [a.name.toLowerCase(), b.name.toLowerCase()];
+  return left < right ? -1 : left > right ? 1 : 0;
+};
 
 const byRank = <T extends { rank: string; id: string }>(a: T, b: T) =>
   a.rank < b.rank ? -1 : a.rank > b.rank ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
@@ -174,6 +186,33 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
       };
     }
 
+    case 'label.create':
+      return { ...state, labels: [...state.labels, action.label].sort(byLabelName) };
+
+    case 'label.rename':
+      return {
+        ...state,
+        labels: state.labels
+          .map((label) => (label.id === action.labelId ? { ...label, name: action.name } : label))
+          .sort(byLabelName),
+      };
+
+    // The row is gone, so every assignment to it is gone too — the same
+    // cascade the database performs, applied to the copy on screen.
+    case 'label.delete':
+      return {
+        ...state,
+        labels: state.labels.filter((label) => label.id !== action.labelId),
+        cards: state.cards.map((card) =>
+          card.labelIds.includes(action.labelId)
+            ? { ...card, labelIds: card.labelIds.filter((id) => id !== action.labelId) }
+            : card,
+        ),
+      };
+
+    case 'card.labels':
+      return mapCard(state, action.cardId, (card) => ({ ...card, labelIds: action.labelIds }));
+
     case 'board.reseed':
       return action.state;
 
@@ -264,6 +303,10 @@ export function inverse(state: BoardState, action: BoardAction): BoardAction[] {
 
     case 'card.settle':
     case 'column.settle':
+    case 'label.create':
+    case 'label.rename':
+    case 'label.delete':
+    case 'card.labels':
       return [];
   }
 }

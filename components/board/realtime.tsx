@@ -27,6 +27,10 @@ const EVENT_NAMES: BoardEvent['type'][] = [
   'member.added',
   'member.updated',
   'member.removed',
+  'label.created',
+  'label.updated',
+  'label.deleted',
+  'card.labelled',
 ];
 
 // Bounded: an echo arrives within milliseconds of its action resolving, so the

@@ -179,6 +179,7 @@ Rules:
 - Comments and cards are soft-delete free for now: hard delete, but only via an action that checks role.
 - Index `cards(columnId, rank)`, `cards(boardId)`, `comments(cardId, createdAt)`, `board_members(userId)`, `board_invites(email)`.
 - `board_invites` holds an invite only while it is pending — accept, decline and revoke all end with the row gone. It carries a unique `(boardId, email)` and a check constraint, `board_invites_role_not_owner`, refusing `owner`: ownership moves through `transferOwnership` and nowhere else. Expiry is filtered at read time against `INVITE_TTL_DAYS` (30) rather than purged, because Vercel rules out a scheduled job — so an expired row still holds its pair, which is why `inviteMember` upserts rather than inserts. `invitedById` sets null on delete; the board itself cascades.
+- Labels are capped twice, in `lib/labels-limits.ts`: `LABEL_NAME_MAX` (32) and `LABELS_PER_BOARD` (50). Neither is a check constraint — both are tunable product limits rather than invariants — but `LABELS_PER_BOARD` is load-bearing: a card's label ids travel in a `card.labelled` payload, and fifty ids at 36 bytes stays far under `PAYLOAD_CEILING`. The module imports nothing, because the filter popover is a client component and needs the name cap.
 - `labels.boardId` cascades from `boards`: a label is board vocabulary, gone when the board is. `card_labels.labelId` and `card_labels.cardId` both cascade too, for different reasons — deleting a label takes it off every card, which is the promise a managed set makes (nothing dangles referencing a label that no longer exists); deleting a card takes its label assignments with it, the same way it takes its comments.
 - `cards.assigneeId` and `columns.wipLimit` were **dropped, not deferred.** Both were speculative — no requirement, no UI, no enforcement rule — and YAGNI says an unused column is a liability, not a head start. Adding either later is one migration; carrying a column nothing writes to costs a permanent explanation. Do not reintroduce them without a requirement that needs them.
 
@@ -217,7 +218,7 @@ Postgres `LISTEN/NOTIFY` over SSE is **not** viable here. It needs a dedicated, 
 - Every mutating server action calls `publish(boardId, event)` after its transaction commits.
 - Clients subscribe with `pusher-js`; `/api/pusher/auth` authorises the channel by re-checking board membership. Channel names are never trusted — the route derives access from the session.
 - Client ignores events it caused itself, matched on a client-generated `mutationId` echoed in the payload.
-- Events, all nineteen: `card.created`, `card.updated`, `card.moved`, `card.deleted`, `column.created`, `column.updated`, `column.moved`, `column.deleted`, `comment.created`, `comment.created.truncated`, `comment.updated`, `comment.deleted`, `member.added`, `member.updated`, `member.removed`, `label.created`, `label.updated`, `label.deleted`, `card.labelled`. `lib/events.ts`'s `BoardEvent` union and `components/board/realtime.tsx`'s `EVENT_NAMES` must list the same set — an event missing from the second is published and never delivered, which `lib/events.test.ts` now asserts by reading the second file. The four label events are a recorded, temporary exception: `lib/actions/labels.ts` (Section A of `docs/plans/labels.md`) publishes them today, but nothing binds them yet — `EVENT_NAMES` and `lib/events.test.ts`'s coverage assertion both gain them in Section D, once a client exists to receive them. This is not a violation of the "must list the same set" rule; it is the rule's documented gap until Section D closes it.
+- Events, all nineteen: `card.created`, `card.updated`, `card.moved`, `card.deleted`, `column.created`, `column.updated`, `column.moved`, `column.deleted`, `comment.created`, `comment.created.truncated`, `comment.updated`, `comment.deleted`, `member.added`, `member.updated`, `member.removed`, `label.created`, `label.updated`, `label.deleted`, `card.labelled`. `lib/events.ts`'s `BoardEvent` union and `components/board/realtime.tsx`'s `EVENT_NAMES` must list the same set — an event missing from the second is published and never delivered, which `lib/events.test.ts` now asserts by reading the second file.
 - The three `member.*` events carry a `userId` and, except for `member.removed`, the new role. `components/board/membership-watch.tsx` sends a member who was removed back to `/boards` and refreshes the board when their own role changes, because `canWrite` is computed in the layout from the role it fetched. `inviteMember` and `revokeInvite` publish nothing: only the owner ever sees a pending invite. A transfer publishes `member.updated` twice rather than earning a fourth event.
 - Payloads carry the changed entity, not a full board refetch, and stay under `PAYLOAD_CEILING` (8,192 bytes, headroom under Pusher's documented 10KB). The two fields that cannot fit are handled by saying so and letting the reader ask:
   - `card.updated` carries `descriptionChanged: boolean` rather than the description; an open card calls `readCardDescription`.
@@ -344,6 +345,11 @@ Three colour roles, and only three:
    the authority.
 
 Do not add a fourth role. If something needs emphasis, it needs hierarchy or spacing, not a new hue.
+
+**Labels are deliberately colourless** — a mono line on the card face, plain checkboxes in the picker
+and the filter. The conventional coloured chip is exactly a fourth role, and it would compete with the
+due-date signal on the one surface that must stay readable at a glance. `docs/specs/labels.md` holds
+the reasoning; do not add a `colour` column to `labels` without reopening it.
 
 Avatar colours are the one exception, and they are constrained: derive them by hashing the user id onto the **cool** half of the wheel only (180°–300°). They must never stray warm, or they'd compete with the warning signal, and they must never land on the accent teal.
 
@@ -613,7 +619,7 @@ One section of the plan, one branch, one PR. Ship the PR as soon as the section 
 
 Not settled yet — raise these rather than deciding unilaterally:
 
-- Labels/tags, attachments, activity log.
+- Attachments, activity log.
 - Board archive vs hard delete.
 
 **Account deletion is settled** and built: self-service from `/account`, immediate, hard delete, in
@@ -625,8 +631,12 @@ on other people's boards survive with `authorId` null, so a request to remove th
 mailbox `/privacy` names *before* the account goes; the danger zone says so, because afterwards
 nothing links them back. `docs/specs/account-deletion.md` holds the reasoning.
 
-Remaining sub-projects: member management and invites is shipped in full, Sections A–D. Next are
-labels/tags, then attachments.
+**Labels are settled** and built: a per-board vocabulary, applied from the card modal, filtered from
+the board header, managed from the filter popover, and kept live over four Pusher events.
+`docs/specs/labels.md` holds the reasoning — including why they carry no colour.
+
+Remaining sub-projects: member management and invites is shipped in full, Sections A–D; labels the
+same, Sections A–D. Next is attachments.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
