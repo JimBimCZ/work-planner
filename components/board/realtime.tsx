@@ -31,6 +31,8 @@ const EVENT_NAMES = [
   'label.updated',
   'label.deleted',
   'card.labelled',
+  'attachment.added',
+  'attachment.removed',
 ] as const satisfies readonly BoardEvent['type'][];
 
 // An event the server can publish and this list omits is delivered nowhere, and

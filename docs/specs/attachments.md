@@ -499,18 +499,49 @@ in front of them yet.
 
 ## Verification
 
-Ticked only against observed output, per section:
+Ticked only against observed output, per section. Section D worked this list on
+2026-09-02; what is still open says why, rather than being ticked off something
+that did not actually check it.
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build` all pass, each
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build` all pass, each
       exit code read from its own redirected log, never through a pipe.
+      Observed on `feat/attachments-realtime`: `TYPECHECK=0 LINT=0 TEST=0
+      BUILD=0`, unit run 528 passed | 8 skipped.
 - [ ] `pnpm exec playwright test` passes with the count run equal to the count
-      collected.
+      collected. 144 collected, 143 passed, **1 failed** — a due-date test in
+      `e2e/card-modal.spec.ts` timing out in `written()` waiting for a POST.
+      It is a pre-existing flake, not Section D's: it fails the same way on
+      `main` (143 collected, 142 passed, same test), fails on a *different*
+      due-date test between two runs of the same branch, and passes 17/17 when
+      that file runs alone. Left open deliberately — it needs its own fix, and
+      ticking this box would hide it.
 - [ ] The migration applies to an empty database in CI, and is run against
-      production by hand when Section A lands.
+      production by hand when Section A lands. CI's half is green. **The
+      production half is unverified** — reading it back needs
+      `neonctl connection-string main`, which this session could not run. Do
+      not assume it applied; `CLAUDE.md` records what that assumption cost
+      once already. Confirm `attachments` is in `information_schema.tables`
+      and that `drizzle.__drizzle_migrations` holds seven rows against the
+      seven files in `lib/db/migrations/`.
 - [ ] `docker compose up --build` gives a working board with working
-      attachments against MinIO — no Cloudflare credentials present.
-- [ ] With the five `S3_*` variables unset, the board still loads and shows no
-      attachment surface.
+      attachments against MinIO — no Cloudflare credentials present. Partly
+      observed on 2026-09-02: the image builds, `work-planner-app-1` reaches
+      `healthy`, `/api/health` answers `200 {"ok":true}`, `/signin` answers
+      `200`, and the container's environment carries all five `S3_*` variables
+      pointing at `http://minio:9000` with no Cloudflare credentials anywhere.
+      Left open because nobody signed in: driving a real upload through the
+      compose stack needs an OAuth session, and `playwright.config.ts` sets
+      `reuseExistingServer: false`, so the suite cannot be pointed at it
+      without editing that config. What is unproven is the upload round trip
+      against the compose MinIO, not the wiring.
+- [x] With the five `S3_*` variables unset, the board still loads and shows no
+      attachment surface. Observed: with the `S3_*` lines removed from
+      `.env.local` (they come from there, not the shell, so `env -u` would
+      have proved nothing) `pnpm build` exits 0, and `e2e/card-modal.spec.ts`
+      plus `e2e/cards.spec.ts` run 24 passed against that build — only the
+      pre-existing due-date flake above failing. `CardAttachments` returns
+      null for `storageEnabled={false}` with no attachments, covered by
+      `components/board/card-attachments.test.tsx`.
 - [ ] An object uploaded larger than it declared is rejected by `confirmUpload`
       and is gone from the bucket afterwards — confirmed by listing the bucket,
       not by reading the action's return value.
@@ -521,11 +552,30 @@ Ticked only against observed output, per section:
 - [ ] Deleting a card removes its objects from the bucket — confirmed by
       listing the bucket.
 - [ ] A `.svg` attachment downloads rather than rendering, confirmed from the
-      response headers.
+      response headers. Both halves are observed, the single end-to-end request
+      is not: `lib/storage.test.ts`'s real-bucket block, run against MinIO with
+      the `S3_*` variables exported into the shell, reads
+      `content-disposition: attachment; filename="greeting.txt"` back off a
+      real presigned GET (14 passed, 0 skipped); and
+      `app/api/attachments/[attachmentId]/route.test.ts` asserts an
+      `image/svg+xml` row presigns with `inline=false`. Nobody has yet followed
+      a live `/api/attachments/<id>` 302 and read the header off the far end.
+
+      Note for whoever does: that real-bucket block **skips silently** under a
+      plain `pnpm test`, because vitest does not load `.env.local` — 8 skipped,
+      reported as a pass. Its own first test only enforces `storageConfigured()`
+      when `CI === 'true'`. Export the variables before trusting it locally.
 - [ ] The production bucket is on the EU jurisdiction endpoint — confirmed by
-      the fact that the plain endpoint cannot see it.
+      the fact that the plain endpoint cannot see it. Needs the production
+      Cloudflare credentials, which this session did not have.
 - [ ] Two real browsers: one attaches a file, the other's card shows the count
-      without a reload.
+      without a reload. `e2e/attachments.spec.ts` proves this across two
+      Playwright browser contexts on a real Pusher channel — the watcher never
+      reloads, and waits for `data-realtime="subscribed"` before the actor
+      writes, so a pass cannot come from anything but the event. Left open
+      because the box asks for two *real* browsers and a Playwright run is not
+      that; `docs/plans/realtime.md` has the precedent for saying so plainly
+      rather than ticking it.
 
 ## Documentation changed in the same pull requests
 

@@ -23,6 +23,7 @@ const card = {
   createdAt: '2026-09-01T00:00:00.000Z',
   dueDate: null,
   labelIds: ['l1', 'l2'],
+  attachmentCount: 0,
 };
 
 const labels = [
@@ -74,5 +75,33 @@ describe('the label line', () => {
     const html = render({ card: { ...card, labelIds: ['l1', 'gone'] } });
     expect(html).toContain('bug');
     expect(html).not.toContain('gone');
+  });
+});
+
+describe('the attachment count', () => {
+  test('a card with attachments says how many', () => {
+    const html = render({ card: { ...card, attachmentCount: 3 } });
+    expect(html).toContain('3 attachments');
+  });
+
+  test('one attachment reads in the singular', () => {
+    expect(render({ card: { ...card, attachmentCount: 1 } })).toContain('1 attachment');
+  });
+
+  test('a card with none renders nothing at all', () => {
+    const html = render({ card: { ...card, attachmentCount: 0 } });
+    expect(html).not.toContain('data-testid="card-attachments"');
+  });
+
+  // CLAUDE.md allows three colour roles, and warm is never at rest on the
+  // board except a due date. The count is muted mono, like every other meta.
+  test('the count carries no colour of its own', () => {
+    const html = render({ card: { ...card, attachmentCount: 3 } });
+    // Bounded to this element: slicing to the end of the string would drag in
+    // CardMenu's markup and fail for something that is not this line's doing.
+    const start = html.indexOf('data-testid="card-attachments"');
+    const line = html.slice(start, html.indexOf('</p>', start));
+    expect(line).toContain('text-muted');
+    expect(line).not.toContain('text-time-');
   });
 });

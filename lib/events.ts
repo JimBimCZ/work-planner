@@ -56,6 +56,21 @@ export type BoardEvent = Envelope &
     | { type: 'label.updated'; id: string; name: string }
     | { type: 'label.deleted'; id: string }
     | { type: 'card.labelled'; id: string; labelIds: string[] }
+    // Neither carries a URL: a client that receives one asks the download
+    // route, which is where permission is re-checked anyway. No truncation
+    // branch either — a 200-character filename and a display name sit
+    // comfortably inside PAYLOAD_CEILING.
+    | {
+        type: 'attachment.added';
+        id: string;
+        cardId: string;
+        filename: string;
+        contentType: string;
+        size: number;
+        createdAt: string;
+        uploader: { id: string; name: string | null; image: string | null } | null;
+      }
+    | { type: 'attachment.removed'; id: string; cardId: string }
   );
 
 export const channelFor = (boardId: string) => `private-board-${boardId}`;

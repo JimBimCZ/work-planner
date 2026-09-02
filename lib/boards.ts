@@ -30,6 +30,7 @@ export type BoardCardRow = {
   createdAt: Date;
   dueDate: Date | null;
   cardLabels: { labelId: string }[];
+  attachments: { id: string }[];
 };
 
 export type BoardColumnRow = { id: string; name: string; rank: string; cards: BoardCardRow[] };
@@ -62,7 +63,17 @@ export const getBoardWithColumns = cache(async (boardId: string): Promise<BoardW
               dueDate: true,
             },
             orderBy: (card, { asc }) => [asc(card.rank), asc(card.createdAt), asc(card.id)],
-            with: { cardLabels: { columns: { labelId: true } } },
+            with: {
+              cardLabels: { columns: { labelId: true } },
+              // Ids only: the card face shows a count, and pulling filenames
+              // onto every card of a board would buy nothing that renders.
+              // Pending rows are excluded — an upload that may never land must
+              // not raise a count on somebody else's screen.
+              attachments: {
+                columns: { id: true },
+                where: (row, { eq }) => eq(row.status, 'ready'),
+              },
+            },
           },
         },
       },
