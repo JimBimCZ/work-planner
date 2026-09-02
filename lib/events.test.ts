@@ -129,7 +129,7 @@ test('every event the server can publish is one the client binds', async () => {
   );
   const bound = source.slice(source.indexOf('EVENT_NAMES'), source.indexOf('CLAIM_MEMORY'));
 
-  for (const name of [
+  const names = [
     'card.created',
     'card.updated',
     'card.moved',
@@ -149,7 +149,15 @@ test('every event the server can publish is one the client binds', async () => {
     'label.updated',
     'label.deleted',
     'card.labelled',
-  ]) {
+    'attachment.added',
+    'attachment.removed',
+  ];
+
+  // A hand-written list cannot see a twenty-second event, so it is a second
+  // opinion rather than the guarantee — EveryEventIsBound in realtime.tsx is.
+  expect(names).toHaveLength(21);
+
+  for (const name of names) {
     expect(bound, `${name} is published but never delivered`).toContain(`'${name}'`);
   }
 });
