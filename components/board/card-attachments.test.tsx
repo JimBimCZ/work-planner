@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -20,9 +20,18 @@ const { requestUpload, confirmUpload, deleteAttachment } = await import('@/lib/a
 const { CardAttachments } = await import('@/components/board/card-attachments');
 
 // jsdom performs no network I/O, so a presigned PUT never actually happens and
-// no upload.progress event ever fires. This stub reports exactly one progress
-// tick and a 200, which is enough to exercise both the progress bar and the
-// confirmUpload call that follows it.
+// no upload.progress event ever fires. This stub records the request and fires
+// nothing on its own: the test says when the bytes land, through the two
+// helpers below.
+//
+// It used to fire them on a 20ms timer, which is a race the test loses
+// whenever the machine spends longer than that inside userEvent.upload's own
+// act() flush — the in-flight render is then collapsed into the final one and
+// the progress bar is never observable. That is what failed on CI while
+// passing fifteen times locally; a 0ms delay reproduces it exactly. There is
+// no margin wide enough to be safe on every runner, so the wall clock is gone.
+const inFlight: FakeXHR[] = [];
+
 class FakeXHR {
   upload = { addEventListener: (type: string, cb: (event: unknown) => void) => {
     this.uploadListeners[type] = [...(this.uploadListeners[type] ?? []), cb];
@@ -37,19 +46,33 @@ class FakeXHR {
     this.listeners[type] = [...(this.listeners[type] ?? []), cb];
   }
   send() {
-    // A real PUT takes a real round trip. userEvent.upload's own act() flush
-    // settles (and hands control back to the test) within a couple of
-    // milliseconds; firing these on a real macrotask past that point is what
-    // lets the in-flight render actually commit instead of being collapsed
-    // into the final one. findByRole/waitFor then pick the result up on their
-    // own polling, well inside their default timeout.
-    setTimeout(() => {
-      this.uploadListeners.progress?.forEach((cb) =>
-        cb({ lengthComputable: true, loaded: 1, total: 1 }),
-      );
-      this.listeners.load?.forEach((cb) => cb());
-    }, 20);
+    inFlight.push(this);
   }
+
+  reportProgress(fraction = 0.5) {
+    this.uploadListeners.progress?.forEach((cb) =>
+      cb({ lengthComputable: true, loaded: fraction, total: 1 }),
+    );
+  }
+
+  land() {
+    this.listeners.load?.forEach((cb) => cb());
+  }
+}
+
+// The component has started `count` uploads and each has reported a tick, so
+// the in-flight render is committed and observable. The bytes have not landed.
+async function uploadsInFlight(count = 1) {
+  await waitFor(() => expect(inFlight).toHaveLength(count));
+  act(() => inFlight.forEach((request) => request.reportProgress()));
+}
+
+// The bytes land, which is what releases confirmUpload.
+async function landUploads(count = 1) {
+  await uploadsInFlight(count);
+  await act(async () => {
+    inFlight.splice(0).forEach((request) => request.land());
+  });
 }
 
 // This repo does not set vitest's `globals: true` (see vitest.config.mts), so
@@ -69,6 +92,7 @@ beforeEach(() => {
     data: { attachmentId: 'new-id' },
   });
   vi.mocked(deleteAttachment).mockReset().mockResolvedValue({ ok: true });
+  inFlight.length = 0;
   vi.stubGlobal('XMLHttpRequest', FakeXHR);
 });
 
@@ -204,15 +228,18 @@ describe('CardAttachments', () => {
   test('shows progress while the bytes are in flight', async () => {
     render(<CardAttachments {...props} attachments={[]} />);
     await userEvent.upload(screen.getByLabelText(/add file/i), new File(['x'], 'a.png'));
-    expect(await screen.findByRole('progressbar')).toBeInTheDocument();
-    // Let the upload settle before the test ends — otherwise its FakeXHR
-    // timer fires during a later test and steals that test's mock call.
+    await uploadsInFlight();
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    // Land the bytes before the test ends, so the upload owns its whole
+    // lifecycle here rather than resolving into a later test.
+    await landUploads();
     await waitFor(() => expect(confirmUpload).toHaveBeenCalled());
   });
 
   test('calls confirmUpload once the PUT has finished', async () => {
     render(<CardAttachments {...props} attachments={[]} />);
     await userEvent.upload(screen.getByLabelText(/add file/i), new File(['x'], 'a.png'));
+    await landUploads();
     await waitFor(() =>
       expect(confirmUpload).toHaveBeenCalledWith(
         expect.objectContaining({ attachmentId: 'new-id' }),
@@ -226,6 +253,7 @@ describe('CardAttachments', () => {
     vi.mocked(confirmUpload).mockResolvedValueOnce({ ok: false, error: 'TOO_LARGE' });
     render(<CardAttachments {...props} attachments={[]} />);
     await userEvent.upload(screen.getByLabelText(/add file/i), new File(['x'], 'a.png'));
+    await landUploads();
     await waitFor(() => expect(screen.getByText(/larger than/i)).toBeInTheDocument());
     expect(screen.queryByRole('link', { name: 'a.png' })).not.toBeInTheDocument();
   });
@@ -270,6 +298,7 @@ describe('CardAttachments', () => {
       />,
     );
     await userEvent.upload(screen.getByLabelText(/add file/i), new File(['x'], 'a.png'));
+    await landUploads();
     await waitFor(() => expect(confirmUpload).toHaveBeenCalled());
     expect(await screen.findByRole('button', { name: /delete a\.png/i })).toBeInTheDocument();
   });
@@ -303,10 +332,14 @@ describe('CardAttachments', () => {
 
     const fileA = new File(['a'], 'a.png');
     const fileB = new File(['b'], 'b.png');
-    const dropzone = screen.getByText('Drop a file here, or').parentElement!;
-    const dataTransfer = { files: [fileA, fileB] };
-    fireEvent.drop(dropzone, { dataTransfer });
+    // Fired on the label inside the drop target: the event bubbles to the
+    // div that carries onDrop, which avoids reaching for a parent that the
+    // types cannot promise is there.
+    fireEvent.drop(screen.getByText('Drop a file here, or'), {
+      dataTransfer: { files: [fileA, fileB] },
+    });
 
+    await landUploads(2);
     await waitFor(() => expect(confirmUpload).toHaveBeenCalledTimes(2));
     expect(await screen.findByRole('link', { name: 'a.png' })).toBeInTheDocument();
     expect(await screen.findByRole('link', { name: 'b.png' })).toBeInTheDocument();
