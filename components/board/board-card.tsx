@@ -38,11 +38,11 @@ function DueDate({ value }: { value: string }) {
 }
 
 function LabelLine({ ids, labels }: { ids: string[]; labels: BoardLabel[] }) {
-  // An id with no label is one this client has not caught up on — dropped
-  // rather than rendered, and never a reason to hide the rest of the line.
-  const names = ids
-    .map((id) => labels.find((label) => label.id === id)?.name)
-    .filter((name): name is string => name !== undefined);
+  // Driven by the board's label set rather than by the assignment order, so
+  // two cards carrying the same labels always read the same way and the line
+  // matches the picker. An id with no label is one this client has not caught
+  // up on — dropped rather than rendered, and never a reason to hide the rest.
+  const names = labels.filter((label) => ids.includes(label.id)).map((label) => label.name);
 
   if (names.length === 0) return null;
 

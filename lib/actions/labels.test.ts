@@ -300,6 +300,18 @@ describe('setCardLabels', () => {
     expect(assertBoardAccess).not.toHaveBeenCalled();
   });
 
+  // The only one of the four a viewer can plausibly reach: the picker is on a
+  // card they are allowed to open and read.
+  test('refuses a viewer', async () => {
+    authMock.mockResolvedValue(signedIn);
+    cardRow = { boardId: 'board-1' };
+    const { BoardAccessError } = await import('@/lib/permissions');
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('FORBIDDEN'));
+    await expect(setCardLabels(input)).resolves.toEqual({ ok: false, error: 'FORBIDDEN' });
+    expect(assertBoardAccess).toHaveBeenCalledWith('user-1', 'board-1', 'member');
+    expect(ops).toEqual([]);
+  });
+
   // The whole reason this action re-reads the labels it was handed. Without
   // it, a member of board A staples board B's label onto a card by id. The
   // read now runs inside the transaction (see the ordering test below), so a

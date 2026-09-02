@@ -68,6 +68,7 @@ export const getBoardWithColumns = cache(async (boardId: string): Promise<BoardW
       },
       labels: {
         columns: { id: true, name: true },
+        // Same ordering as boardLabels in lib/labels.ts; see the note there.
         orderBy: (label, { asc, sql }) => [asc(sql`lower(${label.name})`)],
       },
     },
