@@ -200,6 +200,42 @@ export const cardLabels = pgTable(
   ],
 );
 
+export const attachmentStatus = pgEnum('attachment_status', ['pending', 'ready']);
+
+export const attachments = pgTable(
+  'attachments',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    // Denormalised for the same reason cards.boardId is: every permission
+    // check and every event keys off the board, and a board-wide delete needs
+    // the object keys without joining through cards.
+    boardId: text('board_id')
+      .notNull()
+      .references(() => boards.id, { onDelete: 'cascade' }),
+    cardId: text('card_id')
+      .notNull()
+      .references(() => cards.id, { onDelete: 'cascade' }),
+    // Set null, not cascade — the rule comments.authorId already follows.
+    // /privacy promises boards owned by other people keep your contributions.
+    uploaderId: text('uploader_id').references(() => users.id, { onDelete: 'set null' }),
+    key: text('key').notNull().unique(),
+    filename: text('filename').notNull(),
+    contentType: text('content_type').notNull(),
+    // The value headObject read back, never the browser's claim.
+    size: integer('size').notNull(),
+    status: attachmentStatus('status').notNull().default('pending'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('attachments_card_id_created_at_idx').on(t.cardId, t.createdAt),
+    index('attachments_board_id_idx').on(t.boardId),
+    // One reader only: the per-account storage total.
+    index('attachments_uploader_id_idx').on(t.uploaderId),
+  ],
+);
+
 export const comments = pgTable(
   'comments',
   {
@@ -250,6 +286,7 @@ export const cardsRelations = relations(cards, ({ one, many }) => ({
   column: one(columns, { fields: [cards.columnId], references: [columns.id] }),
   comments: many(comments),
   cardLabels: many(cardLabels),
+  attachments: many(attachments),
 }));
 
 export const commentsRelations = relations(comments, ({ one }) => ({
@@ -265,4 +302,10 @@ export const labelsRelations = relations(labels, ({ one, many }) => ({
 export const cardLabelsRelations = relations(cardLabels, ({ one }) => ({
   card: one(cards, { fields: [cardLabels.cardId], references: [cards.id] }),
   label: one(labels, { fields: [cardLabels.labelId], references: [labels.id] }),
+}));
+
+export const attachmentsRelations = relations(attachments, ({ one }) => ({
+  card: one(cards, { fields: [attachments.cardId], references: [cards.id] }),
+  board: one(boards, { fields: [attachments.boardId], references: [boards.id] }),
+  uploader: one(users, { fields: [attachments.uploaderId], references: [users.id] }),
 }));
