@@ -22,8 +22,8 @@ const base = (): BoardState => ({
     { id: 'col-2', name: 'In Progress', rank: 'a1' },
   ],
   cards: [
-    { id: 'card-a', columnId: 'col-1', title: 'First', rank: 'b0', createdAt: '2026-01-01', dueDate: null, labelIds: [] },
-    { id: 'card-b', columnId: 'col-1', title: 'Second', rank: 'b1', createdAt: '2026-01-02', dueDate: null, labelIds: [] },
+    { id: 'card-a', columnId: 'col-1', title: 'First', rank: 'b0', createdAt: '2026-01-01', dueDate: null, labelIds: [], attachmentCount: 0 },
+    { id: 'card-b', columnId: 'col-1', title: 'Second', rank: 'b1', createdAt: '2026-01-02', dueDate: null, labelIds: [], attachmentCount: 0 },
   ],
 });
 
@@ -44,9 +44,9 @@ describe('selectors', () => {
       labels: [],
       columns: base().columns,
       cards: [
-        { id: 'z', columnId: 'col-1', title: 'z', rank: 'b0', createdAt: '2026-01-02', dueDate: null, labelIds: [] },
-        { id: 'a', columnId: 'col-1', title: 'a', rank: 'b0', createdAt: '2026-01-01', dueDate: null, labelIds: [] },
-        { id: 'b', columnId: 'col-1', title: 'b', rank: 'b0', createdAt: '2026-01-01', dueDate: null, labelIds: [] },
+        { id: 'z', columnId: 'col-1', title: 'z', rank: 'b0', createdAt: '2026-01-02', dueDate: null, labelIds: [], attachmentCount: 0, },
+        { id: 'a', columnId: 'col-1', title: 'a', rank: 'b0', createdAt: '2026-01-01', dueDate: null, labelIds: [], attachmentCount: 0, },
+        { id: 'b', columnId: 'col-1', title: 'b', rank: 'b0', createdAt: '2026-01-01', dueDate: null, labelIds: [], attachmentCount: 0, },
       ],
     };
     expect(cardsIn(state, 'col-1').map((c) => c.id)).toEqual(['a', 'b', 'z']);
@@ -57,7 +57,7 @@ describe('card actions', () => {
   test('create adds a card', () => {
     const card = {
       id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: '2026-02-01',
-      dueDate: null, labelIds: [], pending: true,
+      dueDate: null, labelIds: [], attachmentCount: 0, pending: true,
     };
     const next = boardReducer(base(), { type: 'card.create', card });
     expect(cardsIn(next, 'col-2')).toEqual([card]);
@@ -89,13 +89,13 @@ describe('card actions', () => {
   test('settle swaps the temp id for the real one and clears pending', () => {
     const withTemp = boardReducer(base(), {
       type: 'card.create',
-      card: { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x', dueDate: null, labelIds: [], pending: true },
+      card: { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x', dueDate: null, labelIds: [], attachmentCount: 0, pending: true },
     });
 
     const next = boardReducer(withTemp, { type: 'card.settle', tempId: 'tmp-1', id: 'card-c', rank: 'c9' });
 
     expect(cardsIn(next, 'col-2')).toEqual([
-      { id: 'card-c', columnId: 'col-2', title: 'New', rank: 'c9', createdAt: 'x', dueDate: null, labelIds: [] },
+      { id: 'card-c', columnId: 'col-2', title: 'New', rank: 'c9', createdAt: 'x', dueDate: null, labelIds: [], attachmentCount: 0, },
     ]);
   });
 });
@@ -107,7 +107,7 @@ describe('card.patch', () => {
     cards: [
       {
         id: 'card-1', columnId: 'col-1', title: 'Ship it', rank: 'a0',
-        createdAt: '2026-08-31T00:00:00.000Z', dueDate: '2026-09-10', labelIds: [],
+        createdAt: '2026-08-31T00:00:00.000Z', dueDate: '2026-09-10', labelIds: [], attachmentCount: 0,
       },
     ],
   });
@@ -183,7 +183,7 @@ describe('column actions', () => {
       type: 'card.create',
       card: {
         id: 'tmp-1', columnId: 'col-1', title: 'Pending', rank: 'b00',
-        createdAt: '2026-01-03', dueDate: null, labelIds: [], pending: true,
+        createdAt: '2026-01-03', dueDate: null, labelIds: [], attachmentCount: 0, pending: true,
       },
     });
 
@@ -249,7 +249,7 @@ describe('inverses', () => {
   };
 
   test('undo a create by deleting it', () => {
-    const card = { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x', dueDate: null, labelIds: [] };
+    const card = { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x', dueDate: null, labelIds: [], attachmentCount: 0, };
     const action = { type: 'card.create', card } as const;
 
     restoresTheBoard(action);
@@ -333,9 +333,9 @@ describe('dropTarget', () => {
       labels: [],
       columns: base().columns,
       cards: [
-        { id: 'k1', columnId: 'col-1', title: '1', rank: 'b0', createdAt: '1', dueDate: null, labelIds: [] },
-        { id: 'k2', columnId: 'col-1', title: '2', rank: 'b1', createdAt: '2', dueDate: null, labelIds: [] },
-        { id: 'k3', columnId: 'col-1', title: '3', rank: 'b2', createdAt: '3', dueDate: null, labelIds: [] },
+        { id: 'k1', columnId: 'col-1', title: '1', rank: 'b0', createdAt: '1', dueDate: null, labelIds: [], attachmentCount: 0, },
+        { id: 'k2', columnId: 'col-1', title: '2', rank: 'b1', createdAt: '2', dueDate: null, labelIds: [], attachmentCount: 0, },
+        { id: 'k3', columnId: 'col-1', title: '3', rank: 'b2', createdAt: '3', dueDate: null, labelIds: [], attachmentCount: 0, },
       ],
     };
 
@@ -369,7 +369,11 @@ describe('dropTarget', () => {
 });
 
 describe('toBoardState', () => {
-  const board = (cardLabels: { labelId: string }[], labels: { id: string; name: string }[]) => ({
+  const board = (
+    cardLabels: { labelId: string }[],
+    labels: { id: string; name: string }[],
+    attachments: { id: string }[] = [],
+  ) => ({
     id: 'board-1',
     name: 'Roadmap',
     labels,
@@ -387,6 +391,7 @@ describe('toBoardState', () => {
             createdAt: new Date('2026-09-01T00:00:00.000Z'),
             dueDate: null,
             cardLabels,
+            attachments,
           },
         ],
       },
@@ -405,12 +410,65 @@ describe('toBoardState', () => {
 
     expect(state.cards[0].labelIds).toEqual([]);
   });
+
+  test('a card carries the count of its attachments, not the rows', () => {
+    // Only the ids are queried: the card face shows a number, and pulling
+    // filenames onto the board would be paying for data nothing renders.
+    const state = toBoardState(board([], [], [{ id: 'a1' }, { id: 'a2' }]));
+
+    expect(state.cards[0].attachmentCount).toBe(2);
+  });
+
+  test('a card with no attachments counts zero, never undefined', () => {
+    expect(toBoardState(board([], [])).cards[0].attachmentCount).toBe(0);
+  });
+});
+
+describe('attachment actions', () => {
+  test('attachment.add increments the count on that card alone', () => {
+    const next = boardReducer(base(), { type: 'attachment.add', cardId: 'card-a' });
+
+    expect(next.cards[0].attachmentCount).toBe(1);
+    expect(next.cards[1].attachmentCount).toBe(0);
+  });
+
+  test('attachment.remove decrements it', () => {
+    const state = applyAll(base(), [
+      { type: 'attachment.add', cardId: 'card-a' },
+      { type: 'attachment.add', cardId: 'card-a' },
+      { type: 'attachment.remove', cardId: 'card-a' },
+    ]);
+
+    expect(state.cards[0].attachmentCount).toBe(1);
+  });
+
+  test('attachment.remove never takes the count below zero', () => {
+    // A removal for a card whose count is already zero can arrive after a
+    // reseed. Clamping is cheaper than reasoning about ordering.
+    const next = boardReducer(base(), { type: 'attachment.remove', cardId: 'card-a' });
+
+    expect(next.cards[0].attachmentCount).toBe(0);
+  });
+
+  test('an event for a card this client does not have changes nothing', () => {
+    const state = base();
+    expect(boardReducer(state, { type: 'attachment.add', cardId: 'gone' }).cards).toEqual(
+      state.cards,
+    );
+  });
+
+  test('neither has an inverse — the count is not a local edit to undo', () => {
+    const state = base();
+    expect(inverse(state, { type: 'attachment.add', cardId: 'card-a' })).toEqual([]);
+    expect(inverse(state, { type: 'attachment.remove', cardId: 'card-a' })).toEqual([]);
+  });
 });
 
 describe('matchesFilter', () => {
   const card = (labelIds: string[]): StateCard => ({
     id: 'card-1',
     columnId: 'col-1',
+    attachmentCount: 0,
     title: 'Card',
     rank: 'a0',
     createdAt: '2026-09-01T00:00:00.000Z',
@@ -471,6 +529,7 @@ describe('label actions', () => {
   const card = (labelIds: string[]): StateCard => ({
     id: 'card-1',
     columnId: 'col-1',
+    attachmentCount: 0,
     title: 'First',
     rank: 'b0',
     createdAt: '2026-01-01',

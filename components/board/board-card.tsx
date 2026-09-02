@@ -2,6 +2,7 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { PaperclipIcon } from 'lucide-react';
 import Link from 'next/link';
 
 import { CardMenu } from '@/components/board/card-menu';
@@ -51,6 +52,23 @@ function LabelLine({ ids, labels }: { ids: string[]; labels: BoardLabel[] }) {
   return (
     <p data-testid="card-labels" className="mt-1.5 truncate font-mono text-xs text-muted">
       {names.join(' · ')}
+    </p>
+  );
+}
+
+function AttachmentCount({ count }: { count: number }) {
+  if (count === 0) return null;
+
+  // Mono and muted, in the meta line beside the due date: CLAUDE.md gives data
+  // its own family and spends warm hues only on time and destructive actions.
+  return (
+    <p
+      data-testid="card-attachments"
+      className="mt-1.5 flex items-center gap-1 font-mono text-xs text-muted"
+      aria-label={`${count} ${count === 1 ? 'attachment' : 'attachments'}`}
+    >
+      <PaperclipIcon aria-hidden className="size-3" />
+      {count}
     </p>
   );
 }
@@ -149,6 +167,7 @@ export function BoardCard({
 
       {card.dueDate ? <DueDate value={card.dueDate} /> : null}
       <LabelLine ids={card.labelIds} labels={labels} />
+      <AttachmentCount count={card.attachmentCount} />
 
       {canWrite ? (
         <CardMenu

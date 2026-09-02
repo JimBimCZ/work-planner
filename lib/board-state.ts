@@ -12,6 +12,7 @@ export type StateCard = {
   createdAt: string;
   dueDate: string | null;
   labelIds: string[];
+  attachmentCount: number;
   pending?: boolean;
 };
 
@@ -34,6 +35,7 @@ export function toBoardState(board: BoardWithCards): BoardState {
         createdAt: card.createdAt.toISOString(),
         dueDate: card.dueDate ? toDateInputValue(card.dueDate) : null,
         labelIds: card.cardLabels.map((assignment) => assignment.labelId),
+        attachmentCount: card.attachments.length,
       })),
     ),
   };
@@ -78,6 +80,8 @@ export type BoardAction =
   | { type: 'label.rename'; labelId: string; name: string }
   | { type: 'label.delete'; labelId: string }
   | { type: 'card.labels'; cardId: string; labelIds: string[] }
+  | { type: 'attachment.add'; cardId: string }
+  | { type: 'attachment.remove'; cardId: string }
   | { type: 'board.reseed'; state: BoardState };
 
 // The four the filter popover and the card modal dispatch from outside the
@@ -230,6 +234,21 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
     case 'card.labels':
       return mapCard(state, action.cardId, (card) => ({ ...card, labelIds: action.labelIds }));
 
+    case 'attachment.add':
+      return mapCard(state, action.cardId, (card) => ({
+        ...card,
+        attachmentCount: card.attachmentCount + 1,
+      }));
+
+    // Clamped: a removal for a card already at zero can arrive after a reseed
+    // that had already dropped the row, and clamping is cheaper than
+    // reasoning about the ordering of the two.
+    case 'attachment.remove':
+      return mapCard(state, action.cardId, (card) => ({
+        ...card,
+        attachmentCount: Math.max(0, card.attachmentCount - 1),
+      }));
+
     case 'board.reseed':
       return action.state;
 
@@ -324,6 +343,10 @@ export function inverse(state: BoardState, action: BoardAction): BoardAction[] {
     case 'label.rename':
     case 'label.delete':
     case 'card.labels':
+    // The count mirrors what the server already did; there is no local edit
+    // here for an undo to walk back.
+    case 'attachment.add':
+    case 'attachment.remove':
       return [];
   }
 }

@@ -169,13 +169,16 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
       subscribeRealtime((event) => {
         // A quiet acknowledgement that something moved and who moved it.
         // card.deleted gets none — the card is gone, so there is nothing to
-        // ring.
+        // ring. The attachment events name the attachment in `id` and the card
+        // in `cardId`, and it is the card whose face changed.
         const ringed =
           event.type === 'card.created' ||
           event.type === 'card.updated' ||
           event.type === 'card.moved'
             ? event.id
-            : null;
+            : event.type === 'attachment.added' || event.type === 'attachment.removed'
+              ? event.cardId
+              : null;
 
         if (ringed) {
           const hue = avatarHue(event.actorId);
@@ -203,6 +206,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 createdAt: event.createdAt,
                 dueDate: event.dueDate,
                 labelIds: [],
+                attachmentCount: 0,
               },
             });
             return;
@@ -258,6 +262,12 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
             return;
           case 'card.labelled':
             dispatch({ type: 'card.labels', cardId: event.id, labelIds: event.labelIds });
+            return;
+          case 'attachment.added':
+            dispatch({ type: 'attachment.add', cardId: event.cardId });
+            return;
+          case 'attachment.removed':
+            dispatch({ type: 'attachment.remove', cardId: event.cardId });
             return;
           default:
             // Comment events belong to the open card, not the canvas.
@@ -317,6 +327,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
         createdAt: new Date().toISOString(),
         dueDate: null,
         labelIds: [],
+        attachmentCount: 0,
         pending: true,
       },
     });
