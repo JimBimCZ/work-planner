@@ -14,6 +14,7 @@ import {
 import { auth } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { attachments } from '@/lib/db/schema';
+import { publish } from '@/lib/events';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 import {
   forgetObjects,
@@ -139,6 +140,7 @@ export async function confirmUpload(input: unknown) {
       filename: true,
       size: true,
       status: true,
+      createdAt: true,
     },
   });
   // Somebody else's row, or one already confirmed, answers the same as a row
@@ -184,7 +186,26 @@ export async function confirmUpload(input: unknown) {
     .set({ size: head.size, contentType: head.contentType, status: 'ready' })
     .where(eq(attachments.id, row.id));
 
-  // Section D publishes attachment.added here, after this write has committed.
+  await publish(row.boardId, {
+    type: 'attachment.added',
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+    id: row.id,
+    cardId: row.cardId,
+    filename: row.filename,
+    // What the bucket read back, matching the row this just wrote — the
+    // declared values are not consulted here either.
+    contentType: head.contentType,
+    size: head.size,
+    createdAt: row.createdAt.toISOString(),
+    // No join: the row's uploader is this session, which the NOT_FOUND above
+    // has already established.
+    uploader: {
+      id: session.user.id,
+      name: session.user.name ?? null,
+      image: session.user.image ?? null,
+    },
+  });
 
   return { ok: true, data: { attachmentId: row.id } } as const;
 }
@@ -220,7 +241,13 @@ export async function deleteAttachment(input: unknown) {
   await db.delete(attachments).where(eq(attachments.id, row.id));
   await forgetObjects([row.key]);
 
-  // Section D publishes attachment.removed here.
+  await publish(row.boardId, {
+    type: 'attachment.removed',
+    mutationId: parsed.data.mutationId,
+    actorId: session.user.id,
+    id: row.id,
+    cardId: row.cardId,
+  });
 
   return { ok: true } as const;
 }

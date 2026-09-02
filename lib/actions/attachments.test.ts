@@ -68,6 +68,7 @@ type AttachmentRow = {
   contentType: string;
   size: number;
   status: string;
+  createdAt: Date;
 };
 
 let cardRow: { boardId: string } | undefined;
@@ -267,6 +268,7 @@ describe('confirmUpload', () => {
       contentType: 'image/png',
       size: 1024,
       status: 'pending',
+      createdAt: new Date('2026-09-02T10:00:00.000Z'),
     };
     headObject.mockResolvedValue({ size: 1024, contentType: 'image/png' });
   });
@@ -344,9 +346,71 @@ describe('confirmUpload', () => {
     expect(headObject).not.toHaveBeenCalled();
   });
 
-  test('publishes nothing yet — Section D adds the event', async () => {
+  test('publishes attachment.added once the row is ready', async () => {
+    await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID });
+    expect(publish).toHaveBeenCalledWith(
+      'b1',
+      expect.objectContaining({
+        type: 'attachment.added',
+        id: 'a1',
+        cardId: 'c1',
+        filename: 'screenshot.png',
+        contentType: 'image/png',
+        size: 1024,
+        createdAt: '2026-09-02T10:00:00.000Z',
+        mutationId: MUTATION_ID,
+        actorId: 'u1',
+      }),
+    );
+  });
+
+  test('publishes the real size and type, not the declared ones', async () => {
+    // Same reason the row stores them: a quota computed from a client's word
+    // is not a quota, and neither is a card face counting one.
+    headObject.mockResolvedValue({ size: 4096, contentType: 'text/html' });
+    await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID });
+    expect(publish).toHaveBeenCalledWith(
+      'b1',
+      expect.objectContaining({ size: 4096, contentType: 'text/html' }),
+    );
+  });
+
+  test('the uploader on the event is the confirming session', async () => {
+    // confirmUpload has already refused any row this session did not upload,
+    // so the session is the uploader and the row needs no join to say so.
+    authMock.mockResolvedValue({
+      user: { id: 'u1', name: 'Alice', image: 'https://example.test/a.png' },
+    });
+    await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID });
+    expect(publish).toHaveBeenCalledWith(
+      'b1',
+      expect.objectContaining({
+        uploader: { id: 'u1', name: 'Alice', image: 'https://example.test/a.png' },
+      }),
+    );
+  });
+
+  test('a rejected confirm publishes nothing', async () => {
+    headObject.mockResolvedValue({ size: 20 * 1024 * 1024, contentType: 'image/png' });
     await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID });
     expect(publish).not.toHaveBeenCalled();
+  });
+
+  test('a confirm whose object never landed publishes nothing', async () => {
+    headObject.mockResolvedValue(null);
+    await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID });
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  test('the publish happens after the update, never before', async () => {
+    // A rolled-back write that already announced itself puts every other
+    // client into a state the database disagrees with.
+    let publishedAfter = false;
+    publish.mockImplementation(async () => {
+      publishedAfter = ops.some((op) => op.kind === 'update' && op.table === 'attachments');
+    });
+    await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID });
+    expect(publishedAfter).toBe(true);
   });
 });
 
@@ -364,6 +428,7 @@ describe('deleteAttachment', () => {
       contentType: 'image/png',
       size: 1024,
       status: 'ready',
+      createdAt: new Date('2026-09-02T10:00:00.000Z'),
     };
   });
 
@@ -426,5 +491,35 @@ describe('deleteAttachment', () => {
     expect(await deleteAttachment({ attachmentId: 'a1', mutationId: MUTATION_ID })).toEqual({
       ok: true,
     });
+  });
+
+  test('publishes attachment.removed', async () => {
+    await deleteAttachment({ attachmentId: 'a1', mutationId: MUTATION_ID });
+    expect(publish).toHaveBeenCalledWith(
+      'b1',
+      expect.objectContaining({
+        type: 'attachment.removed',
+        id: 'a1',
+        cardId: 'c1',
+        mutationId: MUTATION_ID,
+        actorId: 'u1',
+      }),
+    );
+  });
+
+  test('a refused delete publishes nothing', async () => {
+    attachmentRow = { ...attachmentRow!, uploaderId: 'someone-else' };
+    assertBoardAccess.mockResolvedValue('member');
+    await deleteAttachment({ attachmentId: 'a1', mutationId: MUTATION_ID });
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  test('the publish happens after the row is gone, never before', async () => {
+    let publishedAfter = false;
+    publish.mockImplementation(async () => {
+      publishedAfter = ops.some((op) => op.kind === 'delete' && op.table === 'attachments');
+    });
+    await deleteAttachment({ attachmentId: 'a1', mutationId: MUTATION_ID });
+    expect(publishedAfter).toBe(true);
   });
 });
