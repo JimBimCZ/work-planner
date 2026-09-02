@@ -188,3 +188,39 @@ export async function confirmUpload(input: unknown) {
 
   return { ok: true, data: { attachmentId: row.id } } as const;
 }
+
+const deleteSchema = z.object({ attachmentId: id, mutationId });
+
+export async function deleteAttachment(input: unknown) {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: 'UNAUTHENTICATED' } as const;
+
+  const parsed = deleteSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
+
+  const row = await db.query.attachments.findFirst({
+    where: (a, { eq: is }) => is(a.id, parsed.data.attachmentId),
+    columns: { id: true, boardId: true, cardId: true, uploaderId: true, key: true },
+  });
+  if (!row) return { ok: false, error: 'NOT_FOUND' } as const;
+
+  let role;
+  try {
+    role = await assertBoardAccess(session.user.id, row.boardId, 'member');
+  } catch (error) {
+    return boardAccessResult(error);
+  }
+
+  // The uploader, or the owner. Unlike a comment — where not even the owner
+  // may delete — because the owner is accountable for the bytes on their board
+  // and needs a way to clear a file whose uploader is gone.
+  const mine = row.uploaderId === session.user.id;
+  if (!mine && role !== 'owner') return { ok: false, error: 'FORBIDDEN' } as const;
+
+  await db.delete(attachments).where(eq(attachments.id, row.id));
+  await forgetObjects([row.key]);
+
+  // Section D publishes attachment.removed here.
+
+  return { ok: true } as const;
+}

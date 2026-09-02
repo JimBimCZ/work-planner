@@ -1709,7 +1709,7 @@ git commit -m "feat: verify the real size and type before an attachment is visib
 
 The permission here is the one place attachments deliberately differ from comments: the **uploader or the board owner**, because the owner pays for the bytes and must be able to clear a file left by somebody whose account is gone.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { deleteAttachment } from '@/lib/actions/attachments';
@@ -1778,7 +1778,7 @@ describe('deleteAttachment', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/actions/attachments.test.ts -t deleteAttachment > /tmp/b4.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b4.log
@@ -1786,7 +1786,7 @@ pnpm exec vitest run lib/actions/attachments.test.ts -t deleteAttachment > /tmp/
 
 Expected: FAIL — `deleteAttachment is not a function`.
 
-- [ ] **Step 3: Write the action**
+- [x] **Step 3: Write the action**
 
 ```ts
 const deleteSchema = z.object({ attachmentId: id, mutationId });
@@ -1826,7 +1826,7 @@ export async function deleteAttachment(input: unknown) {
 }
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b4.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b4.log
@@ -1834,7 +1834,7 @@ pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b4.log 2>&1; echo "E
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/attachments.ts lib/actions/attachments.test.ts

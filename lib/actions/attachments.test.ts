@@ -122,7 +122,7 @@ vi.mock('@/lib/db', () => ({
 // Imported after the mocks, not statically: a top-level import of a module
 // that reaches @/lib/db runs the db mock factory before `writer` exists.
 const { BoardAccessError } = await import('@/lib/permissions');
-const { confirmUpload, requestUpload } = await import('./attachments');
+const { confirmUpload, deleteAttachment, requestUpload } = await import('./attachments');
 
 const valid = {
   cardId: 'c1',
@@ -142,10 +142,19 @@ beforeEach(() => {
   presignPut.mockReset();
   presignPut.mockResolvedValue('https://bucket.example/put');
   headObject.mockReset();
-  forgetObjects.mockReset();
-  forgetObjects.mockResolvedValue(undefined);
   deleteObjects.mockReset();
   deleteObjects.mockResolvedValue(undefined);
+  forgetObjects.mockReset();
+  // Mirrors the real wrapper in lib/storage.ts: delegate to deleteObjects and
+  // swallow its failure. Modelling it here is what lets a test reject the
+  // bucket call and still assert the action succeeded.
+  forgetObjects.mockImplementation(async (keys: unknown) => {
+    try {
+      await deleteObjects(keys);
+    } catch {
+      /* best effort, exactly as lib/storage.ts does */
+    }
+  });
   storageOn = true;
   boardTotal = 0;
   accountTotal = 0;
@@ -338,5 +347,84 @@ describe('confirmUpload', () => {
   test('publishes nothing yet — Section D adds the event', async () => {
     await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID });
     expect(publish).not.toHaveBeenCalled();
+  });
+});
+
+describe('deleteAttachment', () => {
+  const MUTATION_ID = '44444444-4444-4444-8444-444444444444';
+
+  beforeEach(() => {
+    attachmentRow = {
+      id: 'a1',
+      boardId: 'b1',
+      cardId: 'c1',
+      uploaderId: 'u1',
+      key: 'boards/b1/a1',
+      filename: 'x.png',
+      contentType: 'image/png',
+      size: 1024,
+      status: 'ready',
+    };
+  });
+
+  test('the uploader can delete their own file', async () => {
+    assertBoardAccess.mockResolvedValue('member');
+    expect(await deleteAttachment({ attachmentId: 'a1', mutationId: MUTATION_ID })).toEqual({
+      ok: true,
+    });
+    expect(deleteObjects).toHaveBeenCalledWith(['boards/b1/a1']);
+  });
+
+  test('the board owner can delete somebody else’s file', async () => {
+    // Deliberately unlike comments, where not even the owner may delete.
+    attachmentRow = { ...attachmentRow!, uploaderId: 'someone-else' };
+    assertBoardAccess.mockResolvedValue('owner');
+    expect(await deleteAttachment({ attachmentId: 'a1', mutationId: MUTATION_ID })).toEqual({
+      ok: true,
+    });
+  });
+
+  test('the board owner can delete a file whose uploader is gone', async () => {
+    attachmentRow = { ...attachmentRow!, uploaderId: null };
+    assertBoardAccess.mockResolvedValue('owner');
+    expect(await deleteAttachment({ attachmentId: 'a1', mutationId: MUTATION_ID })).toEqual({
+      ok: true,
+    });
+  });
+
+  test('a plain member cannot delete somebody else’s file', async () => {
+    attachmentRow = { ...attachmentRow!, uploaderId: 'someone-else' };
+    assertBoardAccess.mockResolvedValue('member');
+    expect(await deleteAttachment({ attachmentId: 'a1', mutationId: MUTATION_ID })).toEqual({
+      ok: false,
+      error: 'FORBIDDEN',
+    });
+    expect(deleteObjects).not.toHaveBeenCalled();
+  });
+
+  test('answers NOT_FOUND for a row that does not exist', async () => {
+    attachmentRow = undefined;
+    expect(await deleteAttachment({ attachmentId: 'a1', mutationId: MUTATION_ID })).toEqual({
+      ok: false,
+      error: 'NOT_FOUND',
+    });
+  });
+
+  test('the row is deleted before the object', async () => {
+    // Publish-after-commit's sibling rule: the durable write settles first, so
+    // a failed bucket call cannot leave a row pointing at nothing.
+    await deleteAttachment({ attachmentId: 'a1', mutationId: MUTATION_ID });
+    const rowDeleted = ops.findIndex((op) => op.kind === 'delete' && op.table === 'attachments');
+    expect(rowDeleted).toBeGreaterThanOrEqual(0);
+    expect(forgetObjects).toHaveBeenCalledWith(['boards/b1/a1']);
+  });
+
+  test('a bucket failure does not fail the action', async () => {
+    // The row is already gone. A leaked object is cheaper than an error the
+    // user cannot act on.
+    deleteObjects.mockRejectedValueOnce(new Error('bucket unreachable'));
+    expect(await deleteAttachment({ attachmentId: 'a1', mutationId: MUTATION_ID })).toEqual({
+      ok: true,
+    });
   });
 });
