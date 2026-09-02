@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, test, vi } from 'vitest';
 
 import {
+  contentDisposition,
   deleteObjects,
   headObject,
   objectKey,
@@ -99,4 +100,34 @@ test('the object key puts the board in the prefix', () => {
   // The board prefix is what makes deleting a whole board's objects one
   // listing rather than a query per card.
   expect(objectKey('b1', 'a1')).toBe('boards/b1/a1');
+});
+
+describe('contentDisposition', () => {
+  // Unit-tested outside the MinIO-gated block above so it always runs — this
+  // is the sanitiser whose Latin-1-only quoted form let non-ASCII filenames
+  // ship corrupted.
+  test('a plain ASCII name', () => {
+    expect(contentDisposition('greeting.txt', false)).toBe(
+      "attachment; filename=\"greeting.txt\"; filename*=UTF-8''greeting.txt",
+    );
+  });
+
+  test('an accented name gets a UTF-8 filename* alongside the quoted form', () => {
+    const result = contentDisposition('Příloha-café.pdf', false);
+    expect(result).toContain('filename="Příloha-café.pdf"');
+    expect(result).toContain("filename*=UTF-8''" + encodeURIComponent('Příloha-café.pdf'));
+  });
+
+  test('a name containing a double quote has it stripped from the quoted form', () => {
+    const result = contentDisposition('quo"te.png', true);
+    expect(result).toMatch(/^inline; /);
+    expect(result).toContain('filename="quote.png"');
+    expect(result).toContain("filename*=UTF-8''" + encodeURIComponent('quo"te.png'));
+  });
+
+  test('a name ending in a backslash has it stripped from the quoted form', () => {
+    const result = contentDisposition('trailing\\', false);
+    expect(result).toContain('filename="trailing"');
+    expect(result).toContain("filename*=UTF-8''" + encodeURIComponent('trailing\\'));
+  });
 });

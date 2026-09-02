@@ -71,24 +71,38 @@ export async function presignPut(key: string, contentType: string): Promise<stri
 // a stable URL, delete this option and the SIGNING_WINDOW_MS constant; the
 // feature is correct without it, only chattier. Do not keep an option that
 // silently does nothing.
+// Exported so the quoted-string escaping and the RFC 6266 fallback can be
+// unit-tested without a bucket. The MinIO-gated round trip below exercises the
+// same values against a real store, but only when storageConfigured() is true
+// — this is what runs even when it is not.
+export function contentDisposition(filename: string, inline: boolean): string {
+  const disposition = inline ? 'inline' : 'attachment';
+  // Strip both quotes and backslashes: an unescaped quote would close the
+  // quoted-string early, and a trailing backslash would escape the closing
+  // quote and leave it unterminated. This is a display name, not a security
+  // boundary — the SDK percent-encodes the query value, so header/CRLF
+  // injection is already mitigated at the transport layer.
+  const quoted = filename.replace(/["\\]/g, '');
+  // The quoted-string form is Latin-1 only (RFC 6266 borrows RFC 2616's
+  // quoted-string), so a non-ASCII filename like "Příloha-café.pdf" comes
+  // back mangled for any client that reads only that parameter. filename*
+  // carries the UTF-8 form for clients that understand RFC 6266, and old
+  // clients fall back to the ASCII-mangled quoted form — never to nothing.
+  return `${disposition}; filename="${quoted}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+}
+
 export async function presignGet(
   key: string,
   filename: string,
   inline: boolean,
 ): Promise<string> {
   const { s3, bucket } = client();
-  const disposition = inline ? 'inline' : 'attachment';
   return getSignedUrl(
     s3,
     new GetObjectCommand({
       Bucket: bucket,
       Key: key,
-      // Strip both quotes and backslashes: an unescaped quote would close the
-      // quoted-string early, and a trailing backslash would escape the closing
-      // quote and leave it unterminated. This is a display name, not a
-      // security boundary — the SDK percent-encodes the query value, so
-      // header/CRLF injection is already mitigated at the transport layer.
-      ResponseContentDisposition: `${disposition}; filename="${filename.replace(/["\\]/g, '')}"`,
+      ResponseContentDisposition: contentDisposition(filename, inline),
     }),
     {
       expiresIn: SIGNED_URL_TTL_SECONDS,
