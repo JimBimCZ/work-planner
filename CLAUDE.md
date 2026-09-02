@@ -155,6 +155,8 @@ lib/
   rank.ts                   # fractional index helpers
   events.ts                 # Pusher publish helpers + event types
   labels.ts                 # label caps, boardLabels read
+  storage.ts                # only module that speaks S3: presign, head, delete
+  attachments-limits.ts     # attachment caps; imports nothing, see "Data model"
 docs/
   specs/                    # brainstorm output, one per feature
   plans/                    # implementation plans with checkboxes
@@ -183,6 +185,9 @@ cards              id, boardId, columnId, title, description,
 comments           id, cardId, authorId, body, createdAt, updatedAt
 labels             id, boardId, name, createdAt                        unique (boardId, lower(name))
 card_labels        cardId, labelId                                     PK (cardId, labelId)
+attachments        id, boardId, cardId, uploaderId, key, filename,
+                   contentType, size, status ('pending'|'ready'),
+                   createdAt                                           unique (key)
 ```
 
 Rules:
@@ -197,6 +202,8 @@ Rules:
 - Labels are capped twice, in `lib/labels-limits.ts`: `LABEL_NAME_MAX` (32) and `LABELS_PER_BOARD` (50). Neither is a check constraint — both are tunable product limits rather than invariants — but `LABELS_PER_BOARD` is load-bearing: a card's label ids travel in a `card.labelled` payload, and fifty ids at 36 bytes stays far under `PAYLOAD_CEILING`. The module imports nothing, because the filter popover is a client component and needs the name cap.
 - `labels.boardId` cascades from `boards`: a label is board vocabulary, gone when the board is. `card_labels.labelId` and `card_labels.cardId` both cascade too, for different reasons — deleting a label takes it off every card, which is the promise a managed set makes (nothing dangles referencing a label that no longer exists); deleting a card takes its label assignments with it, the same way it takes its comments.
 - `cards.assigneeId` and `columns.wipLimit` were **dropped, not deferred.** Both were speculative — no requirement, no UI, no enforcement rule — and YAGNI says an unused column is a liability, not a head start. Adding either later is one migration; carrying a column nothing writes to costs a permanent explanation. Do not reintroduce them without a requirement that needs them.
+- `attachments.boardId` and `attachments.cardId` both cascade from their parent: an attachment is denormalised the same way `cards.boardId` is, so every permission check and a board-wide bucket sweep can read the object keys without joining through `cards`, and both rows going with their parent is the same promise `card_labels` makes. `attachments.uploaderId` sets null on delete, not cascade — it follows `comments.authorId`, because `/privacy` promises boards owned by other people keep your contributions after you delete your account. `key` is unique and shaped `boards/<boardId>/<attachmentId>`; `status` (`pending`|`ready`) exists because the browser writes bytes to the bucket directly and the server only learns what actually landed via a `HEAD` — a row can outlive an abandoned upload, which is what `PENDING_TTL_MINUTES` bounds.
+- Attachments are capped six ways, in `lib/attachments-limits.ts`, which imports nothing for the same reason `lib/labels-limits.ts` does — the file picker is a client component and needs the size cap. `ATTACHMENT_SIZE_MAX` (10 MB) and `ATTACHMENTS_PER_CARD` (10) bound one upload and one card. `STORAGE_PER_BOARD` (1 GB) and `STORAGE_PER_ACCOUNT` (2 GB) bound total bytes and are derived, not picked: ten boards filled to `STORAGE_PER_BOARD` is exactly Cloudflare R2's 10 GB-month free tier, so the service cannot produce a surprising bill, only a slowly growing legible one; `STORAGE_PER_ACCOUNT` is twice that because it counts one uploader across every board they can reach, which the per-board cap alone can't see, and it lands one byte under `bigint`'s range rather than `int4`'s — usage sums are cast to `bigint`, never `int`, for that reason. `FILENAME_MAX` (200) and `PENDING_TTL_MINUTES` (15) round out the six. None of the six is a check constraint, matching the label caps.
 
 ## Ordering: fractional ranks
 
@@ -449,11 +456,23 @@ What that constrains:
   as the processing region, so this is a claim in a published legal document, not a latency
   preference. `app/(legal)/privacy/page.test.tsx` asserts the two agree. Verify a change here with
   the header on a **function** response (`/api/health`), never a static one.
+- `/privacy` names Cloudflare R2's attachment storage as EU, jurisdiction-restricted — the same shape
+  of claim as the `fra1` region note above, and it needs the same kind of verification, not a reading
+  of the dashboard. Production is configured with the account's **EU-jurisdiction** endpoint,
+  `https://<account_id>.eu.r2.cloudflarestorage.com`, and a bucket created against that endpoint is
+  reachable *only* through it — the plain `r2.cloudflarestorage.com` host cannot see the bucket at
+  all, it doesn't 403, it has no knowledge of it. That is what makes the claim true rather than
+  aspirational: it isn't a setting that could quietly drift, it's a different endpoint the bucket
+  doesn't exist behind. Verify a change here by requesting the bucket against the plain endpoint and
+  confirming it cannot be found, the same way `fra1` is verified from a response header rather than
+  from `vercel.json`.
 - Preview deployments get their own Neon branch. OAuth callback URLs must include the preview domain pattern or sign-in will fail on previews — expect to test auth on a stable preview alias.
 - Local development uses the Neon `dev` branch, never production `main`. The integration scopes its variables to Production and Preview only, so a bare `vercel env pull` finds nothing; `pnpm db:dev-branch` creates the branch and registers it as Development-scoped, and `pnpm env:pull development` refreshes `.env.local` from it.
 - `AUTH_URL`/`AUTH_TRUST_HOST` need care on previews. Set `AUTH_TRUST_HOST=true` and let Auth.js infer the host rather than hardcoding.
 
-Docker (local/self-host): multi-stage deps → build → runner on `node:22-alpine`, `output: 'standalone'` enabled by `DOCKER_BUILD=1` in the build stage (Vercel builds must use Next's default output), non-root `nextjs` user, `HOSTNAME=0.0.0.0`. `docker-compose.yml` runs app + local Postgres. Add `/api/health` for the container healthcheck. Keep secrets out of `NEXT_PUBLIC_*` — those are inlined at build time. A self-hoster who wants realtime supplies `NEXT_PUBLIC_PUSHER_KEY` and `NEXT_PUBLIC_PUSHER_CLUSTER` as `docker compose` build arguments (`docker-compose.yml`'s `app.build.args`), not just runtime environment — the build stage inlines them, so a runtime-only value ships an undefined key to the client.
+Docker (local/self-host): multi-stage deps → build → runner on `node:22-alpine`, `output: 'standalone'` enabled by `DOCKER_BUILD=1` in the build stage (Vercel builds must use Next's default output), non-root `nextjs` user, `HOSTNAME=0.0.0.0`. `docker-compose.yml` runs app + local Postgres + a `minio` service for attachment storage, plus a one-shot `minio-init` (`minio/mc`) that creates the `kanban-attachments` bucket and exits — the app must never create its own bucket, since that would be boot-time state, which this section's constraints rule out. Add `/api/health` for the container healthcheck. Keep secrets out of `NEXT_PUBLIC_*` — those are inlined at build time. A self-hoster who wants realtime supplies `NEXT_PUBLIC_PUSHER_KEY` and `NEXT_PUBLIC_PUSHER_CLUSTER` as `docker compose` build arguments (`docker-compose.yml`'s `app.build.args`), not just runtime environment — the build stage inlines them, so a runtime-only value ships an undefined key to the client. Absent the five `S3_*` variables the app builds and runs correctly with no attachment surface at all, which is the supported no-bucket configuration for a self-hoster who doesn't want the extra service.
+
+CI starts MinIO with an explicit `docker run` step rather than a `services:` entry, because GitHub Actions' `services:` block cannot override a container's command and `minio/minio` needs `server /data` to actually serve. CI also has no `minio-init` equivalent, so it creates the bucket itself with `mc` after waiting on the health endpoint — `.github/workflows/ci.yml`'s "Start MinIO" step does both in one place.
 
 Env vars:
 
@@ -468,6 +487,11 @@ AUTH_GITHUB_ID / AUTH_GITHUB_SECRET
 PUSHER_APP_ID / PUSHER_SECRET
 NEXT_PUBLIC_PUSHER_KEY / NEXT_PUBLIC_PUSHER_CLUSTER   # cluster is read by both sides
 NEXT_PUBLIC_SITE_URL          # canonical URL, used in the policy and metadata
+S3_ENDPOINT                   # MinIO locally/self-host; R2's EU-jurisdiction endpoint in production
+S3_REGION
+S3_BUCKET
+S3_ACCESS_KEY_ID
+S3_SECRET_ACCESS_KEY          # absent, any of the five: no attachment surface renders
 ```
 
 `.env.example` is committed and stays in sync. `.env*` is not.

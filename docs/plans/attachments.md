@@ -76,7 +76,7 @@ No UI, no actions, no events. Everything needed to put a byte in a bucket and a 
 **Interfaces:**
 - Produces, all from `lib/attachments-limits.ts`: `ATTACHMENT_SIZE_MAX`, `ATTACHMENTS_PER_CARD`, `STORAGE_PER_BOARD`, `STORAGE_PER_ACCOUNT`, `FILENAME_MAX`, `PENDING_TTL_MINUTES` — all `number` — plus `INLINE_IMAGE_TYPES: readonly string[]` and `rendersInline(contentType: string): boolean`. This is the import-free module that both the server and the client read from.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/attachments-limits.test.ts`. These assert the *reasoning* behind the numbers, not the numbers themselves — a future change that keeps the arithmetic honest should pass, and one that quietly breaks the free-tier anchor should fail. The import-free check follows the precedent in `lib/events.test.ts`, which reads a file rather than importing it.
 
@@ -160,7 +160,7 @@ test('the module imports nothing, so a client component can read the caps', () =
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/attachments-limits.test.ts > /tmp/a1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a1.log
@@ -168,7 +168,7 @@ pnpm exec vitest run lib/attachments-limits.test.ts > /tmp/a1.log 2>&1; echo "EX
 
 Expected: FAIL — `Failed to resolve import "@/lib/attachments-limits"`.
 
-- [ ] **Step 3: Write the module**
+- [x] **Step 3: Write the module**
 
 Create `lib/attachments-limits.ts`:
 
@@ -208,7 +208,7 @@ export function rendersInline(contentType: string): boolean {
 }
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/attachments-limits.test.ts > /tmp/a1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a1.log
@@ -216,7 +216,7 @@ pnpm exec vitest run lib/attachments-limits.test.ts > /tmp/a1.log 2>&1; echo "EX
 
 Expected: PASS, 11 tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/attachments-limits.ts lib/attachments-limits.test.ts
@@ -237,7 +237,7 @@ git commit -m "feat: add the attachment caps, derived from R2's free tier"
 
 **Why MinIO is a step in CI and a service in compose:** GitHub Actions' `services:` block runs a container with its image's default command and provides **no way to override it**. The `minio/minio` image needs `server /data`, so it cannot be a service. Starting it with an explicit `docker run` step is fully under our control and avoids relying on a third-party image's default entrypoint.
 
-- [ ] **Step 1: Add the MinIO service to `docker-compose.yml`**
+- [x] **Step 1: Add the MinIO service to `docker-compose.yml`**
 
 Insert after the `postgres` service, before `app`:
 
@@ -274,7 +274,7 @@ Insert after the `postgres` service, before `app`:
       "
 ```
 
-- [ ] **Step 2: Give the app the bucket, in the same file**
+- [x] **Step 2: Give the app the bucket, in the same file**
 
 Add to the `app` service's `environment:` block, after `PUSHER_SECRET`, and add `minio-init` to its `depends_on`:
 
@@ -296,7 +296,7 @@ Add to the `app` service's `environment:` block, after `PUSHER_SECRET`, and add 
         condition: service_completed_successfully
 ```
 
-- [ ] **Step 3: Add the volume**
+- [x] **Step 3: Add the volume**
 
 ```yaml
 volumes:
@@ -304,7 +304,7 @@ volumes:
   miniodata:
 ```
 
-- [ ] **Step 4: Verify compose actually comes up**
+- [x] **Step 4: Verify compose actually comes up**
 
 ```bash
 docker compose up -d minio minio-init > /tmp/a2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a2.log
@@ -320,7 +320,7 @@ docker compose run --rm --entrypoint sh minio-init -c \
 
 Expected: a line naming `kanban-attachments`.
 
-- [ ] **Step 5: Start MinIO in CI**
+- [x] **Step 5: Start MinIO in CI**
 
 In `.github/workflows/ci.yml`, add these five to the `env:` block:
 
@@ -364,7 +364,7 @@ the `minio/mc` image's entrypoint is `mc` itself, so `sh -c` alone does not work
 the same form `minio-init` already uses. The credentials here are CI's
 (`kanban-ci-only`), not compose's.
 
-- [ ] **Step 6: Document the five variables in `.env.example`**
+- [x] **Step 6: Document the five variables in `.env.example`**
 
 Append, after the Pusher block:
 
@@ -385,7 +385,7 @@ bucket created there is restricted to the EU and is reachable only through that
 endpoint — using the plain `r2.cloudflarestorage.com` host does not silently
 write elsewhere, it cannot see the bucket at all.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add docker-compose.yml .github/workflows/ci.yml .env.example
@@ -405,7 +405,7 @@ git commit -m "chore: run MinIO locally and in CI for attachment storage"
 - Consumes: nothing.
 - Produces: `attachmentStatus` (a `pgEnum`) and `attachments`, both exported from `lib/db/schema.ts`; `cards.attachments` as a `many` relation so the board query can count them in one round trip.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `e2e/schema.spec.ts`. These are database invariants — cascades and set-null are Postgres's behaviour, not Zod's, which is why they live here rather than in Vitest. Follow the existing file's shape: seed, act through a raw `Pool`, assert, clean up in `finally`.
 
@@ -497,7 +497,7 @@ test('two attachments cannot share an object key', async ({ context }) => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/a3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a3.log
@@ -505,7 +505,7 @@ pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/a3.log 2>&1;
 
 Expected: FAIL — `relation "attachments" does not exist`.
 
-- [ ] **Step 3: Add the table to `lib/db/schema.ts`**
+- [x] **Step 3: Add the table to `lib/db/schema.ts`**
 
 Place it after `cardLabels`, keeping the file's existing order of table then relations. `integer` and `pgEnum` are already imported at the top of this file — do not re-add them.
 
@@ -547,7 +547,7 @@ export const attachments = pgTable(
 );
 ```
 
-- [ ] **Step 4: Add the relations, in the same file**
+- [x] **Step 4: Add the relations, in the same file**
 
 Add an `attachmentsRelations`, and extend the existing `cardsRelations` with an `attachments: many(attachments)` entry so `lib/boards.ts` can count them in one query:
 
@@ -559,7 +559,7 @@ export const attachmentsRelations = relations(attachments, ({ one }) => ({
 }));
 ```
 
-- [ ] **Step 5: Generate and apply the migration**
+- [x] **Step 5: Generate and apply the migration**
 
 ```bash
 pnpm db:generate > /tmp/a3gen.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/a3gen.log
@@ -573,7 +573,7 @@ Expected: a new `0006_*.sql` exists and applies. **Never hand-edit it.** Confirm
 psql "$DATABASE_URL" -c '\d attachments'
 ```
 
-- [ ] **Step 6: Run the test and watch it pass**
+- [x] **Step 6: Run the test and watch it pass**
 
 ```bash
 pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/a3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a3.log
@@ -581,7 +581,7 @@ pnpm exec playwright test e2e/schema.spec.ts --reporter=line > /tmp/a3.log 2>&1;
 
 Expected: PASS, with the count that ran equal to the count collected.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/db/schema.ts lib/db/migrations e2e/schema.spec.ts
@@ -608,13 +608,13 @@ git commit -m "feat: add the attachments table"
   - `deleteObjects(keys: string[]): Promise<void>`
   - `forgetObjects(keys: string[]): Promise<void>` — `deleteObjects` with the failure swallowed and logged
 
-- [ ] **Step 1: Install the SDK**
+- [x] **Step 1: Install the SDK**
 
 ```bash
 pnpm add @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
 ```
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Create `lib/storage.test.ts`. This is an integration test against a real bucket, which is why it guards on configuration — a developer with no docker running must still get a green `pnpm test`. The `CI` assertion is what stops that guard turning into a silent skip where it matters:
 
@@ -687,7 +687,7 @@ test('the object key puts the board in the prefix', () => {
 });
 ```
 
-- [ ] **Step 3: Run the test and watch it fail**
+- [x] **Step 3: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/storage.test.ts > /tmp/a4.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a4.log
@@ -695,7 +695,7 @@ pnpm exec vitest run lib/storage.test.ts > /tmp/a4.log 2>&1; echo "EXIT=$?"; tai
 
 Expected: FAIL — `Failed to resolve import "@/lib/storage"`.
 
-- [ ] **Step 4: Write the module**
+- [x] **Step 4: Write the module**
 
 Create `lib/storage.ts`:
 
@@ -845,7 +845,7 @@ export async function deleteObjects(keys: string[]): Promise<void> {
 }
 ```
 
-- [ ] **Step 5: Run the test and watch it pass**
+- [x] **Step 5: Run the test and watch it pass**
 
 MinIO must be up: `docker compose up -d minio minio-init`.
 
@@ -863,7 +863,7 @@ pnpm exec vitest run lib/storage.test.ts > /tmp/a4.log 2>&1; echo "EXIT=$?"; tai
 
 Expected: PASS, 8 tests, none skipped. If the round-trip block reports as skipped, the variables did not reach the run — fix that rather than moving on, because a skipped suite reports as a pass.
 
-- [ ] **Step 6: Prove or disprove the stable-URL optimisation**
+- [x] **Step 6: Prove or disprove the stable-URL optimisation**
 
 **This step exists because `signingDate` is an unverified API.** The AWS SDK's
 own presigner documentation lists `expiresIn`, `signableHeaders` and
@@ -906,7 +906,7 @@ it is a note for later rather than a problem now. **Do not** substitute caching 
 Either outcome is a success for this step. What is not acceptable is leaving an
 option in the code that nobody proved does anything.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add lib/storage.ts lib/storage.test.ts package.json pnpm-lock.yaml
@@ -924,7 +924,7 @@ git commit -m "feat: add the S3 storage module"
 **Interfaces:**
 - Consumes: nothing in code. This task exists because Section A is the pull request in which Cloudflare becomes a sub-processor, and `CLAUDE.md` says a claim in the policy and the behaviour of the code must not drift.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `app/(legal)/privacy/page.test.tsx`, following the shape of the existing region assertion:
 
@@ -943,7 +943,7 @@ test('the policy says files on other people’s boards outlive the account', () 
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/a5.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a5.log
@@ -951,7 +951,7 @@ pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/a5.log 2>&1; ech
 
 Expected: FAIL — unable to find the text.
 
-- [ ] **Step 3: Add the sub-processor row**
+- [x] **Step 3: Add the sub-processor row**
 
 In `app/(legal)/privacy/page.tsx`, add to the sub-processor array after the Pusher entry:
 
@@ -959,7 +959,7 @@ In `app/(legal)/privacy/page.tsx`, add to the sub-processor array after the Push
   ['Cloudflare R2', 'Attachment storage', 'EU — jurisdiction-restricted'],
 ```
 
-- [ ] **Step 4: Add attachments to what is collected, and to retention**
+- [x] **Step 4: Add attachments to what is collected, and to retention**
 
 In the "what is collected" list, extend the sentence covering board content so it reads as one category rather than adding a new bullet for the same thing:
 
@@ -972,7 +972,7 @@ And in retention, after the existing sentence about comments:
 > removed, ask before you delete the account — afterwards nothing connects them
 > back to you.
 
-- [ ] **Step 5: Run the test and watch it pass**
+- [x] **Step 5: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/a5.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a5.log
@@ -980,11 +980,11 @@ pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/a5.log 2>&1; ech
 
 Expected: PASS.
 
-- [ ] **Step 6: Say the same thing in the account danger zone**
+- [x] **Step 6: Say the same thing in the account danger zone**
 
 `/account`'s danger zone already tells the user that comments on other people's boards survive. Add attachments to that sentence — one clause, not a new paragraph — so the two surfaces cannot drift.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add "app/(legal)/privacy" app/\(app\)/\(chrome\)/account
@@ -999,19 +999,21 @@ git commit -m "docs: name the attachment store in the privacy policy"
 - Modify: `CLAUDE.md`
 - Modify: `docs/plans/attachments.md` (tick Section A's boxes)
 
-- [ ] **Step 1: Update `CLAUDE.md` "Data model"**
+- [x] **Step 1: Update `CLAUDE.md` "Data model"**
 
 Add `attachments` to the table list with its columns, and add rules covering: the three cascades and why each differs, and the six caps with the free-tier arithmetic behind the two storage totals.
 
-- [ ] **Step 2: Update `CLAUDE.md` "Layout"**
+- [x] **Step 2: Update `CLAUDE.md` "Layout"**
 
-Add `lib/storage.ts`, `lib/attachments.ts`, `lib/attachments-limits.ts` and `lib/actions/attachments.ts` to the tree.
+Add `lib/storage.ts` and `lib/attachments-limits.ts` to the tree — the two modules Section A actually
+ships. `lib/attachments.ts` and `lib/actions/attachments.ts` are Section B's; add them to the tree
+when that section lands, not here.
 
-- [ ] **Step 3: Update `CLAUDE.md` "Deployment"**
+- [x] **Step 3: Update `CLAUDE.md` "Deployment"**
 
 Add the five `S3_*` variables to the env list, the MinIO service to the docker paragraph, and a line recording that R2's EU jurisdiction is reachable on one endpoint only — and that CI starts MinIO as a step because `services:` cannot override a command.
 
-- [ ] **Step 4: Run the whole suite before opening the PR**
+- [x] **Step 4: Run the whole suite before opening the PR**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TYPECHECK=$?"
