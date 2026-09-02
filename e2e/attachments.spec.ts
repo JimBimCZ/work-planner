@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { Pool } from 'pg';
 import {
   boardColumns,
@@ -129,4 +129,67 @@ test('a viewer sees an attachment and no controls to change it', async ({
     await removeSeededUser(viewer.userId);
     await removeSeededUser(owner.userId);
   }
+});
+
+// playwright.config.ts loads .env and .env.local before this runs. Without
+// credentials the app is correctly non-realtime and this would pass vacuously,
+// so it skips rather than pretends — the same guard, and the same wording, as
+// e2e/realtime.spec.ts.
+const configured = Boolean(
+  process.env.PUSHER_APP_ID &&
+    process.env.PUSHER_SECRET &&
+    process.env.NEXT_PUBLIC_PUSHER_KEY &&
+    process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+);
+
+// Pusher does not replay, so an event published before the receiver joined the
+// channel is simply gone — and the watcher below never reloads, by design.
+// Without this wait the test races the subscription. Copied from
+// e2e/members.spec.ts, which was changed for exactly that race.
+const subscribed = (page: Page) =>
+  expect(page.locator('[data-realtime]')).toHaveAttribute('data-realtime', 'subscribed', {
+    timeout: 15_000,
+  });
+
+test.describe('an attachment that arrives while the board is open', () => {
+  test.skip(!configured, 'Pusher credentials are not configured');
+
+  test('the card face count follows a teammate up and back down', async ({ browser }) => {
+    const ownerContext = await browser.newContext();
+    const memberContext = await browser.newContext();
+    const owner = await seedSession(ownerContext);
+    const member = await seedSession(memberContext);
+    const boardId = await seedBoard(owner.userId, 'Live files');
+    await seedMember(boardId, member.userId, 'member');
+    const [first] = await boardColumns(boardId);
+    const cardId = await seedCard(first.id, { boardId, createdById: owner.userId });
+
+    try {
+      // The watcher never reloads, so a pass cannot come from anything but the
+      // event — which means it has to be subscribed before the actor writes.
+      const watcher = await memberContext.newPage();
+      await watcher.goto(`/boards/${boardId}`);
+      await subscribed(watcher);
+      await expect(watcher.getByTestId('card-attachments')).toHaveCount(0);
+
+      const actor = await ownerContext.newPage();
+      await actor.goto(`/boards/${boardId}/cards/${cardId}`);
+      await actor
+        .getByLabel('Add file')
+        .setInputFiles({ name: 'live.png', mimeType: 'image/png', buffer: PIXEL_PNG });
+      await expect(actor.getByRole('img', { name: 'live.png' })).toBeVisible({ timeout: 15_000 });
+
+      await expect(watcher.getByTestId('card-attachments')).toHaveText('1', { timeout: 15_000 });
+
+      await actor.getByRole('button', { name: 'Delete live.png' }).click();
+      await expect(actor.getByRole('img', { name: 'live.png' })).toHaveCount(0);
+
+      await expect(watcher.getByTestId('card-attachments')).toHaveCount(0, { timeout: 15_000 });
+    } finally {
+      await ownerContext.close();
+      await memberContext.close();
+      await removeSeededUser(member.userId);
+      await removeSeededUser(owner.userId);
+    }
+  });
 });
