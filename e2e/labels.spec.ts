@@ -261,6 +261,102 @@ test('the popover closes on Escape', async ({ page, context }) => {
   }
 });
 
+// The board's own reducer is the only thing that decides which cards are on
+// screen, so a label change made by this client has to reach it. Both tests
+// below act and assert inside one page lifetime: a goto in between would hide
+// the bug behind a fresh server render.
+test('a label created from the popover can narrow the board straight away', async ({
+  page,
+  context,
+}) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Fresh label');
+  const [first] = await boardColumns(boardId);
+  await seedCard(first.id, { boardId, createdById: userId, title: 'Has bug' });
+  await seedCard(first.id, { boardId, createdById: userId, title: 'Has nothing' });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await page.getByRole('button', { name: 'Filter' }).click();
+
+    const created = written(page);
+    await page.getByLabel('New label').fill('bug');
+    await page.getByRole('button', { name: 'Add label' }).click();
+    await created;
+    await expect(page.getByRole('checkbox', { name: /bug/ })).toBeVisible();
+
+    // Put it on a card from the modal, then filter by it — the whole flow the
+    // spec describes, without a reload anywhere in it.
+    await page.keyboard.press('Escape');
+    await page.getByTestId('card-title').filter({ hasText: 'Has bug' }).click();
+    const applied = written(page);
+    await page.getByRole('checkbox', { name: 'bug' }).check();
+    await applied;
+    await page.goBack();
+
+    await page.getByRole('button', { name: 'Filter' }).click();
+    await page.getByRole('checkbox', { name: /bug/ }).click();
+
+    await expect(page.getByText('Has bug')).toBeVisible();
+    await expect(page.getByText('Has nothing')).toBeHidden();
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+test('a label applied in the modal shows on the card face when the modal closes', async ({
+  page,
+  context,
+}) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Applied live');
+  const [first] = await boardColumns(boardId);
+  await seedCard(first.id, { boardId, createdById: userId, title: 'Ship it' });
+  await seedLabel(boardId, 'bug');
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await expect(page.getByTestId('card-labels')).toHaveCount(0);
+
+    await page.getByTestId('card-title').filter({ hasText: 'Ship it' }).click();
+    const applied = written(page);
+    await page.getByRole('checkbox', { name: 'bug' }).check();
+    await applied;
+    await page.goBack();
+
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByTestId('card-labels')).toHaveText('bug');
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+test('a label deleted from the popover leaves the cards that carried it', async ({
+  page,
+  context,
+}) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Deleted label');
+  const [first] = await boardColumns(boardId);
+  const card = await seedCard(first.id, { boardId, createdById: userId, title: 'Ship it' });
+  const labelId = await seedLabel(boardId, 'bug');
+  await assignLabel(card, labelId);
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+    await expect(page.getByTestId('card-labels')).toHaveText('bug');
+
+    await page.getByRole('button', { name: 'Filter' }).click();
+    const deleted = written(page);
+    await page.getByRole('button', { name: 'Delete bug' }).click();
+    await deleted;
+
+    await expect(page.getByTestId('card-labels')).toHaveCount(0);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
 // playwright.config.ts loads .env and .env.local into process.env before this
 // runs. Without credentials the app is correctly non-realtime, so this test
 // would pass vacuously — skipping says so instead of pretending.

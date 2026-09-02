@@ -69,7 +69,8 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   // Ephemeral UI, so deliberately not in the reducer: lib/board-state.ts is
   // pure and heavily tested, and a ring that expires on a timer is neither.
   const [rings, setRings] = useState<Map<string, number>>(new Map());
-  const { register, registerPatchCard, registerLabelCounts } = useBoardActions();
+  const { register, registerPatchCard, registerLabelCounts, registerLabels, registerDispatchLabel } =
+    useBoardActions();
   // The filter lives in the URL, not in the reducer: it has to survive a
   // reload and a board.reseed, which replaces the reducer wholesale.
   const searchParams = useSearchParams();
@@ -118,6 +119,22 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   useEffect(() => {
     registerLabelCounts(labelCounts);
   }, [registerLabelCounts, labelCounts]);
+
+  // The popover renders the same set the board filters against, so the two can
+  // never disagree about which labels exist — a remote delete removes the row
+  // as well as the label line.
+  useEffect(() => {
+    registerLabels(state.labels);
+  }, [registerLabels, state.labels]);
+
+  // The popover and the card modal both sit above this reducer in the tree, and
+  // it is the only thing that decides which cards are on screen. Without this,
+  // a label the user just created, renamed, deleted or applied is one this
+  // board has never heard of until a reload.
+  useEffect(() => {
+    registerDispatchLabel((action) => dispatch(action));
+    return () => registerDispatchLabel(null);
+  }, [registerDispatchLabel]);
 
   // Below 700px one column fills the screen, so the tab has to follow a swipe
   // as well as a click. A callback only carries the columns whose visibility
