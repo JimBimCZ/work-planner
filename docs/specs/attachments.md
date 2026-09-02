@@ -107,6 +107,7 @@ export const attachments = pgTable(
   (t) => [
     index('attachments_card_id_created_at_idx').on(t.cardId, t.createdAt),
     index('attachments_board_id_idx').on(t.boardId),
+    index('attachments_uploader_id_idx').on(t.uploaderId),
   ],
 );
 ```
@@ -125,6 +126,9 @@ export const attachments = pgTable(
   identical rule `comments.authorId` and `cards.createdById` already follow. An
   attachment with no uploader can be deleted by the board owner and by nobody
   else, which the permission rule below already allows without a special case.
+- **`attachments(uploaderId)`** exists for one query only: the per-account
+  storage total. It is a sum over a column with no other reader, so it is worth
+  saying plainly that the index has one job and dies with that cap.
 - **`key` is unique** and shaped `boards/<boardId>/<attachmentId>`. The filename
   is *not* in the key: it would drag filename encoding into object naming for no
   gain, and the download route puts the real name in `Content-Disposition`
@@ -141,8 +145,10 @@ export const attachments = pgTable(
 ### Caps: `lib/attachments-limits.ts`
 
 ```ts
-export const ATTACHMENT_SIZE_MAX = 10 * 1024 * 1024;
+export const ATTACHMENT_SIZE_MAX = 10 * 1024 * 1024; //  10 MB, one file
 export const ATTACHMENTS_PER_CARD = 10;
+export const STORAGE_PER_BOARD = 1024 * 1024 * 1024; //   1 GB, one board
+export const STORAGE_PER_ACCOUNT = 2 * 1024 * 1024 * 1024; // 2 GB, one uploader
 export const FILENAME_MAX = 200;
 export const PENDING_TTL_MINUTES = 15;
 ```
@@ -153,15 +159,60 @@ reject a file before uploading it. Anything reachable from `lib/permissions.ts`
 or `lib/db` cannot be imported by a `'use client'` file without pulling the `pg`
 driver into the browser bundle.
 
-None of the four is a check constraint. All four are tunable product limits
-rather than invariants — but `ATTACHMENT_SIZE_MAX` is load-bearing in a way the
-others are not: 10 MB is the number that makes a single `PUT` always sufficient,
-so raising it reopens "no multipart upload" above.
+None of the six is a check constraint. All six are tunable product limits rather
+than invariants — but `ATTACHMENT_SIZE_MAX` is load-bearing in a way the others
+are not: 10 MB is the number that makes a single `PUT` always sufficient, so
+raising it reopens "no multipart upload" above.
 
 `PENDING_TTL_MINUTES` is how long an unconfirmed upload is believed to be still
 in flight. Fifteen minutes is far longer than 10 MB can take and short enough
 that an abandoned upload does not hold a slot against `ATTACHMENTS_PER_CARD` for
 an afternoon.
+
+### Where the two storage totals come from
+
+The per-card cap bounds one card. It does not bound a board, and it does not
+bound a person, so on its own a determined user simply makes more cards. Two
+totals close that, and both are derived from R2's published pricing rather than
+chosen for roundness. **Verified 2026-09-02:** the free tier is 10 GB-month of
+storage, 1 million Class A operations and 10 million Class B; beyond it, storage
+is $0.015 per GB-month, Class A $4.50 per million and Class B $0.36 per million.
+
+**`STORAGE_PER_BOARD` = 1 GB.** The free tier is the anchor: at 1 GB a board,
+**ten boards filled to their cap is exactly the 10 GB that costs nothing**, and
+the eleventh costs 1.5 cents a month. That is the property worth having — the
+service cannot generate a surprising bill, only a slowly growing legible one.
+The cap is also generous against real use rather than against the worst case: a
+screenshot is 200–500 KB, so 1 GB is several thousand of them, and hitting it
+with 10 MB files takes a hundred of them on one board. A board that reaches
+1 GB is a board doing something this app was not designed for.
+
+The two caps do interact, and it is worth stating rather than discovering: at
+10 files of 10 MB, one card can hold 100 MB, so **ten maximal cards exhaust a
+board.** That is the intended shape — the per-card cap keeps a single card
+sane, the board cap is what actually bounds the bill, and a board whose first
+ten cards are full of 10 MB files should be stopped.
+
+**`STORAGE_PER_ACCOUNT` = 2 GB**, counted as the bytes an account has uploaded
+**across every board it can reach**, not the boards it owns. That is the
+distinction that makes the second cap worth having at all: the board cap already
+protects an owner from their own board, but nothing stops one member who has
+been invited to eight boards from putting a gigabyte in each. Two gigabytes is
+twice what any single board can hold, which is deliberately generous for an
+honest heavy user — ten screenshots a day is roughly 1.5 GB a year — while
+bounding one account's total contribution to a fifth of the free tier.
+
+Both are current usage, not lifetime: deleting an attachment gives the space
+back to both counters immediately.
+
+**These two interact with account deletion in different directions, and that is
+correct.** When an account is deleted its `uploaderId` goes null, so those bytes
+stop counting against any account's quota while continuing to count against the
+board's. The board is where the bytes physically are and where the bill lands;
+the account quota is about who is currently spending, and a closed account is
+not spending. A board carrying files from departed colleagues can therefore sit
+near its cap with nobody's account quota reflecting it — the board owner's
+remedy is the delete they already have over any file on their board.
 
 ### Storage: `lib/storage.ts`
 
@@ -205,6 +256,20 @@ way `canWrite` already is — never as configuration a client component reads. A
 self-hoster who wants no bucket gets a board with no attachment surface rather
 than a board with an upload button that fails.
 
+### Reads: `lib/attachments.ts`
+
+Mirroring `lib/labels.ts`, the read side lives apart from the actions:
+
+```ts
+cardAttachments(cardId: string): Promise<CardAttachment[]>   // ready only
+boardUsage(boardId: string): Promise<number>                 // bytes
+uploaderUsage(userId: string): Promise<number>               // bytes, all boards
+```
+
+`boardUsage` and `uploaderUsage` are `sum(size)` over `ready` plus fresh
+`pending` rows — the same set `requestUpload` reserves against, so the number a
+user is shown and the number that refuses their upload can never disagree.
+
 ### Serving bytes: `app/api/attachments/[attachmentId]/route.ts`
 
 A stable application URL, not a presigned link embedded in HTML. It re-checks
@@ -221,6 +286,17 @@ Two consequences worth stating:
   for a file 404s, because the permission is re-derived rather than baked into a
   link they still hold. A presigned URL already handed out stays valid until it
   expires — that window is seconds, and is the reason the TTL is short.
+
+**One cost trap, found while doing the pricing arithmetic above.** A fresh
+signature per request means a fresh *URL* per request, so every render of an
+inline image is a browser cache miss and another Class B operation against the
+bucket. The fix is to round the signing timestamp down to a five-minute window,
+so the identical URL is produced throughout it and the browser's own HTTP cache
+answers repeat renders, with the presigned TTL set to fifteen minutes so a URL
+minted at the start of a window stays valid to the end of it. **Do not instead
+cache the 302 itself** — that would stretch the revocation window from seconds
+to minutes, and immediate revocation is the property this route exists to
+provide.
 
 The route sets `Content-Disposition: attachment` for everything except a small
 allowlist of inline-safe image types: `image/png`, `image/jpeg`, `image/gif`,
@@ -244,8 +320,12 @@ type are the client's word until something checks. Three actions in
    write path, which is where the slot is being competed for.
 4. Count `ready` rows plus surviving fresh `pending` rows against
    `ATTACHMENTS_PER_CARD`.
-5. Insert the row as `pending`.
-6. Return `{ attachmentId, url }` where `url` is the presigned `PUT`.
+5. Sum `size` over the same set for this board, and separately for this
+   uploader, and reserve the **declared** size against `STORAGE_PER_BOARD` and
+   `STORAGE_PER_ACCOUNT`. Both sums count fresh `pending` rows, so two uploads
+   started at once cannot each be told there is room for one of them.
+6. Insert the row as `pending`.
+7. Return `{ attachmentId, url }` where `url` is the presigned `PUT`.
 
 **`confirmUpload({ boardId, attachmentId })`**
 
@@ -255,7 +335,12 @@ type are the client's word until something checks. Three actions in
 3. Compare the **real** size against `ATTACHMENT_SIZE_MAX` and record the real
    content type. Over the cap: delete the object, delete the row, return
    `TOO_LARGE`.
-4. Flip to `ready` in a transaction, then `publish` an `attachment.added` after
+4. Re-run both storage totals against the **real** size, excluding this row's
+   own reservation. Over either: delete the object, delete the row, return
+   `BOARD_FULL` or `ACCOUNT_FULL`. The reservation at step 5 of `requestUpload`
+   used a number the client supplied, so the quota is only actually enforced
+   here — exactly as the per-file cap is.
+5. Flip to `ready` in a transaction, then `publish` an `attachment.added` after
    it commits.
 
 Verifying after the fact rather than preventing is a deliberate choice, and the
@@ -326,6 +411,19 @@ the optimistic state — and unusually for optimistic UI it is *real*, a row tha
 exists in the database and is simply not shown to anybody else until it is
 `ready`.
 
+**A quota is only fair if you can see it coming.** The attachment section shows
+nothing about storage until the board passes 80% of `STORAGE_PER_BOARD`, at
+which point a mono line appears reading `847 MB of 1 GB used`. Below that
+threshold it would be clutter on a surface that has none to spare; above it, it
+is the warning that stops a refusal being a surprise. The account total is not
+shown on the board at all — an account near its own cap learns so at the point
+of refusal, because a per-board surface is the wrong place to report a
+cross-board number.
+
+Refusals name the number and the way out, per the copy rules — "This board has
+used its 1 GB of attachment storage. Delete a file to make room." Never an
+apology, and never a bare failure.
+
 **The card face** — a mono paperclip and a count in the existing meta line,
 beside the due date and the label line. `lib/boards.ts` carries the count per
 card the way it already carries labels, and `lib/board-state.ts` keeps it live
@@ -356,8 +454,13 @@ which is where permission is re-checked anyway.
 
 - **Unit (Vitest)** — the three actions against the caps and the permission
   matrix; the key shape; the pending sweep at the TTL boundary; `confirmUpload`
-  rejecting an object that is larger than it claimed; the download route's
-  inline allowlist, including that `image/svg+xml` is forced to a download.
+  rejecting an object that is larger than it claimed; both storage totals at
+  their boundary, including the case that matters most — a file whose *declared*
+  size fits the quota and whose *real* size does not; that two concurrent
+  `requestUpload` calls cannot both reserve the last megabyte; that a null
+  `uploaderId` still counts against the board and no longer against any account;
+  the download route's inline allowlist, including that `image/svg+xml` is
+  forced to a download.
 - **Storage (Vitest against MinIO)** — presign, put, head, delete, round-trip.
   CI gains a MinIO service alongside the throwaway Postgres it already runs.
 - **e2e (Playwright)** — attach a file and see it on the card; the count on the
@@ -373,10 +476,10 @@ One section, one branch, one PR, in this order:
   and in CI, `.env.example`, and the `/privacy` changes. No UI, no actions.
   Branch `feat/attachments-storage`.
 - **B — actions and the download route.** The three actions, the route handler,
-  the permission matrix, the sweep, and their tests.
-  Branch `feat/attachments-actions`.
-- **C — the card modal.** The list, inline images, upload with progress, delete.
-  Branch `feat/attachments-modal`.
+  the permission matrix, the sweep, both storage totals enforced in both phases,
+  and their tests. Branch `feat/attachments-actions`.
+- **C — the card modal.** The list, inline images, upload with progress, delete,
+  and the 80% usage line. Branch `feat/attachments-modal`.
 - **D — face and realtime.** The board-query count, `toBoardState`, the two
   events published and bound, and the two-client e2e.
   Branch `feat/attachments-realtime`.
@@ -406,6 +509,10 @@ Ticked only against observed output, per section:
 - [ ] An object uploaded larger than it declared is rejected by `confirmUpload`
       and is gone from the bucket afterwards — confirmed by listing the bucket,
       not by reading the action's return value.
+- [ ] A board at its storage cap refuses the next upload, names the number, and
+      accepts it again once a file is deleted.
+- [ ] An upload whose declared size fits the board quota but whose real size
+      does not is rejected at confirm and leaves nothing in the bucket.
 - [ ] Deleting a card removes its objects from the bucket — confirmed by
       listing the bucket.
 - [ ] A `.svg` attachment downloads rather than rendering, confirmed from the
@@ -418,7 +525,8 @@ Ticked only against observed output, per section:
 ## Documentation changed in the same pull requests
 
 - `CLAUDE.md` "Data model" — the table, its three cascades and the reason each
-  differs, and the four caps.
+  differs, and the six caps, including the free-tier arithmetic behind the two
+  storage totals.
 - `CLAUDE.md` "Realtime" — "all nineteen" becomes twenty-one, with the two
   names.
 - `CLAUDE.md` "Layout" — `lib/storage.ts`, `lib/actions/attachments.ts`,
@@ -469,12 +577,29 @@ and it destroys uniform card height.
 **10 MB was chosen so that one `PUT` is always enough**, which is what keeps
 multipart, resumability and progress-restore out of this spec.
 
+**The storage totals were derived from the free tier, not guessed.** 1 GB a
+board makes ten full boards exactly the 10 GB that costs nothing; 2 GB an
+account is twice what one board can hold, which bounds an invited member without
+constraining an honest one. Rejected: leaving both open until the service has
+users, which was this spec's own first answer and is the wrong one — a quota
+retrofitted onto boards that already exceed it forces either grandfathering or
+taking storage away from people who did nothing wrong.
+
+**The two totals count different things on purpose.** Per-board is where the
+bytes are and where the bill lands; per-account is who is currently spending.
+Making the second "boards you own" instead would have been nearly a restatement
+of the first, and would have left the case it exists for — one member invited to
+many boards — completely uncovered.
+
 ## Open decisions carried forward
 
-- **Total storage per board or per account.** There is a per-card cap and no
-  global one, so a determined user can still accumulate. Nothing here needs it
-  until the service has users and a bill; raise it then rather than guessing a
-  number now.
+- **Raising either storage total is a pricing decision, not a config change.**
+  Both numbers are tied to R2's 10 GB free tier by the arithmetic above, so
+  moving one moves where the service starts costing money. Re-derive rather than
+  bump.
+- **No usage surface for an account.** A user cannot see their own 2 GB total
+  anywhere; they meet it at the point of refusal. `/account` is where it would
+  go if this turns out to matter, and it is deliberately not built now.
 - **Paste-to-attach**, listed under non-goals, is the most likely first
   addition.
 - The activity log, and board archive versus hard delete, remain open and are
