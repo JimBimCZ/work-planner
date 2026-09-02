@@ -2123,7 +2123,7 @@ are unchanged from the original Section A draft.
 **Interfaces:**
 - Consumes: nothing in code. This task exists because `CLAUDE.md` says a claim in the policy and the behaviour of the code must not drift.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `app/(legal)/privacy/page.test.tsx`, following the shape of the existing region assertion:
 
@@ -2142,7 +2142,7 @@ test('the policy says files on other people’s boards outlive the account', () 
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/b7.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b7.log
@@ -2150,7 +2150,7 @@ pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/b7.log 2>&1; ech
 
 Expected: FAIL — unable to find the text.
 
-- [ ] **Step 3: Add the sub-processor row**
+- [x] **Step 3: Add the sub-processor row**
 
 In `app/(legal)/privacy/page.tsx`, add to the sub-processor array after the Pusher entry:
 
@@ -2158,7 +2158,7 @@ In `app/(legal)/privacy/page.tsx`, add to the sub-processor array after the Push
   ['Cloudflare R2', 'Attachment storage', 'EU — jurisdiction-restricted'],
 ```
 
-- [ ] **Step 4: Add attachments to what is collected, and to retention**
+- [x] **Step 4: Add attachments to what is collected, and to retention**
 
 In the "what is collected" list, extend the sentence covering board content so it reads as one category rather than adding a new bullet for the same thing:
 
@@ -2171,7 +2171,7 @@ And in retention, after the existing sentence about comments:
 > removed, ask before you delete the account — afterwards nothing connects them
 > back to you.
 
-- [ ] **Step 5: Run the test and watch it pass**
+- [x] **Step 5: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/b7.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b7.log
@@ -2179,11 +2179,11 @@ pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/b7.log 2>&1; ech
 
 Expected: PASS.
 
-- [ ] **Step 6: Say the same thing in the account danger zone**
+- [x] **Step 6: Say the same thing in the account danger zone**
 
 `/account`'s danger zone already tells the user that comments on other people's boards survive. Add attachments to that sentence — one clause, not a new paragraph — so the two surfaces cannot drift.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add "app/(legal)/privacy" app/\(app\)/\(chrome\)/account

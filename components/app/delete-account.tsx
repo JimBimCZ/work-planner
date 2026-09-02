@@ -47,8 +47,11 @@ export function DeleteAccount({
       </h2>
 
       <ul className="mt-3 list-disc space-y-1 pl-5 text-[15px]/6">
-        <li>The boards you own go, with every column, card and comment on them.</li>
-        <li>Your comments on other people&rsquo;s boards stay, without your name on them.</li>
+        <li>The boards you own go, with every column, card, comment and file on them.</li>
+        <li>
+          Your comments and attached files on other people&rsquo;s boards stay, without your name on
+          them.
+        </li>
         <li>
           If you want those removed too, ask before you delete — afterwards nothing links them to
           you, so the request cannot be honoured.

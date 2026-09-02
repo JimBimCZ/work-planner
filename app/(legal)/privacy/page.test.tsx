@@ -29,6 +29,22 @@ describe('privacy policy', () => {
     }
   });
 
+  test('names the attachment store and its region', () => {
+    // CLAUDE.md: if a claim in the policy and the behaviour of the code
+    // disagree, one of them is the bug. This is the assertion that notices.
+    const markup = html();
+    expect(markup).toContain('Cloudflare R2');
+    expect(markup).toMatch(/EU — jurisdiction-restricted/);
+  });
+
+  test('says files are collected alongside the rest of the board content', () => {
+    expect(html()).toMatch(/files you attach to a card/i);
+  });
+
+  test('says files on other people’s boards outlive the account', () => {
+    expect(html()).toMatch(/files you attached to boards owned by other people/i);
+  });
+
   test('does not name Neon Auth, which the project removed', () => {
     expect(html()).not.toMatch(/neon auth/i);
   });
