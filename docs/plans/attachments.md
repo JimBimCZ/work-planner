@@ -65,7 +65,7 @@ Every task's requirements implicitly include all of these.
 
 # Section A — storage foundation
 
-No UI, no actions, no events. Everything needed to put a byte in a bucket and a row in a table, plus the legal page that has to name the vendor. Branch `feat/attachments-storage` from `main`.
+No UI, no actions, no events. Everything needed to put a byte in a bucket and a row in a table. The legal page moves to Section B — the pull request where Cloudflare can first receive a byte, not this one. Branch `feat/attachments-storage` from `main`.
 
 ### Task A1: The caps
 
@@ -915,81 +915,15 @@ git commit -m "feat: add the S3 storage module"
 
 ---
 
-### Task A5: `/privacy` names the new sub-processor
+### Task A5 removed — moved to Section B
 
-**Files:**
-- Modify: `app/(legal)/privacy/page.tsx`
-- Modify: `app/(legal)/privacy/page.test.tsx`
-
-**Interfaces:**
-- Consumes: nothing in code. This task exists because Section A is the pull request in which Cloudflare becomes a sub-processor, and `CLAUDE.md` says a claim in the policy and the behaviour of the code must not drift.
-
-- [x] **Step 1: Write the failing test**
-
-Add to `app/(legal)/privacy/page.test.tsx`, following the shape of the existing region assertion:
-
-```tsx
-test('the policy names the attachment store and its region', () => {
-  // CLAUDE.md: if a claim in the policy and the behaviour of the code
-  // disagree, one of them is the bug. This is the assertion that notices.
-  render(<PrivacyPage />);
-  expect(screen.getByText('Cloudflare R2')).toBeInTheDocument();
-  expect(screen.getByText(/EU — jurisdiction-restricted/)).toBeInTheDocument();
-});
-
-test('the policy says files on other people’s boards outlive the account', () => {
-  render(<PrivacyPage />);
-  expect(screen.getByText(/files you attached to boards owned by other people/i)).toBeInTheDocument();
-});
-```
-
-- [x] **Step 2: Run the test and watch it fail**
-
-```bash
-pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/a5.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a5.log
-```
-
-Expected: FAIL — unable to find the text.
-
-- [x] **Step 3: Add the sub-processor row**
-
-In `app/(legal)/privacy/page.tsx`, add to the sub-processor array after the Pusher entry:
-
-```tsx
-  ['Cloudflare R2', 'Attachment storage', 'EU — jurisdiction-restricted'],
-```
-
-- [x] **Step 4: Add attachments to what is collected, and to retention**
-
-In the "what is collected" list, extend the sentence covering board content so it reads as one category rather than adding a new bullet for the same thing:
-
-> board, column, card and comment content you create, **and any files you attach to a card — their contents, filename, size and type**
-
-And in retention, after the existing sentence about comments:
-
-> Files you attached to boards owned by other people stay on those boards after
-> you delete your account, and stop being linked to you. If you want them
-> removed, ask before you delete the account — afterwards nothing connects them
-> back to you.
-
-- [x] **Step 5: Run the test and watch it pass**
-
-```bash
-pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/a5.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a5.log
-```
-
-Expected: PASS.
-
-- [x] **Step 6: Say the same thing in the account danger zone**
-
-`/account`'s danger zone already tells the user that comments on other people's boards survive. Add attachments to that sentence — one clause, not a new paragraph — so the two surfaces cannot drift.
-
-- [x] **Step 7: Commit**
-
-```bash
-git add "app/(legal)/privacy" app/\(app\)/\(chrome\)/account
-git commit -m "docs: name the attachment store in the privacy policy"
-```
+`/privacy` naming Cloudflare as a sub-processor does not belong in Section A:
+no account or bucket exists, and there is no action or interface yet through
+which a user could attach anything, so publishing the change here would name a
+sub-processor that processes nothing and assert an EU-residency claim nobody
+can verify. The task, its copy and its tests move to Section B as Task B7,
+unchanged, where the actions and download route first give Cloudflare
+something to receive.
 
 ---
 
@@ -1051,7 +985,7 @@ Confirm with `\dt`, not with the success line.
 
 # Section B — actions and the download route
 
-The three writes, the reads they need, and the one route that serves bytes. No UI. Branch `feat/attachments-actions` from `main` once Section A has landed — confirm the base is real first:
+The three writes, the reads they need, and the one route that serves bytes, plus the legal page — this is the pull request in which Cloudflare first can receive a byte. No UI. Branch `feat/attachments-actions` from `main` once Section A has landed — confirm the base is real first:
 
 ```bash
 git merge-base --is-ancestor origin/main HEAD && echo "base is real"
@@ -2160,7 +2094,93 @@ git commit -m "feat: take a card, board or account's objects out of the bucket w
 
 ---
 
-### Task B7: Section B verification and pull request
+### Task B7: `/privacy` names the new sub-processor
+
+Moved here from Section A: Section A ships no code that reaches Cloudflare —
+no account or bucket exists, and there was no action or interface yet through
+which a user could attach anything. Section B is the pull request in which
+Cloudflare first can receive a byte, via the actions and the download route
+above, so this is where the policy names it. The task, its copy and its tests
+are unchanged from the original Section A draft.
+
+**Files:**
+- Modify: `app/(legal)/privacy/page.tsx`
+- Modify: `app/(legal)/privacy/page.test.tsx`
+- Modify: `components/app/delete-account.tsx`
+
+**Interfaces:**
+- Consumes: nothing in code. This task exists because `CLAUDE.md` says a claim in the policy and the behaviour of the code must not drift.
+
+- [ ] **Step 1: Write the failing test**
+
+Add to `app/(legal)/privacy/page.test.tsx`, following the shape of the existing region assertion:
+
+```tsx
+test('the policy names the attachment store and its region', () => {
+  // CLAUDE.md: if a claim in the policy and the behaviour of the code
+  // disagree, one of them is the bug. This is the assertion that notices.
+  render(<PrivacyPage />);
+  expect(screen.getByText('Cloudflare R2')).toBeInTheDocument();
+  expect(screen.getByText(/EU — jurisdiction-restricted/)).toBeInTheDocument();
+});
+
+test('the policy says files on other people’s boards outlive the account', () => {
+  render(<PrivacyPage />);
+  expect(screen.getByText(/files you attached to boards owned by other people/i)).toBeInTheDocument();
+});
+```
+
+- [ ] **Step 2: Run the test and watch it fail**
+
+```bash
+pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/b7.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b7.log
+```
+
+Expected: FAIL — unable to find the text.
+
+- [ ] **Step 3: Add the sub-processor row**
+
+In `app/(legal)/privacy/page.tsx`, add to the sub-processor array after the Pusher entry:
+
+```tsx
+  ['Cloudflare R2', 'Attachment storage', 'EU — jurisdiction-restricted'],
+```
+
+- [ ] **Step 4: Add attachments to what is collected, and to retention**
+
+In the "what is collected" list, extend the sentence covering board content so it reads as one category rather than adding a new bullet for the same thing:
+
+> board, column, card and comment content you create, **and any files you attach to a card — their contents, filename, size and type**
+
+And in retention, after the existing sentence about comments:
+
+> Files you attached to boards owned by other people stay on those boards after
+> you delete your account, and stop being linked to you. If you want them
+> removed, ask before you delete the account — afterwards nothing connects them
+> back to you.
+
+- [ ] **Step 5: Run the test and watch it pass**
+
+```bash
+pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/b7.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b7.log
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Say the same thing in the account danger zone**
+
+`/account`'s danger zone already tells the user that comments on other people's boards survive. Add attachments to that sentence — one clause, not a new paragraph — so the two surfaces cannot drift.
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add "app/(legal)/privacy" app/\(app\)/\(chrome\)/account
+git commit -m "docs: name the attachment store in the privacy policy"
+```
+
+---
+
+### Task B8: Section B verification and pull request
 
 - [ ] **Step 1: Run everything, each exit code from its own log**
 
