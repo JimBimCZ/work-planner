@@ -36,11 +36,12 @@ const EVENT_NAMES = [
 // An event the server can publish and this list omits is delivered nowhere, and
 // nothing at runtime can notice: Pusher simply never calls a handler nobody
 // bound. `satisfies` above catches a name that is not an event; this catches an
-// event that is not a name, which is the direction that actually breaks. Adding
-// a member to BoardEvent without adding it here is a type error.
-// The constraint is what does the work: an unbound event makes the argument
-// `false`, which does not satisfy `extends true`, and the build fails naming
-// this line. A bare alias resolving to `never` would compile silently.
+// event that is not a name, which is the direction that actually breaks.
+//
+// The `T extends true` constraint is what does the work — an unbound event makes
+// the argument `false`, which fails the constraint and names this line. A bare
+// alias resolving to `never` would compile silently, which is what the first
+// version of this did.
 type Assert<T extends true> = T;
 export type EveryEventIsBound = Assert<
   Exclude<BoardEvent['type'], (typeof EVENT_NAMES)[number]> extends never ? true : false

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import {
   boardMemberRoles,
@@ -198,6 +198,16 @@ const configured = Boolean(
     process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
 );
 
+// Pusher does not replay, so an event published before the receiver joined the
+// channel is simply gone — and these tests never reload, by design. Without this
+// wait they race the subscription: green on a fast machine, red on a slow one,
+// and never because of the behaviour they exist to check. e2e/realtime.spec.ts
+// has waited like this from the start; this file was the one that did not.
+const subscribed = (page: Page) =>
+  expect(page.locator('[data-realtime]')).toHaveAttribute('data-realtime', 'subscribed', {
+    timeout: 15_000,
+  });
+
 test.describe('a membership that changes while the board is open', () => {
   test.skip(!configured, 'Pusher credentials are not configured');
 
@@ -213,6 +223,7 @@ test.describe('a membership that changes while the board is open', () => {
       const memberPage = await memberContext.newPage();
       await memberPage.goto(`/boards/${boardId}`);
       await expect(memberPage.getByRole('button', { name: 'New card' })).toBeVisible();
+      await subscribed(memberPage);
 
       const ownerPage = await ownerContext.newPage();
       await ownerPage.goto(`/boards/${boardId}`);
@@ -239,6 +250,7 @@ test.describe('a membership that changes while the board is open', () => {
     try {
       const memberPage = await memberContext.newPage();
       await memberPage.goto(`/boards/${boardId}`);
+      await subscribed(memberPage);
 
       const ownerPage = await ownerContext.newPage();
       await ownerPage.goto(`/boards/${boardId}`);
