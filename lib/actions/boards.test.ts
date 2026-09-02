@@ -16,6 +16,19 @@ const inserts: Insert[] = [];
 let boardRow: { name: string } | undefined;
 let updated: { id: string; name: string } | null = null;
 let deleted: string | null = null;
+let attachmentKeys: string[] = [];
+const ops: string[] = [];
+
+const forgetObjects = vi.fn();
+const deleteObjects = vi.fn();
+vi.mock('@/lib/storage', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/storage')>('@/lib/storage');
+  return {
+    ...actual,
+    forgetObjects: (...a: unknown[]) => forgetObjects(...a),
+    deleteObjects: (...a: unknown[]) => deleteObjects(...a),
+  };
+});
 
 function tableName(table: unknown): string {
   const symbol = Object.getOwnPropertySymbols(table).find((s) => s.description === 'drizzle:Name');
@@ -48,8 +61,17 @@ vi.mock('@/lib/db', () => ({
         },
       }),
     }),
-    delete: () => ({
+    select: () => ({
+      from: (table: unknown) => ({
+        where: async () => {
+          ops.push(`query:${tableName(table)}`);
+          return attachmentKeys.map((key) => ({ key }));
+        },
+      }),
+    }),
+    delete: (table: unknown) => ({
       where: async () => {
+        ops.push(`delete:${tableName(table)}`);
         deleted = 'b1';
       },
     }),
@@ -62,6 +84,19 @@ const { BoardAccessError } = await import('@/lib/permissions');
 
 beforeEach(() => {
   inserts.length = 0;
+  ops.length = 0;
+  attachmentKeys = [];
+  forgetObjects.mockReset();
+  // Mirrors the real wrapper in lib/storage.ts: delegate, and swallow failure.
+  forgetObjects.mockImplementation(async (keys: unknown) => {
+    try {
+      await deleteObjects(keys);
+    } catch {
+      /* best effort, exactly as lib/storage.ts does */
+    }
+  });
+  deleteObjects.mockReset();
+  deleteObjects.mockResolvedValue(undefined);
   boardRow = undefined;
   updated = null;
   deleted = null;
@@ -170,5 +205,34 @@ describe('deleteBoard', () => {
       ok: true,
     });
     expect(deleted).toBe('b1');
+  });
+
+  test('deleting a board takes its objects out of the bucket', async () => {
+    assertBoardAccess.mockResolvedValue('owner');
+    boardRow = { name: 'Roadmap' };
+    attachmentKeys = ['boards/b1/a1', 'boards/b1/a2'];
+
+    await deleteBoard({ boardId: 'b1', confirmName: 'Roadmap' });
+    expect(forgetObjects).toHaveBeenCalledWith(['boards/b1/a1', 'boards/b1/a2']);
+  });
+
+  test('the keys are read before the row is deleted', async () => {
+    // After the cascade there is nothing left to read them from.
+    assertBoardAccess.mockResolvedValue('owner');
+    boardRow = { name: 'Roadmap' };
+    attachmentKeys = ['boards/b1/a1'];
+
+    await deleteBoard({ boardId: 'b1', confirmName: 'Roadmap' });
+    expect(ops.indexOf('query:attachments')).toBeGreaterThanOrEqual(0);
+    expect(ops.indexOf('query:attachments')).toBeLessThan(ops.indexOf('delete:boards'));
+  });
+
+  test('a name mismatch touches neither the rows nor the bucket', async () => {
+    assertBoardAccess.mockResolvedValue('owner');
+    boardRow = { name: 'Roadmap' };
+    attachmentKeys = ['boards/b1/a1'];
+
+    await deleteBoard({ boardId: 'b1', confirmName: 'roadmap' });
+    expect(forgetObjects).not.toHaveBeenCalled();
   });
 });

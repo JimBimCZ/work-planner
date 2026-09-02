@@ -10,6 +10,19 @@ const sharedMock = vi.fn(async () => shared);
 vi.mock('@/lib/account', () => ({ sharedBoardsOwnedBy: () => sharedMock() }));
 
 const deleted: string[] = [];
+const ops: string[] = [];
+let attachmentKeys: string[] = [];
+
+const forgetObjects = vi.fn();
+const deleteObjects = vi.fn();
+vi.mock('@/lib/storage', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/storage')>('@/lib/storage');
+  return {
+    ...actual,
+    forgetObjects: (...a: unknown[]) => forgetObjects(...a),
+    deleteObjects: (...a: unknown[]) => deleteObjects(...a),
+  };
+});
 
 function tableName(table: unknown): string {
   const symbol = Object.getOwnPropertySymbols(table).find((s) => s.description === 'drizzle:Name');
@@ -19,12 +32,25 @@ function tableName(table: unknown): string {
 const tx = {
   delete: (table: unknown) => ({
     where: async () => {
+      ops.push(`delete:${tableName(table)}`);
       deleted.push(tableName(table));
     },
   }),
 };
 vi.mock('@/lib/db', () => ({
-  db: { transaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) },
+  db: {
+    select: () => ({
+      from: (table: unknown) => ({
+        innerJoin: () => ({
+          where: async () => {
+            ops.push(`query:${tableName(table)}`);
+            return attachmentKeys.map((key) => ({ key }));
+          },
+        }),
+      }),
+    }),
+    transaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
+  },
 }));
 
 const { deleteAccount } = await import('./account');
@@ -34,6 +60,19 @@ const signedIn = { user: { id: 'u1', email: 'me@example.test' } };
 beforeEach(() => {
   shared = [];
   deleted.length = 0;
+  ops.length = 0;
+  attachmentKeys = [];
+  forgetObjects.mockReset();
+  // Mirrors the real wrapper in lib/storage.ts: delegate, and swallow failure.
+  forgetObjects.mockImplementation(async (keys: unknown) => {
+    try {
+      await deleteObjects(keys);
+    } catch {
+      /* best effort, exactly as lib/storage.ts does */
+    }
+  });
+  deleteObjects.mockReset();
+  deleteObjects.mockResolvedValue(undefined);
   authMock.mockReset();
   signOutMock.mockClear();
 });
@@ -93,5 +132,43 @@ describe('deleteAccount', () => {
     authMock.mockResolvedValue(signedIn);
     await expect(deleteAccount({ confirmEmail: 'me@example.test' })).resolves.toEqual({ ok: true });
     expect(deleted).toEqual(['board_invites', 'user']);
+  });
+
+  test('takes the objects on boards the user owns out of the bucket', async () => {
+    authMock.mockResolvedValue(signedIn);
+    attachmentKeys = ['boards/b-mine/a1'];
+    await deleteAccount({ confirmEmail: 'me@example.test' });
+    expect(forgetObjects).toHaveBeenCalledWith(['boards/b-mine/a1']);
+  });
+
+  test('the keys are read before the rows are deleted', async () => {
+    // After the cascade there is nothing left to read them from.
+    authMock.mockResolvedValue(signedIn);
+    attachmentKeys = ['boards/b-mine/a1'];
+    await deleteAccount({ confirmEmail: 'me@example.test' });
+    expect(ops.indexOf('query:attachments')).toBeGreaterThanOrEqual(0);
+    expect(ops.indexOf('query:attachments')).toBeLessThan(ops.indexOf('delete:user'));
+  });
+
+  test('files on other people’s boards are left alone', async () => {
+    // The uploader goes null and the file stays. Deleting them would break a
+    // colleague's board and contradict the retention section of /privacy.
+    // The join is on boards.ownerId, so a board the user merely uploaded to
+    // never reaches this list in the first place.
+    authMock.mockResolvedValue(signedIn);
+    attachmentKeys = ['boards/b-mine/a1'];
+    await deleteAccount({ confirmEmail: 'me@example.test' });
+    expect(forgetObjects).toHaveBeenCalledWith(['boards/b-mine/a1']);
+    expect(forgetObjects).not.toHaveBeenCalledWith(
+      expect.arrayContaining(['boards/b-theirs/a9']),
+    );
+  });
+
+  test('a refused delete touches neither the rows nor the bucket', async () => {
+    authMock.mockResolvedValue(signedIn);
+    shared = [{ id: 'b1', name: 'Roadmap' }];
+    attachmentKeys = ['boards/b-mine/a1'];
+    await deleteAccount({ confirmEmail: 'me@example.test' });
+    expect(forgetObjects).not.toHaveBeenCalled();
   });
 });

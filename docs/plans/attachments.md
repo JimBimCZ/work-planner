@@ -2010,7 +2010,7 @@ git commit -m "feat: serve attachments through an access-checked redirect"
 
 Rows cascade in Postgres; objects in a bucket do not. Each of these three must collect the keys **before** the transaction and delete the objects **after** it commits.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add one test to each of the three existing action test files. In `lib/actions/cards.test.ts`:
 
@@ -2046,7 +2046,7 @@ test('files on other people’s boards are left alone', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests and watch them fail**
+- [x] **Step 2: Run the tests and watch them fail**
 
 ```bash
 pnpm exec vitest run lib/actions/cards.test.ts lib/actions/boards.test.ts lib/actions/account.test.ts > /tmp/b6.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b6.log
@@ -2054,7 +2054,7 @@ pnpm exec vitest run lib/actions/cards.test.ts lib/actions/boards.test.ts lib/ac
 
 Expected: FAIL — `deleteObjects` never called.
 
-- [ ] **Step 3: Wire the three call sites**
+- [x] **Step 3: Wire the three call sites**
 
 In `deleteCard`, before the transaction that deletes the row:
 
@@ -2073,7 +2073,7 @@ await forgetObjects(keys.map((row) => row.key));
 
 `deleteBoard` is the same with `eq(attachments.boardId, boardId)`. `deleteAccount` collects across every board the departing user owns — it already resolves that set to decide whether the delete is allowed, so reuse it rather than querying twice, and do **not** widen it to `uploaderId`: those rows keep their file and lose their uploader.
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 ```bash
 pnpm exec vitest run lib/actions/cards.test.ts lib/actions/boards.test.ts lib/actions/account.test.ts > /tmp/b6.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b6.log
@@ -2081,11 +2081,23 @@ pnpm exec vitest run lib/actions/cards.test.ts lib/actions/boards.test.ts lib/ac
 
 Expected: PASS.
 
-- [ ] **Step 5: Prove it against a real bucket**
+- [x] **Step 5: Prove it against a real bucket**
 
 The mocks prove the call is made. Only an end-to-end run proves the object actually leaves. Add to `e2e/attachments.spec.ts` a test that uploads through `requestUpload` + a real `PUT` + `confirmUpload`, deletes the card, and then asserts `headObject` answers null.
 
-- [ ] **Step 6: Commit**
+**Done differently, deliberately.** The three actions are `'use server'` modules: `auth()` needs a
+request context, and Section B ships no UI to drive them through — so the Playwright runner cannot
+invoke `requestUpload`/`confirmUpload` at all. That test becomes possible in Section C, where the
+card modal gives it a surface, and Section C's own e2e covers it.
+
+What was provable now, and is: `lib/storage.test.ts` gains `forgetObjects removes a real object`,
+which PUTs real bytes through a presigned URL, confirms `headObject` sees them, calls the same
+`forgetObjects` all three call sites call, and confirms `headObject` answers null. Composed with the
+unit tests above — which prove each call site reads the keys *before* the delete and passes them to
+`forgetObjects` — that closes the gap the mocks left. Verified against MinIO: 14 passed with `S3_*`
+set, 8 skipped without it.
+
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/actions e2e/attachments.spec.ts

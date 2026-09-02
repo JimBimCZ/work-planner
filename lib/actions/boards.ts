@@ -7,9 +7,10 @@ import { z } from 'zod';
 import { auth } from '@/lib/auth';
 import { DEFAULT_COLUMN_NAMES } from '@/lib/board-defaults';
 import { db } from '@/lib/db';
-import { boardMembers, boards, columns } from '@/lib/db/schema';
+import { attachments, boardMembers, boards, columns } from '@/lib/db/schema';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 import { seedRanks } from '@/lib/rank';
+import { forgetObjects } from '@/lib/storage';
 
 const boardName = z.string().trim().min(1).max(80);
 
@@ -90,7 +91,16 @@ export async function deleteBoard(input: unknown) {
     return { ok: false, error: 'NAME_MISMATCH' } as const;
   }
 
+  // Read before the delete: rows cascade in Postgres, objects in a bucket do
+  // not, and after the cascade there is nothing left to read the keys from.
+  const keys = await db
+    .select({ key: attachments.key })
+    .from(attachments)
+    .where(eq(attachments.boardId, parsed.data.boardId));
+
   await db.delete(boards).where(eq(boards.id, parsed.data.boardId));
+
+  await forgetObjects(keys.map((row) => row.key));
 
   revalidatePath('/boards');
   return { ok: true } as const;

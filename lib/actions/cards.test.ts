@@ -18,7 +18,7 @@ vi.mock('@/lib/events', async () => {
 
 const MUTATION_ID = '11111111-1111-4111-8111-111111111111';
 
-type Op = { kind: 'insert' | 'update' | 'delete'; table: string; values?: unknown };
+type Op = { kind: 'insert' | 'update' | 'delete' | 'query'; table: string; values?: unknown };
 const ops: Op[] = [];
 // Proof of ordering, not just of the call: touchBoard is the last write in
 // every transaction here, so a publish that can already see the boards update
@@ -40,7 +40,19 @@ let cardRow:
     }
   | undefined;
 let columnRow: { id: string; boardId: string } | undefined;
+let attachmentKeys: string[] = [];
 let cardsInColumn: { id: string; rank: string }[] = [];
+
+const forgetObjects = vi.fn();
+const deleteObjects = vi.fn();
+vi.mock('@/lib/storage', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/storage')>('@/lib/storage');
+  return {
+    ...actual,
+    forgetObjects: (...a: unknown[]) => forgetObjects(...a),
+    deleteObjects: (...a: unknown[]) => deleteObjects(...a),
+  };
+});
 
 function tableName(table: unknown): string {
   const symbol = Object.getOwnPropertySymbols(table).find((s) => s.description === 'drizzle:Name');
@@ -83,7 +95,18 @@ const tx = {
 };
 
 vi.mock('@/lib/db', () => ({
-  db: { query, transaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) },
+  db: {
+    query,
+    select: () => ({
+      from: (table: unknown) => ({
+        where: async () => {
+          ops.push({ kind: 'query', table: tableName(table) });
+          return attachmentKeys.map((key) => ({ key }));
+        },
+      }),
+    }),
+    transaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx),
+  },
 }));
 
 const {
@@ -99,6 +122,18 @@ const { BoardAccessError } = await import('@/lib/permissions');
 
 beforeEach(() => {
   ops.length = 0;
+  attachmentKeys = [];
+  forgetObjects.mockReset();
+  // Mirrors the real wrapper in lib/storage.ts: delegate, and swallow failure.
+  forgetObjects.mockImplementation(async (keys: unknown) => {
+    try {
+      await deleteObjects(keys);
+    } catch {
+      /* best effort, exactly as lib/storage.ts does */
+    }
+  });
+  deleteObjects.mockReset();
+  deleteObjects.mockResolvedValue(undefined);
   cardRow = {
     id: 'card-1',
     boardId: 'b1',
@@ -319,6 +354,22 @@ describe('renameCard', () => {
 });
 
 describe('deleteCard', () => {
+  test('deleting a card takes its objects out of the bucket', async () => {
+    attachmentKeys = ['boards/b1/a1', 'boards/b1/a2'];
+    await deleteCard({ cardId: 'card-1', mutationId: MUTATION_ID });
+    expect(forgetObjects).toHaveBeenCalledWith(['boards/b1/a1', 'boards/b1/a2']);
+  });
+
+  test('the keys are read before the row is deleted', async () => {
+    // After the cascade there is nothing left to read them from.
+    attachmentKeys = ['boards/b1/a1'];
+    await deleteCard({ cardId: 'card-1', mutationId: MUTATION_ID });
+    const keyRead = ops.findIndex((op) => op.kind === 'query' && op.table === 'attachments');
+    const rowDeleted = ops.findIndex((op) => op.kind === 'delete' && op.table === 'cards');
+    expect(keyRead).toBeGreaterThanOrEqual(0);
+    expect(keyRead).toBeLessThan(rowDeleted);
+  });
+
   test('refuses a card that is not there', async () => {
     cardRow = undefined;
     await expect(deleteCard({ cardId: 'gone', mutationId: MUTATION_ID })).resolves.toEqual({

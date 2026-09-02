@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, test, vi } from 'vitest';
 import {
   contentDisposition,
   deleteObjects,
+  forgetObjects,
   headObject,
   objectKey,
   presignGet,
@@ -93,6 +94,25 @@ describe.skipIf(!storageConfigured())('round trip against a real bucket', () => 
   test('deleting nothing is not an error', async () => {
     // deleteCard on a card with no attachments calls this with an empty list.
     await expect(deleteObjects([])).resolves.toBeUndefined();
+  });
+
+  // forgetObjects, not deleteObjects, is what deleteCard, deleteBoard,
+  // deleteAccount and the two attachment actions actually call. Its swallow is
+  // unit-tested with mocks; that it still removes real bytes is only provable
+  // here.
+  test('forgetObjects removes a real object', async () => {
+    const doomed = objectKey('board-storage-test', `forget-${Date.now()}`);
+    const url = await presignPut(doomed, 'text/plain');
+    const put = await fetch(url, {
+      method: 'PUT',
+      body: Buffer.from('temporary'),
+      headers: { 'content-type': 'text/plain' },
+    });
+    expect(put.ok, `presigned PUT failed: ${put.status}`).toBe(true);
+    expect(await headObject(doomed)).not.toBeNull();
+
+    await forgetObjects([doomed]);
+    expect(await headObject(doomed)).toBeNull();
   });
 });
 
