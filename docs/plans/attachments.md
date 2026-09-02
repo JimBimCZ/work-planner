@@ -2194,7 +2194,7 @@ git commit -m "docs: name the attachment store in the privacy policy"
 
 ### Task B8: Section B verification and pull request
 
-- [ ] **Step 1: Run everything, each exit code from its own log**
+- [x] **Step 1: Run everything, each exit code from its own log**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TYPECHECK=$?"
@@ -2207,11 +2207,11 @@ tail -3 /tmp/e2e.log
 
 All five `0`. Compare the e2e count that ran against the count collected — a summary line is not an exit code, and a passing count is not a passing suite.
 
-- [ ] **Step 2: Update `CLAUDE.md`**
+- [x] **Step 2: Update `CLAUDE.md`**
 
 "Auth and permissions" gains the one-line exception that an attachment, unlike a comment, can be deleted by the board owner, and why. "Layout" gains `app/api/attachments/`.
 
-- [ ] **Step 3: Commit, push, open the PR**
+- [x] **Step 3: Commit, push, open the PR**
 
 ```bash
 git add CLAUDE.md docs/plans/attachments.md

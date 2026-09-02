@@ -136,6 +136,8 @@ app/
   api/
     auth/[...nextauth]/
     pusher/auth/            # private-channel authorisation
+    attachments/[attachmentId]/  # re-checks board access, 302s to a presigned
+                            # GET. Everything that goes wrong answers 404
     health/                 # container healthcheck
 components/
   board/                    # Board, Column, Card, CardModal, dnd wiring
@@ -151,11 +153,13 @@ lib/
     migrations/
   actions/                  # 'use server' modules, one per aggregate
     labels.ts               # createLabel, renameLabel, deleteLabel, setCardLabels
+    attachments.ts          # requestUpload, confirmUpload, deleteAttachment
   permissions.ts            # single source of truth for access checks
   rank.ts                   # fractional index helpers
   events.ts                 # Pusher publish helpers + event types
   labels.ts                 # label caps, boardLabels read
   storage.ts                # only module that speaks S3: presign, head, delete
+  attachments.ts            # reads: cardAttachments, boardUsage, uploaderUsage
   attachments-limits.ts     # attachment caps; imports nothing, see "Data model"
 docs/
   specs/                    # brainstorm output, one per feature
@@ -260,6 +264,10 @@ Ably is an acceptable substitute if Pusher's free tier proves too small. Polling
 - All checks go through `lib/permissions.ts`: `assertBoardAccess(userId, boardId, minRole)`. Never inline a membership query in an action.
 - `viewer` can read and comment; `member` can mutate cards and columns; `owner` can manage members and delete the board.
 - A comment's own author, and nobody else — not the board owner — can edit or delete it.
+- An attachment is the deliberate exception to that rule: its **uploader or the board owner** can
+  delete it. The owner is accountable for the bytes on their board and needs a way to clear a file
+  whose uploader has deleted their account — `attachments.uploaderId` sets null, so otherwise nobody
+  could. Reading one only needs `viewer`: seeing the card is seeing its files.
 - Invite flow: an owner invites by email address, whether or not an account exists for it. The invite is keyed on the address, not on a user id, and resolves when the invitee accepts it from `/boards` — there is no sign-in callback doing it for them. `acceptInvite` and `declineInvite` are the only actions that reach a board without `assertBoardAccess`, because the invitee is not on the board yet by definition; they are scoped by the session's own email matched against the invite row. An invite that has expired, never existed, or is addressed to somebody else all answer `NOT_FOUND`, so a guessed id learns nothing.
 
 **Neon Auth is deliberately not used, and stays disabled on every Neon branch.** The Vercel-managed
