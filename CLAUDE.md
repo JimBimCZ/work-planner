@@ -244,7 +244,7 @@ Postgres `LISTEN/NOTIFY` over SSE is **not** viable here. It needs a dedicated, 
 - Every mutating server action calls `publish(boardId, event)` after its transaction commits.
 - Clients subscribe with `pusher-js`; `/api/pusher/auth` authorises the channel by re-checking board membership. Channel names are never trusted — the route derives access from the session.
 - Client ignores events it caused itself, matched on a client-generated `mutationId` echoed in the payload.
-- Events, all nineteen: `card.created`, `card.updated`, `card.moved`, `card.deleted`, `column.created`, `column.updated`, `column.moved`, `column.deleted`, `comment.created`, `comment.created.truncated`, `comment.updated`, `comment.deleted`, `member.added`, `member.updated`, `member.removed`, `label.created`, `label.updated`, `label.deleted`, `card.labelled`. `lib/events.ts`'s `BoardEvent` union and `components/board/realtime.tsx`'s `EVENT_NAMES` must list the same set — an event missing from the second is published and never delivered, and nothing at runtime can notice, because Pusher simply never calls a handler nobody bound. **The guard is `EveryEventIsBound` in `realtime.tsx`**, an `Exclude<…> extends never` assertion behind a `T extends true` constraint: adding a member to `BoardEvent` without adding its name fails `pnpm typecheck` on that line. `EVENT_NAMES`'s own `satisfies` catches the reverse. `lib/events.test.ts` still reads the file for the same nineteen names, but that test is a hand-written list and cannot see a twentieth event — it is a second opinion, not the guarantee.
+- Events, all twenty-one: `card.created`, `card.updated`, `card.moved`, `card.deleted`, `column.created`, `column.updated`, `column.moved`, `column.deleted`, `comment.created`, `comment.created.truncated`, `comment.updated`, `comment.deleted`, `member.added`, `member.updated`, `member.removed`, `label.created`, `label.updated`, `label.deleted`, `card.labelled`, `attachment.added`, `attachment.removed`. `lib/events.ts`'s `BoardEvent` union and `components/board/realtime.tsx`'s `EVENT_NAMES` must list the same set — an event missing from the second is published and never delivered, and nothing at runtime can notice, because Pusher simply never calls a handler nobody bound. **The guard is `EveryEventIsBound` in `realtime.tsx`**, an `Exclude<…> extends never` assertion behind a `T extends true` constraint: adding a member to `BoardEvent` without adding its name fails `pnpm typecheck` on that line. `EVENT_NAMES`'s own `satisfies` catches the reverse. `lib/events.test.ts` still reads the file for the same twenty-one names, but that test is a hand-written list and cannot see a twenty-second event — it is a second opinion, not the guarantee.
 - The three `member.*` events carry a `userId` and, except for `member.removed`, the new role. `components/board/membership-watch.tsx` sends a member who was removed back to `/boards` and refreshes the board when their own role changes, because `canWrite` is computed in the layout from the role it fetched. `inviteMember` and `revokeInvite` publish nothing: only the owner ever sees a pending invite. A transfer publishes `member.updated` twice rather than earning a fourth event.
 - Payloads carry the changed entity, not a full board refetch, and stay under `PAYLOAD_CEILING` (8,192 bytes, headroom under Pusher's documented 10KB). The two fields that cannot fit are handled by saying so and letting the reader ask:
   - `card.updated` carries `descriptionChanged: boolean` rather than the description; an open card calls `readCardDescription`.
@@ -675,7 +675,7 @@ One section of the plan, one branch, one PR. Ship the PR as soon as the section 
 
 Not settled yet — raise these rather than deciding unilaterally:
 
-- Attachments, activity log.
+- Activity log.
 - Board archive vs hard delete.
 
 **Account deletion is settled** and built: self-service from `/account`, immediate, hard delete, in
@@ -691,8 +691,15 @@ nothing links them back. `docs/specs/account-deletion.md` holds the reasoning.
 the board header, managed from the filter popover, and kept live over four Pusher events.
 `docs/specs/labels.md` holds the reasoning — including why they carry no colour.
 
+**Attachments are settled** and built: a per-card file list in the card modal, uploaded straight to
+the bucket from the browser against a presigned PUT and confirmed server-side with a `HEAD`, served
+back through `/api/attachments/[attachmentId]`, capped six ways in `lib/attachments-limits.ts`, and
+kept live over two Pusher events with a count on the card face. The uploader or the board owner may
+delete one — the single place a board owner outranks an author, and "Auth and permissions" says why.
+`docs/specs/attachments.md` holds the reasoning.
+
 Remaining sub-projects: member management and invites is shipped in full, Sections A–D; labels the
-same, Sections A–D. Next is attachments.
+same, Sections A–D; attachments the same, Sections A–D. Nothing is queued behind them.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

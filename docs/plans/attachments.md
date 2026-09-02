@@ -960,7 +960,7 @@ tail -3 /tmp/e2e.log
 
 All five must be `0`, each read from its own log. `pnpm build` is not optional here: for `lib/permissions.ts`, `lib/events.ts` and `lib/db` it is the check that catches a server-only module reaching the client bundle. `lib/storage.ts` no longer depends on `pnpm build` for that protection — it starts with `import 'server-only';`, so the failure is explicit and immediate rather than riding on `pg`'s Node built-ins having no browser shim.
 
-- [ ] **Step 5: Commit and open the PR**
+- [x] **Step 5: Commit and open the PR**
 
 ```bash
 git add CLAUDE.md docs/plans/attachments.md
@@ -2666,7 +2666,7 @@ tail -3 /tmp/e2e.log
 
 `pnpm build` matters most in this section: it is the only check that catches `card-attachments.tsx` importing a value from `lib/attachments.ts`.
 
-- [ ] **Step 4: Commit, push, open the PR** with screenshots of the modal in both themes.
+- [x] **Step 4: Commit, push, open the PR** with screenshots of the modal in both themes.
 
 ---
 
@@ -2686,7 +2686,7 @@ Two events, the board-face count, and the two-client proof. Branch `feat/attachm
 
 `EveryEventIsBound` in `realtime.tsx` fails `pnpm typecheck` if a member is added to the union without its name being bound; `EVENT_NAMES`'s own `satisfies` catches the reverse. `lib/events.test.ts` holds a hand-written list of nineteen names — it is a second opinion, not the guarantee, and it must move to twenty-one.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `lib/events.test.ts`, add both names to the expected list and change the count from nineteen to twenty-one.
 
@@ -2702,7 +2702,7 @@ test('every event name is bound in the client', () => {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail**
+- [x] **Step 2: Run and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/events.test.ts > /tmp/d1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/d1.log
@@ -2710,7 +2710,7 @@ pnpm exec vitest run lib/events.test.ts > /tmp/d1.log 2>&1; echo "EXIT=$?"; tail
 
 Expected: FAIL — `realtime.tsx` does not contain `attachment.added`.
 
-- [ ] **Step 3: Add both to the union**
+- [x] **Step 3: Add both to the union**
 
 In `lib/events.ts`, append to `BoardEvent`:
 
@@ -2730,7 +2730,7 @@ In `lib/events.ts`, append to `BoardEvent`:
 
 No truncation branch is needed. The larger of the two carries a 200-character filename and a display name, comfortably inside `PAYLOAD_CEILING`. Neither carries a URL — a client that receives one asks the download route, which is where permission is re-checked anyway.
 
-- [ ] **Step 4: Confirm the typecheck guard actually fires**
+- [x] **Step 4: Confirm the typecheck guard actually fires**
 
 Before binding the names, run `pnpm typecheck` and watch `EveryEventIsBound` fail. That failure is the guard doing its job; seeing it once is how you know it is real rather than assumed.
 
@@ -2738,9 +2738,9 @@ Before binding the names, run `pnpm typecheck` and watch `EveryEventIsBound` fai
 pnpm typecheck > /tmp/d1tc.log 2>&1; echo "EXIT=$?"; grep -A3 EveryEventIsBound /tmp/d1tc.log
 ```
 
-- [ ] **Step 5: Bind both names in `EVENT_NAMES`**, then re-run typecheck and the test. Both pass.
+- [x] **Step 5: Bind both names in `EVENT_NAMES`**, then re-run typecheck and the test. Both pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/events.ts lib/events.test.ts components/board/realtime.tsx
@@ -2755,7 +2755,7 @@ git commit -m "feat: add the two attachment events, taking the union to twenty-o
 - Modify: `lib/actions/attachments.ts`
 - Modify: `lib/actions/attachments.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 test('confirmUpload publishes attachment.added after the row is ready', async () => {
@@ -2799,9 +2799,9 @@ test('deleteAttachment publishes attachment.removed', async () => {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail**, then replace the two `// Section D publishes …` comments with real `publish` calls, placed after the database write and before the return. Re-run and watch them pass.
+- [x] **Step 2: Run and watch it fail**, then replace the two `// Section D publishes …` comments with real `publish` calls, placed after the database write and before the return. Re-run and watch them pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add lib/actions/attachments.ts lib/actions/attachments.test.ts
@@ -2822,7 +2822,7 @@ git commit -m "feat: publish the attachment events after their writes commit"
 **Interfaces:**
 - Produces: `BoardCardRow.attachments: { id: string }[]`, `StateCard.attachmentCount: number`, and two reducer cases — `attachment.add` and `attachment.remove`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 test('toBoardState carries the attachment count', () => {
@@ -2864,9 +2864,9 @@ test('the count carries no colour of its own', () => {
 });
 ```
 
-- [ ] **Step 2: Run and watch them fail.**
+- [x] **Step 2: Run and watch them fail.**
 
-- [ ] **Step 3: Add the count to the board query**
+- [x] **Step 3: Add the count to the board query**
 
 In `lib/boards.ts`, add `attachments` to the card's `with` block, selecting only the id — the count is `length`, and pulling filenames onto the board would be paying for data no card face shows:
 
@@ -2882,11 +2882,11 @@ In `lib/boards.ts`, add `attachments` to the card's `with` block, selecting only
 
 Add `attachmentCount: card.attachments.length` in `toBoardState`, `attachmentCount: number` to `StateCard`, and the two reducer cases. Then the paperclip in `board-card.tsx`, in the existing meta line beside the due date and the label line — muted mono, no new hue.
 
-- [ ] **Step 4: Run and watch them pass.**
+- [x] **Step 4: Run and watch them pass.**
 
-- [ ] **Step 5: Bind the events to the reducer** in `realtime.tsx`, dispatching `attachment.add` and `attachment.remove`, ignoring events the client caused itself on `mutationId` the way every other handler does.
+- [x] **Step 5: Bind the events to the reducer** in `board-canvas.tsx` — `realtime.tsx` binds the channel names, the canvas is where events become reducer actions — dispatching `attachment.add` and `attachment.remove`, ignoring events the client caused itself on `mutationId` the way every other handler does.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add lib/boards.ts lib/board-state.ts lib/board-state.test.ts components/board
@@ -2900,13 +2900,13 @@ git commit -m "feat: show an attachment count on the card face, live"
 **Files:**
 - Modify: `e2e/attachments.spec.ts`
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 Two browser contexts on one board, following the shape `e2e/labels.spec.ts` already uses. One attaches a file; the other's card face shows the count without a reload. Then the first deletes it, and the second's count goes back down.
 
 Give the subscription time to establish before the first mutation — `e2e/members.spec.ts` was changed in a recent commit for exactly this race, so copy its wait rather than inventing one.
 
-- [ ] **Step 2: Run it**
+- [x] **Step 2: Run it**
 
 ```bash
 pnpm exec playwright test e2e/attachments.spec.ts --reporter=line > /tmp/d4.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/d4.log
@@ -2914,7 +2914,7 @@ pnpm exec playwright test e2e/attachments.spec.ts --reporter=line > /tmp/d4.log 
 
 Expected: PASS, with the count that ran equal to the count collected.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add e2e/attachments.spec.ts
@@ -2925,7 +2925,7 @@ git commit -m "test: prove attachments arrive on a second browser"
 
 ### Task D5: Section D verification, documentation, and the final pull request
 
-- [ ] **Step 1: Run everything**
+- [x] **Step 1: Run everything**
 
 ```bash
 pnpm typecheck > /tmp/tc.log 2>&1; echo "TYPECHECK=$?"
@@ -2936,11 +2936,11 @@ pnpm exec playwright test --reporter=line > /tmp/e2e.log 2>&1; echo "E2E=$?"
 tail -3 /tmp/e2e.log
 ```
 
-- [ ] **Step 2: Update `CLAUDE.md`**
+- [x] **Step 2: Update `CLAUDE.md`**
 
 "Realtime" — "all nineteen" becomes twenty-one, with the two names added to the list. "Open decisions" — attachments resolved, pointing at `docs/specs/attachments.md`; the activity log and board archive versus hard delete remain.
 
-- [ ] **Step 3: Work the spec's verification list**
+- [x] **Step 3: Work the spec's verification list**
 
 `docs/specs/attachments.md` "Verification" holds eleven boxes. Tick them only against observed output, and leave open the ones that genuinely need a human at two browsers rather than ticking them off a Playwright run — `docs/plans/realtime.md` has the precedent for saying so plainly.
 
