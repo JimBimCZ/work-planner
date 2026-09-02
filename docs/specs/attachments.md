@@ -1,0 +1,481 @@
+# Spec: Attachments
+
+Status: approved, not implemented
+Date: 2026-09-02
+Sub-project: 10 of 10 — see `docs/specs/account-deletion.md` "Order"
+
+## Goal
+
+A card carries the files the work is about. A member attaches a screenshot of
+the bug, the PDF of the spec, the log that shows the stack trace, and everyone
+on the board can see it without leaving the card.
+
+An attachment is **card content, not speech.** That ordering was settled first
+and it decides most of this spec: it is why a viewer cannot attach although a
+viewer can comment, why the board owner can delete a file although the board
+owner cannot delete a comment, and why the bytes are billed to somebody and so
+have caps a comment does not need.
+
+## Non-goals
+
+**No image processing.** No thumbnails, no resizing, no EXIF stripping, no
+format conversion. An image renders inline at a constrained height from the
+original bytes. A thumbnail pipeline is a background job, and `CLAUDE.md`
+forbids those on Vercel: "no module-level caches, no per-process job queues".
+
+**No versioning.** Attaching a file with a name that already exists on the card
+produces a second attachment, not a new version of the first. There is no
+history, no restore, no diff.
+
+**No previews for non-images.** A PDF is a download, not an embedded viewer.
+Embedding a PDF means shipping a renderer or trusting an iframe with user bytes,
+and neither is worth it for the second-most-common file type.
+
+**No multipart upload, no resumable upload.** A 10 MB cap is chosen partly so
+that one `PUT` is always enough. Raising the cap later is not a config change —
+it is this decision reopened.
+
+**No paste-to-attach.** Dropping a file and picking a file are the two ways in.
+Paste is a plausible third and deliberately deferred; it changes the clipboard
+handling on a modal that already handles a description textarea, and nothing in
+the goal needs it.
+
+**No copying an attachment between cards**, and no attaching the same object
+twice. Moving a card between columns keeps its attachments because they key on
+the card, not the column; there is no other move.
+
+**No virus scanning.** It would be a third-party sub-processor seeing every
+byte, and this app has no story for what to do with a positive. Named here so
+that its absence is a decision on the record rather than an oversight.
+
+**No attachments on comments.** They hang off a card. A comment thread with
+files is a different feature.
+
+## The conflict this spec exists to settle
+
+`docs/specs/account-deletion.md` "Order" flagged it a sub-project ahead:
+
+> a blob store cannot run against the Postgres in `docker-compose.yml`, and that
+> is the same objection that disqualified Neon Auth.
+
+That objection is real and it is upheld. `CLAUDE.md` rejects Neon Auth partly
+because "it is a *hosted* service reached over a Neon-managed endpoint, so it
+cannot run against the plain Postgres in `docker-compose.yml`. Adopting it would
+break local development and self-hosting, which 'Deployment' commits to
+supporting." Vercel Blob is the same shape of thing and was rejected for the
+same reason, even though it would have added no new sub-processor.
+
+**The resolution is the S3 API.** It is not one vendor's endpoint but a protocol
+several implement, so one code path serves Cloudflare R2 in production and a
+MinIO container in `docker-compose.yml`, with no adapter layer, no driver switch
+by environment, and no second code path to rot. This is the same reasoning that
+put the `node-postgres` driver against both Neon and local Postgres: one client,
+two deployments.
+
+The cost is honest and accepted: a fourth infrastructure vendor, a new row in
+the `/privacy` sub-processor table, and one more service in `docker-compose.yml`.
+
+## Deliverables
+
+### Schema: `attachments`
+
+```ts
+export const attachmentStatus = pgEnum('attachment_status', ['pending', 'ready']);
+
+export const attachments = pgTable(
+  'attachments',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    boardId: text('board_id')
+      .notNull()
+      .references(() => boards.id, { onDelete: 'cascade' }),
+    cardId: text('card_id')
+      .notNull()
+      .references(() => cards.id, { onDelete: 'cascade' }),
+    uploaderId: text('uploader_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    key: text('key').notNull().unique(),
+    filename: text('filename').notNull(),
+    contentType: text('content_type').notNull(),
+    size: integer('size').notNull(),
+    status: attachmentStatus('status').notNull().default('pending'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('attachments_card_id_created_at_idx').on(t.cardId, t.createdAt),
+    index('attachments_board_id_idx').on(t.boardId),
+  ],
+);
+```
+
+- **`boardId` is denormalised deliberately**, the same trade `cards.boardId`
+  already makes: every permission check and every realtime event keys off the
+  board, and a board-wide delete needs the keys without joining through cards.
+  Keep it consistent with `cardId`'s board on every write.
+- **`cardId` cascades.** An attachment dies with its card, exactly as a comment
+  does. Deleting a column never deletes cards, so no attachment is reachable
+  that way.
+- **`uploaderId` is nullable and sets null on delete, not cascade.** This is the
+  account-deletion decision expressed as a foreign key: `/privacy` promises that
+  boards owned by other people keep what you contributed, and a spec PDF on a
+  colleague's card must not vanish because you closed your account. It is the
+  identical rule `comments.authorId` and `cards.createdById` already follow. An
+  attachment with no uploader can be deleted by the board owner and by nobody
+  else, which the permission rule below already allows without a special case.
+- **`key` is unique** and shaped `boards/<boardId>/<attachmentId>`. The filename
+  is *not* in the key: it would drag filename encoding into object naming for no
+  gain, and the download route puts the real name in `Content-Disposition`
+  instead. The board prefix is what makes deleting a whole board's objects one
+  listing plus batched deletes rather than a query per card.
+- **`status` is `'pending' | 'ready'`**, a `pgEnum` rather than a `text` column,
+  because that is what `board_members.role` and `board_invites.role` already do
+  with a closed set of values. Every read filters to `ready`. Unlike the caps
+  above it *is* an invariant — a third state would be a design change, not a
+  tuning change — so the database enforcing it is the right level.
+- `size` is the **verified** byte count read back from the store, never the
+  browser's claim. See "The handshake".
+
+### Caps: `lib/attachments-limits.ts`
+
+```ts
+export const ATTACHMENT_SIZE_MAX = 10 * 1024 * 1024;
+export const ATTACHMENTS_PER_CARD = 10;
+export const FILENAME_MAX = 200;
+export const PENDING_TTL_MINUTES = 15;
+```
+
+The module **imports nothing**, for the same reason `lib/labels-limits.ts`
+imports nothing: the file picker is a client component and needs the size cap to
+reject a file before uploading it. Anything reachable from `lib/permissions.ts`
+or `lib/db` cannot be imported by a `'use client'` file without pulling the `pg`
+driver into the browser bundle.
+
+None of the four is a check constraint. All four are tunable product limits
+rather than invariants — but `ATTACHMENT_SIZE_MAX` is load-bearing in a way the
+others are not: 10 MB is the number that makes a single `PUT` always sufficient,
+so raising it reopens "no multipart upload" above.
+
+`PENDING_TTL_MINUTES` is how long an unconfirmed upload is believed to be still
+in flight. Fifteen minutes is far longer than 10 MB can take and short enough
+that an abandoned upload does not hold a slot against `ATTACHMENTS_PER_CARD` for
+an afternoon.
+
+### Storage: `lib/storage.ts`
+
+Server-only, and the single place the bucket is spoken to:
+
+```ts
+presignPut(key: string, contentType: string): Promise<string>
+presignGet(key: string, filename: string): Promise<string>
+headObject(key: string): Promise<{ size: number; contentType: string } | null>
+deleteObjects(keys: string[]): Promise<void>
+storageConfigured(): boolean
+```
+
+`@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`, configured entirely
+from environment:
+
+```
+S3_ENDPOINT           # https://<account>.eu.r2.cloudflarestorage.com, or http://minio:9000
+S3_REGION             # 'auto' for R2
+S3_BUCKET
+S3_ACCESS_KEY_ID
+S3_SECRET_ACCESS_KEY
+```
+
+**Production is Cloudflare R2 on its EU-jurisdiction endpoint.** Verified from
+Cloudflare's documentation on 2026-09-02: a bucket created against
+`https://<account_id>.eu.r2.cloudflarestorage.com` is restricted to the EU
+jurisdiction and is reachable *only* through that endpoint. That matters because
+`/privacy` already pins Vercel to Frankfurt and Neon to `eu-central-1`; here the
+residency claim is enforced by the endpoint rather than asserted in prose. Using
+the plain `<account_id>.r2.cloudflarestorage.com` endpoint by mistake does not
+silently write to the wrong place — it cannot see the bucket at all.
+
+**Local development and self-hosting are MinIO**, added to `docker-compose.yml`
+as one more service with a bucket created on first start. Same SDK, same code
+path, different endpoint.
+
+**When the five variables are absent the feature turns itself off.**
+`storageConfigured()` is resolved on the server and passed down as a boolean the
+way `canWrite` already is — never as configuration a client component reads. A
+self-hoster who wants no bucket gets a board with no attachment surface rather
+than a board with an upload button that fails.
+
+### Serving bytes: `app/api/attachments/[attachmentId]/route.ts`
+
+A stable application URL, not a presigned link embedded in HTML. It re-checks
+the session and calls `assertBoardAccess(userId, boardId, 'viewer')` on every
+request — the route is authorisation, exactly as `CLAUDE.md` requires of every
+route handler — then 302s to a short-lived presigned `GET`.
+
+Two consequences worth stating:
+
+- **Nothing expires inside rendered markup.** An inline `<img>` points at the
+  app; the signature is minted per request and lives for seconds. A board left
+  open overnight does not fill with broken images.
+- **Losing access takes effect immediately.** A removed member's next request
+  for a file 404s, because the permission is re-derived rather than baked into a
+  link they still hold. A presigned URL already handed out stays valid until it
+  expires — that window is seconds, and is the reason the TTL is short.
+
+The route sets `Content-Disposition: attachment` for everything except a small
+allowlist of inline-safe image types: `image/png`, `image/jpeg`, `image/gif`,
+`image/webp`, `image/avif`. **`image/svg+xml` is deliberately not on that list.**
+An SVG is a document that can carry script, and a user who opens one in a tab
+executes it. Served as a download it is inert.
+
+## The handshake
+
+The browser writes bytes the server never sees, so the declared size and content
+type are the client's word until something checks. Three actions in
+`lib/actions/attachments.ts`, following the conventions in `CLAUDE.md`:
+
+**`requestUpload({ boardId, cardId, filename, contentType })`**
+
+1. `assertBoardAccess(userId, boardId, 'member')`.
+2. Reject a filename longer than `FILENAME_MAX`.
+3. Sweep this card's `pending` rows older than `PENDING_TTL_MINUTES`, deleting
+   their objects. This is the invite-expiry pattern — filter and clean at the
+   point of use, because "Vercel rules out a scheduled job" — moved onto the
+   write path, which is where the slot is being competed for.
+4. Count `ready` rows plus surviving fresh `pending` rows against
+   `ATTACHMENTS_PER_CARD`.
+5. Insert the row as `pending`.
+6. Return `{ attachmentId, url }` where `url` is the presigned `PUT`.
+
+**`confirmUpload({ boardId, attachmentId })`**
+
+1. `assertBoardAccess(userId, boardId, 'member')`, and the row must be this
+   user's own `pending` row.
+2. `headObject(key)`. A missing object is `NOT_FOUND` — the upload never landed.
+3. Compare the **real** size against `ATTACHMENT_SIZE_MAX` and record the real
+   content type. Over the cap: delete the object, delete the row, return
+   `TOO_LARGE`.
+4. Flip to `ready` in a transaction, then `publish` an `attachment.added` after
+   it commits.
+
+Verifying after the fact rather than preventing is a deliberate choice, and the
+reason is worth recording: a presigned `PUT` cannot by itself refuse an
+oversized body the way an S3 `POST` policy's `content-length-range` can. The
+worst a liar achieves is writing an object that is immediately deleted and never
+becomes an attachment. **Whether signing `content-length` also blocks it at the
+R2 edge is not assumed here** — if it does, it is a bonus to be confirmed during
+Section B and written down, not a mechanism this design leans on.
+
+**`deleteAttachment({ boardId, attachmentId })`**
+
+The uploader or the board owner. Row deleted in a transaction, object deleted
+after the commit, `attachment.removed` published — the same ordering `publish`
+already obeys everywhere, because "a rolled-back write that already announced
+itself puts every other client into a state the database disagrees with".
+
+## Permissions
+
+- **`member` and above to attach.** A viewer can comment but cannot attach. A
+  comment is speech and costs nothing; a file is billable bytes in somebody
+  else's bucket, and a read-only account writing billable bytes is a kind of
+  exposure this app does not have today.
+- **The uploader or the board owner deletes.** This departs from the comment
+  rule — where the author and *nobody else, not the board owner* can delete —
+  and the departure is deliberate. The owner is accountable for what sits in
+  their board's bucket and needs a way to remove a file without deleting the
+  card around it, including a file left by somebody whose account is gone.
+- **Any member of the board can read**, viewers included, through the download
+  route. Reading is the same right as seeing the card.
+
+## Bytes on cascade
+
+Rows cascade in Postgres. Objects in a bucket do not. Four places delete rows
+that own objects, and each must collect the keys **before** the transaction and
+delete them after it commits:
+
+| Where | Keys to collect |
+|---|---|
+| `deleteAttachment` | the one row |
+| `deleteCard` | `where cardId = ?` |
+| `deleteBoard` | `where boardId = ?` |
+| `deleteAccount` | every board the departing user owns |
+
+A failed bucket delete is **logged, not fatal.** The row is already gone; a
+leaked object is cheaper and safer than a half-deleted board or an account
+deletion that refuses to finish. The leak is accepted and documented rather than
+swept, because the sweeper would be the scheduled job Vercel rules out — the
+same trade `board_invites` already makes by leaving expired rows in place.
+
+`deleteAccount` is the sharp one. It already runs "in one transaction" and is
+already blocked while the user owns a board somebody else is a member of, so the
+set of boards being destroyed is bounded to boards nobody else uses. Attachments
+on *other people's* boards are not touched: their `uploaderId` goes null and the
+file stays, which is the promise `/privacy` makes about contributions to boards
+you do not own.
+
+## The two surfaces
+
+**The card modal** — `components/board/card-attachments.tsx`, a sibling of
+`card-labels.tsx` and `card-comments.tsx`. Inline-safe images render at a
+constrained height; everything else is a row carrying filename, size and a
+download action. Files go in by picker or by dropping onto the modal.
+
+The `PUT` goes through `XMLHttpRequest`, not `fetch`, because only XHR reports
+upload progress and 10 MB on a bad connection needs a bar. The `pending` row is
+the optimistic state — and unusually for optimistic UI it is *real*, a row that
+exists in the database and is simply not shown to anybody else until it is
+`ready`.
+
+**The card face** — a mono paperclip and a count in the existing meta line,
+beside the due date and the label line. `lib/boards.ts` carries the count per
+card the way it already carries labels, and `lib/board-state.ts` keeps it live
+on add and remove. No new colour: `CLAUDE.md` allows three roles and warm is
+never at rest on the board except a due date.
+
+## Realtime: two events, taking the union to twenty-one
+
+```ts
+| { type: 'attachment.added'; id: string; cardId: string; filename: string;
+    contentType: string; size: number; createdAt: string;
+    uploader: { id: string; name: string | null; image: string | null } | null }
+| { type: 'attachment.removed'; id: string; cardId: string }
+```
+
+Both names go in `lib/events.ts`'s `BoardEvent` **and** in
+`components/board/realtime.tsx`'s `EVENT_NAMES`. `EveryEventIsBound` fails
+`pnpm typecheck` if only one is done; `EVENT_NAMES`'s own `satisfies` catches the
+reverse. `lib/events.test.ts`'s hand-written list moves from nineteen names to
+twenty-one — it is a second opinion, not the guarantee.
+
+Neither payload needs a truncation branch. The largest is `attachment.added` with
+a 200-character filename and a display name, comfortably under `PAYLOAD_CEILING`.
+No event carries a URL: a client that receives one calls the download route,
+which is where permission is re-checked anyway.
+
+## Testing
+
+- **Unit (Vitest)** — the three actions against the caps and the permission
+  matrix; the key shape; the pending sweep at the TTL boundary; `confirmUpload`
+  rejecting an object that is larger than it claimed; the download route's
+  inline allowlist, including that `image/svg+xml` is forced to a download.
+- **Storage (Vitest against MinIO)** — presign, put, head, delete, round-trip.
+  CI gains a MinIO service alongside the throwaway Postgres it already runs.
+- **e2e (Playwright)** — attach a file and see it on the card; the count on the
+  card face; a viewer sees no upload control; a second browser sees an
+  attachment appear without a reload.
+
+## Sections and pull requests
+
+One section, one branch, one PR, in this order:
+
+- **A — storage foundation.** The table and its migration,
+  `lib/attachments-limits.ts`, `lib/storage.ts`, MinIO in `docker-compose.yml`
+  and in CI, `.env.example`, and the `/privacy` changes. No UI, no actions.
+  Branch `feat/attachments-storage`.
+- **B — actions and the download route.** The three actions, the route handler,
+  the permission matrix, the sweep, and their tests.
+  Branch `feat/attachments-actions`.
+- **C — the card modal.** The list, inline images, upload with progress, delete.
+  Branch `feat/attachments-modal`.
+- **D — face and realtime.** The board-query count, `toBoardState`, the two
+  events published and bound, and the two-client e2e.
+  Branch `feat/attachments-realtime`.
+
+B depends on A, C on B, D on C. Branch each from `main` once its parent has
+landed rather than stacking — `CLAUDE.md` records two stacks that stranded a
+child PR on a consumed base.
+
+`/privacy` moves in Section A rather than at the end, because that is the PR in
+which Cloudflare becomes a sub-processor. A policy that lags the infrastructure
+by three PRs is the drift `CLAUDE.md` says to stop and raise.
+
+## Verification
+
+Ticked only against observed output, per section:
+
+- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build` all pass, each
+      exit code read from its own redirected log, never through a pipe.
+- [ ] `pnpm exec playwright test` passes with the count run equal to the count
+      collected.
+- [ ] The migration applies to an empty database in CI, and is run against
+      production by hand when Section A lands.
+- [ ] `docker compose up --build` gives a working board with working
+      attachments against MinIO — no Cloudflare credentials present.
+- [ ] With the five `S3_*` variables unset, the board still loads and shows no
+      attachment surface.
+- [ ] An object uploaded larger than it declared is rejected by `confirmUpload`
+      and is gone from the bucket afterwards — confirmed by listing the bucket,
+      not by reading the action's return value.
+- [ ] Deleting a card removes its objects from the bucket — confirmed by
+      listing the bucket.
+- [ ] A `.svg` attachment downloads rather than rendering, confirmed from the
+      response headers.
+- [ ] The production bucket is on the EU jurisdiction endpoint — confirmed by
+      the fact that the plain endpoint cannot see it.
+- [ ] Two real browsers: one attaches a file, the other's card shows the count
+      without a reload.
+
+## Documentation changed in the same pull requests
+
+- `CLAUDE.md` "Data model" — the table, its three cascades and the reason each
+  differs, and the four caps.
+- `CLAUDE.md` "Realtime" — "all nineteen" becomes twenty-one, with the two
+  names.
+- `CLAUDE.md` "Layout" — `lib/storage.ts`, `lib/actions/attachments.ts`,
+  `app/api/attachments/`.
+- `CLAUDE.md` "Deployment" — the five `S3_*` variables, the MinIO service, and
+  the note that R2's EU jurisdiction is reachable on one endpoint only.
+- `CLAUDE.md` "Auth and permissions" — the one-line exception that an
+  attachment, unlike a comment, can be deleted by the board owner, and why.
+- `CLAUDE.md` "Open decisions" — attachments resolved; the activity log and
+  board archive versus hard delete remain.
+- `/privacy` — Cloudflare R2 in the sub-processor table, attachments in what is
+  collected, and retention.
+- `/account` danger zone — files on other people's boards outlive the account,
+  the same sentence comments already get.
+
+## Settled while brainstorming
+
+**The S3 API beat a hosted blob store.** Vercel Blob would have added no new
+sub-processor and less code, and it lost anyway: it cannot run in
+`docker-compose.yml`, and that is the precise objection `CLAUDE.md` uses to
+disqualify Neon Auth. Rejected alongside it: a Vercel-Blob-plus-local-disk
+adapter, because it buys the same outcome with two code paths and the local one
+would rot; and `bytea` in Postgres, which streams every download through a
+function and prices blob storage as rows.
+
+**Any file beat images-only, and beat links-only.** Links to files elsewhere
+would have avoided storage entirely and were rejected as not being the feature.
+
+**Verify-after beat prevent-at-the-edge**, because the prevention a presigned
+`PUT` can offer is not airtight and the cost of being wrong is one deleted
+object.
+
+**A pending row beat inserting on confirm.** Confirm-only is one fewer state,
+and it makes an abandoned upload an orphan nothing in the database can ever
+name. A leak you can find is worth a status column.
+
+**The owner's delete beat consistency with comments.** The comment rule protects
+speech from the person hosting it; that reasoning does not transfer to a file
+the host is paying to store.
+
+**Member-only upload beat matching the comment permission.** A viewer who can
+write words cannot write bytes, because bytes have a bill.
+
+**A count on the card face beat a thumbnail.** A thumbnail puts arbitrary user
+colour on the one surface whose whole design rests on colour being functional,
+and it destroys uniform card height.
+
+**10 MB was chosen so that one `PUT` is always enough**, which is what keeps
+multipart, resumability and progress-restore out of this spec.
+
+## Open decisions carried forward
+
+- **Total storage per board or per account.** There is a per-card cap and no
+  global one, so a determined user can still accumulate. Nothing here needs it
+  until the service has users and a bill; raise it then rather than guessing a
+  number now.
+- **Paste-to-attach**, listed under non-goals, is the most likely first
+  addition.
+- The activity log, and board archive versus hard delete, remain open and are
+  untouched by this spec.
