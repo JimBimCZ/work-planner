@@ -63,6 +63,9 @@ jobs:
             sleep 1
           done
           curl -sf http://localhost:9000/minio/health/live
+          docker run --rm --network host --entrypoint sh minio/mc:latest -c "
+            mc alias set ci http://localhost:9000 kanban kanban-ci-only &&
+            mc mb --ignore-existing ci/kanban-attachments"
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
