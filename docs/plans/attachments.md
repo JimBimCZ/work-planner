@@ -2464,7 +2464,7 @@ git commit -m "feat: show a card's attachments in the modal"
 
 The `PUT` goes through `XMLHttpRequest`, not `fetch`: only XHR reports upload progress, and 10 MB on a bad connection needs a bar.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 test('rejects a file over the size cap without calling the server', async () => {
@@ -2514,7 +2514,7 @@ test('does not add the file to the list when confirm rejects it', async () => {
 });
 ```
 
-- [ ] **Step 2: Run and watch it fail**
+- [x] **Step 2: Run and watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c2.log
@@ -2522,7 +2522,7 @@ pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c2.log 2>
 
 Expected: FAIL — no file input exists.
 
-- [ ] **Step 3: Add the uploader**
+- [x] **Step 3: Add the uploader**
 
 Add to `card-attachments.tsx`. The error copy is a lookup, so every refusal reads in the same voice:
 
@@ -2564,7 +2564,7 @@ The handler: refuse over `ATTACHMENT_SIZE_MAX` locally, call `requestUpload`, `p
 
 Add a visible drop target on the section as well as the picker. Both go through the same handler.
 
-- [ ] **Step 4: Run and watch it pass**
+- [x] **Step 4: Run and watch it pass**
 
 ```bash
 pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c2.log
@@ -2572,7 +2572,7 @@ pnpm exec vitest run components/board/card-attachments.test.tsx > /tmp/c2.log 2>
 
 Expected: PASS, 15 tests — the Task C1 tests asserting that a viewer and an unconfigured deployment get no control must still pass, and now they mean something.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/card-attachments.tsx components/board/card-attachments.test.tsx
