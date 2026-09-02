@@ -214,7 +214,7 @@ export function rendersInline(contentType: string): boolean {
 pnpm exec vitest run lib/attachments-limits.test.ts > /tmp/a1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a1.log
 ```
 
-Expected: PASS, 12 tests.
+Expected: PASS, 11 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -835,39 +835,61 @@ export async function deleteObjects(keys: string[]): Promise<void> {
 
 - [ ] **Step 5: Run the test and watch it pass**
 
-MinIO must be up — `docker compose up -d minio minio-init` — and the five `S3_*` variables must be in `.env.local`.
+MinIO must be up: `docker compose up -d minio minio-init`.
+
+**`vitest.config.ts` sets no `env` and no `setupFiles`, and dotenv is not a
+dependency — so `.env.local` is invisible to `pnpm test`.** Export the five
+variables for this run rather than adding a dotenv dependency; CI gets them from
+the workflow's own `env:` block, which is why the in-file `CI` assertion is what
+stops this becoming a silent skip.
 
 ```bash
+S3_ENDPOINT=http://localhost:9000 S3_REGION=us-east-1 S3_BUCKET=kanban-attachments \
+S3_ACCESS_KEY_ID=kanban S3_SECRET_ACCESS_KEY=kanban-local-only \
 pnpm exec vitest run lib/storage.test.ts > /tmp/a4.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a4.log
 ```
 
-Expected: PASS, 7 tests, none skipped. If the round-trip block reports as skipped, the environment is not loaded — fix that rather than moving on, because a skipped suite reports as a pass.
+Expected: PASS, 8 tests, none skipped. If the round-trip block reports as skipped, the variables did not reach the run — fix that rather than moving on, because a skipped suite reports as a pass.
 
 - [ ] **Step 6: Prove or disprove the stable-URL optimisation**
 
 **This step exists because `signingDate` is an unverified API.** The AWS SDK's
 own presigner documentation lists `expiresIn`, `signableHeaders` and
 `unhoistableHeaders`; it does not mention `signingDate`. It may well exist on
-`RequestPresigningArguments` — do not assume either way, find out:
+`RequestPresigningArguments` — do not assume either way, find out.
 
-```bash
-pnpm exec tsx -e "
-import { presignGet, objectKey } from './lib/storage';
-const k = objectKey('b','a');
-Promise.all([presignGet(k,'x.png',true), presignGet(k,'x.png',true)])
-  .then(([a,b]) => console.log('STABLE=' + (a === b)));
-" > /tmp/a4url.log 2>&1; echo "EXIT=$?"; cat /tmp/a4url.log
+`tsx` is not a dependency, so this is a test in `lib/storage.test.ts` rather than
+a one-off script — which also means the property stays guarded afterwards instead
+of being checked once. Add it inside the `describe.skipIf` block:
+
+```ts
+  test('two signatures inside one window produce the same URL', async () => {
+    // The cost argument rests on this: a fresh URL per render is a browser cache
+    // miss and another billable Class B operation. If this cannot be made to
+    // pass, delete the optimisation rather than keeping an option that does
+    // nothing — see the note in presignGet.
+    const [a, b] = await Promise.all([
+      presignGet(key, 'x.png', true),
+      presignGet(key, 'x.png', true),
+    ]);
+    expect(a).toBe(b);
+  });
 ```
 
-Expected: `STABLE=true`. Two calls inside one five-minute window must produce byte-identical URLs.
+Run it:
 
-**If it prints `STABLE=false`, or `pnpm typecheck` rejects the option:** delete
-`signingDate`, delete `SIGNING_WINDOW_MS`, and delete the paragraph of comment
-that explains them. Then record the consequence in `CLAUDE.md`'s "Realtime"
-neighbourhood — every inline-image render costs one Class B operation, against a
-free tier of 10 million a month, so this is a note for later rather than a
-problem now. **Do not** substitute caching the 302: that trades a cost we are
-not paying for a weakening of revocation, which is the wrong direction.
+```bash
+S3_ENDPOINT=http://localhost:9000 S3_REGION=us-east-1 S3_BUCKET=kanban-attachments \
+S3_ACCESS_KEY_ID=kanban S3_SECRET_ACCESS_KEY=kanban-local-only \
+pnpm exec vitest run lib/storage.test.ts > /tmp/a4url.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a4url.log
+```
+
+**If it fails, or `pnpm typecheck` rejects the option:** delete `signingDate`,
+delete `SIGNING_WINDOW_MS`, delete this test, and delete the paragraph of comment
+that explains them. Then record the consequence in `CLAUDE.md` — every inline-image
+render costs one Class B operation, against a free tier of 10 million a month, so
+it is a note for later rather than a problem now. **Do not** substitute caching the
+302: that trades a cost we are not paying for a weakening of revocation.
 
 Either outcome is a success for this step. What is not acceptable is leaving an
 option in the code that nobody proved does anything.
