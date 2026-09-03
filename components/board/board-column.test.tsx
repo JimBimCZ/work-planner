@@ -132,3 +132,28 @@ describe('the drop indicator', () => {
     expect(html).not.toContain('hsl(173');
   });
 });
+
+describe('the column body', () => {
+  test('the column sits on a well of its own', () => {
+    expect(render()).toContain('bg-well');
+  });
+
+  // The defect this fixes: the header used to live inside the scrolling
+  // element, so a long column scrolled its own name out of view and left the
+  // hue behind. CLAUDE.md requires the name to be visible whenever the hue is.
+  test('the header is not inside the scrolling element', () => {
+    const html = render();
+    const scroller = html.indexOf('overflow-y-auto');
+    const name = html.indexOf('data-testid="column-name"');
+    expect(name).toBeGreaterThan(-1);
+    expect(scroller).toBeGreaterThan(-1);
+    expect(name).toBeLessThan(scroller);
+  });
+
+  // The droppable must stay on the scrolling body: the empty area below the
+  // last card is a drop target, and moving the ref would change which element
+  // answers a drop.
+  test('the cards still scroll', () => {
+    expect(render()).toContain('overflow-y-auto');
+  });
+});

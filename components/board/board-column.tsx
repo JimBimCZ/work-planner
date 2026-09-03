@@ -33,9 +33,6 @@ function DropLine({ hue }: { hue: number }) {
   );
 }
 
-// Columns sit flush so the 3px rules meet edge to edge and read as one band
-// across the board; the 12px gutter is inset padding instead, which keeps the
-// card width at 300px without breaking the spectrum.
 export function BoardColumn({
   ref,
   column,
@@ -102,20 +99,17 @@ export function BoardColumn({
     <section
       ref={ref}
       data-column-id={column.id}
-      className="flex h-full w-screen shrink-0 snap-start flex-col min-[700px]:w-[312px] min-[700px]:snap-align-none"
+      className="flex h-full w-screen shrink-0 snap-start flex-col min-[700px]:w-[312px] min-[700px]:snap-align-none min-[700px]:pr-3"
     >
-      <div
-        className="h-[3px] shrink-0"
-        style={{ background: `linear-gradient(90deg, ${flowColor(hue)}, ${flowColor(nextHue)})` }}
-      />
-      {/* The droppable is the scrolling body, not the section, so the empty
-          area below the last card is a drop target too. */}
-      <div
-        ref={setNodeRef}
-        className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-4"
-        style={{ background: `linear-gradient(${flowColor(hue, 0.06)}, transparent 80px)` }}
-      >
-        <div className="flex items-center gap-1 px-1.5 pt-3">
+      <div className="flex min-h-0 flex-1 flex-col bg-well min-[700px]:rounded-b-xl">
+        <div
+          className="h-[3px] shrink-0"
+          style={{ background: `linear-gradient(90deg, ${flowColor(hue)}, ${flowColor(nextHue)})` }}
+        />
+        <div
+          className="flex shrink-0 items-center gap-1 px-3 pb-2 pt-3"
+          style={{ background: `linear-gradient(${flowColor(hue, 0.06)}, transparent 80px)` }}
+        >
           <h2
             data-testid="column-name"
             className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted"
@@ -134,66 +128,69 @@ export function BoardColumn({
             />
           ) : null}
         </div>
-
-        {cards.length === 0 ? (
-          dropIndicator ? (
-            <div aria-hidden className="mt-3 px-1.5">
-              <DropLine hue={hue} />
-            </div>
+        {/* The droppable is the scrolling body, not the section, so the empty
+            area below the last card is a drop target too. */}
+        <div ref={setNodeRef} className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-4">
+          {cards.length === 0 ? (
+            dropIndicator ? (
+              <div aria-hidden className="mt-3 px-1.5">
+                <DropLine hue={hue} />
+              </div>
+            ) : (
+              <p className="px-1.5 pt-6 text-sm text-muted">
+                {filtering ? 'Nothing here matches' : 'Nothing here yet'}
+              </p>
+            )
           ) : (
-            <p className="px-1.5 pt-6 text-sm text-muted">
-              {filtering ? 'Nothing here matches' : 'Nothing here yet'}
-            </p>
-          )
-        ) : (
-          <SortableContext
-            items={cards.map((card) => card.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <ul className="mt-3 space-y-2 px-1.5">
-              {cards.map((card) => (
-                <Fragment key={card.id}>
-                  {dropIndicator?.afterCardId === card.id ? (
-                    <li aria-hidden>
-                      <DropLine hue={hue} />
+            <SortableContext
+              items={cards.map((card) => card.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className="mt-3 space-y-2 px-1.5">
+                {cards.map((card) => (
+                  <Fragment key={card.id}>
+                    {dropIndicator?.afterCardId === card.id ? (
+                      <li aria-hidden>
+                        <DropLine hue={hue} />
+                      </li>
+                    ) : null}
+                    <li>
+                      <BoardCard
+                        card={card}
+                        ringHue={rings.get(card.id)}
+                        boardId={boardId}
+                        canWrite={canWrite}
+                        columns={columns}
+                        labels={labels}
+                        filtering={filtering}
+                        onRename={(title) => onRenameCard(card, title)}
+                        onDelete={() => onDeleteCard(card)}
+                        onMoveTo={(toColumnId) => onMoveCardTo(card, toColumnId)}
+                      />
                     </li>
-                  ) : null}
-                  <li>
-                    <BoardCard
-                      card={card}
-                      ringHue={rings.get(card.id)}
-                      boardId={boardId}
-                      canWrite={canWrite}
-                      columns={columns}
-                      labels={labels}
-                      filtering={filtering}
-                      onRename={(title) => onRenameCard(card, title)}
-                      onDelete={() => onDeleteCard(card)}
-                      onMoveTo={(toColumnId) => onMoveCardTo(card, toColumnId)}
-                    />
+                  </Fragment>
+                ))}
+                {dropIndicator && dropIndicator.afterCardId === null ? (
+                  <li aria-hidden>
+                    <DropLine hue={hue} />
                   </li>
-                </Fragment>
-              ))}
-              {dropIndicator && dropIndicator.afterCardId === null ? (
-                <li aria-hidden>
-                  <DropLine hue={hue} />
-                </li>
-              ) : null}
-            </ul>
-          </SortableContext>
-        )}
+                ) : null}
+              </ul>
+            </SortableContext>
+          )}
 
-        {canWrite ? (
-          <div className="px-1.5">
-            <AddCard
-              columnName={column.name}
-              open={composerOpen}
-              onOpen={onOpenComposer}
-              onClose={onCloseComposer}
-              onSubmit={onAddCard}
-            />
-          </div>
-        ) : null}
+          {canWrite ? (
+            <div className="px-1.5">
+              <AddCard
+                columnName={column.name}
+                open={composerOpen}
+                onOpen={onOpenComposer}
+                onClose={onCloseComposer}
+                onSubmit={onAddCard}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {onDeleteColumn ? (

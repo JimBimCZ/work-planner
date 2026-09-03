@@ -57,9 +57,10 @@ import { rankBetween, ranksAfter } from '@/lib/rank';
 const REDUCED = '(prefers-reduced-motion: reduce)';
 
 // The overlay is not inside a column, so it cannot inherit the card width and
-// has to be told. Kept beside the column width it is derived from: 300px of
-// column less the 6px of body padding on each side.
-const CARD_WIDTH = 288;
+// has to be told. Derived from the column: a 312px section less its 12px
+// gutter is a 300px panel, and the scroller and the card list inset 6px each,
+// so a card is 300 - 12 - 12.
+const CARD_WIDTH = 276;
 
 function subscribe(onChange: () => void) {
   const query = window.matchMedia(REDUCED);

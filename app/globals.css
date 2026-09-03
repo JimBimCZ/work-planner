@@ -16,6 +16,7 @@
   --time-soon: #C98A17;
   --time-over: #C8492F;
 
+  --well: #E3E8F0;
   --slot: #D5DBE4;
 
   --radius-control: 8px;
@@ -43,6 +44,7 @@
   --surface: #19202A;
   --ink: #E7EBF2;
   --line: #262E3A;
+  --well: #131820;
   --slot: #0B0E13;
 }
 
@@ -57,6 +59,7 @@
   --color-flow-last: var(--flow-last);
   --color-time-soon: var(--time-soon);
   --color-time-over: var(--time-over);
+  --color-well: var(--well);
   --color-slot: var(--slot);
 
   --font-sans: var(--font-roboto);
