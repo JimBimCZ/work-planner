@@ -97,8 +97,17 @@ export function BoardColumn({
   const others = left ? [left, ...rest] : rest;
   const armed = dropIndicator !== null;
   return (
+    // The droppable is the whole section, gutter and header included, so the
+    // columns tile the board with no seam between them: wherever the pointer
+    // is, it is inside exactly one column, and the empty area below the last
+    // card is still a drop target. lib/board-collision.ts is what makes the
+    // pointer's position decide at all.
     <section
-      ref={ref}
+      ref={(element) => {
+        setNodeRef(element);
+        if (typeof ref === 'function') ref(element);
+        else if (ref) ref.current = element;
+      }}
       data-column-id={column.id}
       className="flex h-full w-screen shrink-0 snap-start flex-col min-[700px]:w-[312px] min-[700px]:snap-align-none min-[700px]:pr-3"
     >
@@ -152,9 +161,7 @@ export function BoardColumn({
             />
           ) : null}
         </div>
-        {/* The droppable is the scrolling body, not the section, so the empty
-            area below the last card is a drop target too. */}
-        <div ref={setNodeRef} className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-4">
           {cards.length === 0 ? (
             dropIndicator ? (
               <div aria-hidden className="mt-3 px-1.5">

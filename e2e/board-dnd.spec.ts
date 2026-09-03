@@ -180,6 +180,83 @@ test('the line shows where the card will land, before it lands', async ({ page, 
   }
 });
 
+// The regression this file exists to pin: collision detection used to score
+// droppables by the dragged card's rect alone, and a column rect is as tall as
+// the board, so a card-sized droppable in a column the pointer had already left
+// always outranked the column the pointer was inside. The target followed the
+// nearest card rather than the cursor.
+test('the column under the pointer arms, not the one holding the nearest card', async ({
+  page,
+  context,
+}) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready, inProgress, inTesting] = await boardColumns(boardId);
+  await seedCard(ready.id, { boardId, createdById: userId, title: 'Dragged', rank: 'a0' });
+  await seedCard(inProgress.id, { boardId, createdById: userId, title: 'Decoy', rank: 'a0' });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+
+    const card = page.locator('[data-card-id]').filter({ hasText: 'Dragged' });
+    const from = (await card.boundingBox())!;
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(from.x + from.width / 2 + 6, from.y + from.height / 2);
+    await expect(card).toHaveAttribute('style', /translate3d/);
+
+    // The third column, at the row the decoy sits on: the decoy is the nearest
+    // card droppable, and it belongs to the second column.
+    const target = page.locator(`[data-column-id="${inTesting.id}"]`);
+    const to = (await target.boundingBox())!;
+    await page.mouse.move(to.x + to.width / 2, from.y + from.height / 2, { steps: 8 });
+
+    await expect(target.locator('[data-armed="true"]')).toBeVisible();
+    await expect(
+      page.locator(`[data-column-id="${inProgress.id}"] [data-armed="true"]`),
+    ).toHaveCount(0);
+
+    const moved = written(page);
+    await page.mouse.up();
+    await moved;
+    await page.reload();
+
+    await expect(target.getByTestId('card-title')).toHaveText(['Dragged']);
+    await expect(
+      page.locator(`[data-column-id="${inProgress.id}"]`).getByTestId('card-title'),
+    ).toHaveText(['Decoy']);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+// A column's header is part of the column, so the droppable is the whole
+// section rather than only the list that scrolls inside it.
+test('a column arms while the pointer is over its header', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready, inProgress] = await boardColumns(boardId);
+  await seedCard(ready.id, { boardId, createdById: userId, title: 'Dragged', rank: 'a0' });
+
+  try {
+    await page.goto(`/boards/${boardId}`);
+
+    const card = page.locator('[data-card-id]').filter({ hasText: 'Dragged' });
+    await card.hover();
+    await page.mouse.down();
+    await page.mouse.move(0, 0);
+    await expect(card).toHaveAttribute('style', /translate3d/);
+
+    const target = page.locator(`[data-column-id="${inProgress.id}"]`);
+    await target.getByTestId('column-name').hover();
+
+    await expect(target.locator('[data-armed="true"]')).toBeVisible();
+    await page.mouse.up();
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
 test('a viewer never sees a drop indicator', async ({ page, context }) => {
   const owner = await seedSession(context);
   const boardId = await seedBoard(owner.userId, 'Roadmap');
