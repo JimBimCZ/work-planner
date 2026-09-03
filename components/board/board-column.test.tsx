@@ -28,7 +28,7 @@ const card = (id: string, title: string, rank: string) => ({
   createdAt: '2026-09-01T00:00:00.000Z',
   dueDate: null,
   labelIds: [],
-  attachmentCount: 0,
+  attachmentCount: 0, descriptionPreview: null,
 });
 
 const cards = [card('c1', 'First', 'a0'), card('c2', 'Second', 'a1')];

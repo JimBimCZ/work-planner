@@ -26,6 +26,12 @@ export type BoardEvent = Envelope &
         title: string;
         dueDate: string | null;
         descriptionChanged: boolean;
+        // Never the description — see PAYLOAD_CEILING above — but the card
+        // face shows two clamped lines of it, so setCardDescription sends a
+        // preview bounded by DESCRIPTION_PREVIEW_MAX. Optional, and absent
+        // from every other publisher of this event: a rename knows nothing
+        // about the description, and a key it sent would blank the face.
+        descriptionPreview?: string | null;
       }
     | { type: 'card.moved'; id: string; columnId: string; rank: string }
     | { type: 'card.deleted'; id: string }

@@ -56,6 +56,21 @@ function LabelLine({ ids, labels }: { ids: string[]; labels: BoardLabel[] }) {
   );
 }
 
+function DescriptionPreview({ text }: { text: string | null }) {
+  if (!text) return null;
+
+  // Prose, so it stays in the body family rather than borrowing the mono one
+  // the due date, the labels and the count share. Clamped to two lines, and
+  // that is load-bearing: a card whose height varied with its description
+  // would reflow its column under a drag in progress, the same reason
+  // LabelLine truncates rather than wraps.
+  return (
+    <p data-testid="card-description" className="mt-1.5 line-clamp-2 text-xs leading-[17px] text-muted">
+      {text}
+    </p>
+  );
+}
+
 function AttachmentCount({ count }: { count: number }) {
   if (count === 0) return null;
 
@@ -77,6 +92,7 @@ function AttachmentCount({ count }: { count: number }) {
 function CardMeta({ card, labels }: { card: StateCard; labels: BoardLabel[] }) {
   return (
     <>
+      <DescriptionPreview text={card.descriptionPreview} />
       {card.dueDate ? <DueDate value={card.dueDate} /> : null}
       <LabelLine ids={card.labelIds} labels={labels} />
       <AttachmentCount count={card.attachmentCount} />
@@ -154,7 +170,7 @@ export function BoardCard({
         transition,
         boxShadow: ringHue === undefined ? undefined : `0 0 0 2px hsl(${ringHue} 55% 55% / 0.9)`,
       }}
-      className={`card-enter group relative min-h-[58px] rounded-[var(--radius-card)] border p-3.5 transition-shadow duration-200 ${
+      className={`card-enter group relative min-h-[76px] rounded-[var(--radius-card)] border p-4 transition-shadow duration-200 ${
         // The card in flight is carried by the overlay; what is left behind is
         // the socket it came out of, so it reads as absence rather than as a
         // faded second copy. The border stays and turns transparent — removing

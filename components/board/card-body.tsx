@@ -25,6 +25,7 @@ import {
 } from '@/lib/actions/cards';
 import { setCardLabels } from '@/lib/actions/labels';
 import { attempt } from '@/lib/attempt';
+import { previewOf } from '@/lib/cards-limits';
 import type { CardAttachment } from '@/lib/attachments';
 import type { CardForView, Viewer } from '@/lib/cards';
 import { toDateInputValue } from '@/lib/due';
@@ -254,6 +255,9 @@ export function CardBody({
           mutationId: claim(),
         }),
       errorMessage: 'That description could not be saved. Try again.',
+      // The board ignores its own events by mutationId, so nothing else moves
+      // this card's face — the same reason commitTitle patches the title here.
+      onSuccess: () => patchCard?.(card.id, { descriptionPreview: previewOf(next) }),
     });
   };
 

@@ -210,19 +210,25 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 rank: event.rank,
                 createdAt: event.createdAt,
                 dueDate: event.dueDate,
+                // createCard takes a title and nothing else, so a card that
+                // has just been created cannot have a description yet.
+                descriptionPreview: null,
                 labelIds: [],
                 attachmentCount: 0,
               },
             });
             return;
           case 'card.updated':
-            // The card face shows a title and a due date and nothing else, so
-            // descriptionChanged is not its business — that is the open card's.
+            // descriptionChanged is not the face's business — that is the open
+            // card's, which fetches the whole text. The face takes the bounded
+            // preview instead, and only when the event carries one: an absent
+            // key leaves the preview alone, which is what a rename means.
             dispatch({
               type: 'card.patch',
               cardId: event.id,
               title: event.title,
               dueDate: event.dueDate,
+              descriptionPreview: event.descriptionPreview,
             });
             return;
           case 'card.moved':
@@ -331,6 +337,8 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
         rank: ranksAfter(last?.rank ?? null, 1)[0],
         createdAt: new Date().toISOString(),
         dueDate: null,
+        // The composer takes a title and nothing else.
+        descriptionPreview: null,
         labelIds: [],
         attachmentCount: 0,
         pending: true,

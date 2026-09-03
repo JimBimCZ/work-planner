@@ -26,7 +26,7 @@ const card = {
   createdAt: '2026-09-01T00:00:00.000Z',
   dueDate: null,
   labelIds: ['l1', 'l2'],
-  attachmentCount: 0,
+  attachmentCount: 0, descriptionPreview: null,
 };
 
 const labels = [
@@ -50,6 +50,30 @@ const render = (props: Partial<Parameters<typeof BoardCard>[0]> = {}) =>
       {...props}
     />,
   );
+
+describe('the description preview', () => {
+  test('sits under the title, clamped so the card cannot grow', () => {
+    const html = render({ card: { ...card, descriptionPreview: 'Because the ranks disagree.' } });
+    expect(html).toContain('Because the ranks disagree.');
+    // Two lines, always. A card whose height varied with its description
+    // would reflow its column under a drag in progress — the same reason
+    // LabelLine truncates rather than wraps.
+    expect(html).toContain('line-clamp-2');
+  });
+
+  test('renders nothing at all for a card with no description', () => {
+    const html = render({ card: { ...card, descriptionPreview: null } });
+    expect(html).toContain('Fix the rank tie-break');
+    expect(html).not.toContain('data-testid="card-description"');
+  });
+
+  // Prose, not data: CLAUDE.md gives the mono family to dates, ids and counts.
+  test('is prose, so it does not borrow the data family', () => {
+    const html = render({ card: { ...card, descriptionPreview: 'Because the ranks disagree.' } });
+    const preview = html.slice(html.indexOf('data-testid="card-description"'));
+    expect(preview.slice(0, 120)).not.toContain('font-mono');
+  });
+});
 
 describe('the label line', () => {
   test('names this card labels, and no others', () => {
@@ -83,23 +107,23 @@ describe('the label line', () => {
 
 describe('the attachment count', () => {
   test('a card with attachments says how many', () => {
-    const html = render({ card: { ...card, attachmentCount: 3 } });
+    const html = render({ card: { ...card, attachmentCount: 3, descriptionPreview: null } });
     expect(html).toContain('3 attachments');
   });
 
   test('one attachment reads in the singular', () => {
-    expect(render({ card: { ...card, attachmentCount: 1 } })).toContain('1 attachment');
+    expect(render({ card: { ...card, attachmentCount: 1, descriptionPreview: null } })).toContain('1 attachment');
   });
 
   test('a card with none renders nothing at all', () => {
-    const html = render({ card: { ...card, attachmentCount: 0 } });
+    const html = render({ card: { ...card, attachmentCount: 0, descriptionPreview: null } });
     expect(html).not.toContain('data-testid="card-attachments"');
   });
 
   // CLAUDE.md allows three colour roles, and warm is never at rest on the
   // board except a due date. The count is muted mono, like every other meta.
   test('the count carries no colour of its own', () => {
-    const html = render({ card: { ...card, attachmentCount: 3 } });
+    const html = render({ card: { ...card, attachmentCount: 3, descriptionPreview: null } });
     // Bounded to this element: slicing to the end of the string would drag in
     // CardMenu's markup and fail for something that is not this line's doing.
     const start = html.indexOf('data-testid="card-attachments"');
@@ -147,7 +171,7 @@ describe('the card being dragged', () => {
 const { CardFace } = await import('./board-card');
 
 describe('the face carried by the drag overlay', () => {
-  const withMeta = { ...card, dueDate: '2026-09-05', attachmentCount: 2 };
+  const withMeta = { ...card, dueDate: '2026-09-05', attachmentCount: 2, descriptionPreview: null };
 
   test('it is the card, not a label for it', () => {
     const html = renderToStaticMarkup(<CardFace card={withMeta} labels={labels} />);
@@ -166,13 +190,13 @@ describe('the face carried by the drag overlay', () => {
 });
 
 describe('the card has room', () => {
-  test('it is padded at 14px, not 12', () => {
-    expect(render()).toContain('p-3.5');
+  test('it is padded at 16px, not 14', () => {
+    expect(render()).toContain('p-4');
   });
 
   // A title-only card and one carrying a due date, labels and an attachment
   // count should not differ wildly, so rows across columns broadly line up.
   test('it has a floor so ragged rows even out', () => {
-    expect(render()).toContain('min-h-[58px]');
+    expect(render()).toContain('min-h-[76px]');
   });
 });

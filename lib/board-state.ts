@@ -11,6 +11,9 @@ export type StateCard = {
   rank: string;
   createdAt: string;
   dueDate: string | null;
+  // Cut to DESCRIPTION_PREVIEW_MAX before it leaves Postgres. Two clamped
+  // lines on the card face; the open card reads the whole thing itself.
+  descriptionPreview: string | null;
   labelIds: string[];
   attachmentCount: number;
   pending?: boolean;
@@ -34,6 +37,7 @@ export function toBoardState(board: BoardWithCards): BoardState {
         rank: card.rank,
         createdAt: card.createdAt.toISOString(),
         dueDate: card.dueDate ? toDateInputValue(card.dueDate) : null,
+        descriptionPreview: card.descriptionPreview,
         labelIds: card.cardLabels.map((assignment) => assignment.labelId),
         attachmentCount: card.attachments.length,
       })),
@@ -58,7 +62,13 @@ export function parseLabelFilter(params: URLSearchParams, labels: BoardLabel[]):
 export type BoardAction =
   | { type: 'card.create'; card: StateCard }
   | { type: 'card.rename'; cardId: string; title: string }
-  | { type: 'card.patch'; cardId: string; title?: string; dueDate?: string | null }
+  | {
+      type: 'card.patch';
+      cardId: string;
+      title?: string;
+      dueDate?: string | null;
+      descriptionPreview?: string | null;
+    }
   | { type: 'card.delete'; cardId: string }
   | { type: 'card.move'; cardId: string; toColumnId: string; rank: string }
   | { type: 'card.settle'; tempId: string; id: string; rank: string }
@@ -150,6 +160,9 @@ export function boardReducer(state: BoardState, action: BoardAction): BoardState
         ...card,
         ...(action.title !== undefined ? { title: action.title } : {}),
         ...(action.dueDate !== undefined ? { dueDate: action.dueDate } : {}),
+        ...(action.descriptionPreview !== undefined
+          ? { descriptionPreview: action.descriptionPreview }
+          : {}),
       }));
 
     case 'card.delete':
@@ -285,7 +298,13 @@ export function inverse(state: BoardState, action: BoardAction): BoardAction[] {
       const card = state.cards.find((c) => c.id === action.cardId);
       if (!card) return [];
       return [
-        { type: 'card.patch', cardId: action.cardId, title: card.title, dueDate: card.dueDate },
+        {
+          type: 'card.patch',
+          cardId: action.cardId,
+          title: card.title,
+          dueDate: card.dueDate,
+          descriptionPreview: card.descriptionPreview,
+        },
       ];
     }
 

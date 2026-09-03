@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
+import { DESCRIPTION_PREVIEW_MAX } from '@/lib/cards-limits';
+import { PAYLOAD_CEILING } from '@/lib/events';
+
 const authMock = vi.fn();
 vi.mock('@/lib/auth', () => ({ auth: () => authMock() }));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -343,6 +346,9 @@ describe('renameCard', () => {
       dueDate: null,
       descriptionChanged: false,
     });
+    // No descriptionPreview key: a rename knows nothing about the description,
+    // and sending one would blank the card face on every other client.
+    expect(publish.mock.calls[0][1]).not.toHaveProperty('descriptionPreview');
     expect(publishedAfterTransaction()).toBe(true);
   });
 
@@ -470,17 +476,29 @@ describe('setCardDescription', () => {
   });
 
   // The flag, not the text: a 10,000-character description cannot fit under
-  // Pusher's 10KB limit in any encoding, so it is never in a payload.
-  test('publishes card.updated with descriptionChanged and no description text', async () => {
+  // Pusher's 10KB limit in any encoding, so it is never in a payload. What the
+  // event does carry is a preview bounded by construction — the card face
+  // needs two clamped lines, and the open card still asks for the rest.
+  test('publishes a bounded preview, never the description', async () => {
     await setCardDescription({
       cardId: 'card-1',
       description: 'x'.repeat(9_000),
       mutationId: MUTATION_ID,
     });
     const [, event] = publish.mock.calls[0];
-    expect(event).toMatchObject({ type: 'card.updated', descriptionChanged: true });
-    expect(JSON.stringify(event)).not.toContain('xxxx');
+    expect(event).toMatchObject({
+      type: 'card.updated',
+      descriptionChanged: true,
+      descriptionPreview: 'x'.repeat(DESCRIPTION_PREVIEW_MAX),
+    });
+    expect(JSON.stringify(event).length).toBeLessThan(PAYLOAD_CEILING);
     expect(publishedAfterTransaction()).toBe(true);
+  });
+
+  test('an emptied description publishes a cleared preview, not an absent one', async () => {
+    await setCardDescription({ cardId: 'card-1', description: '', mutationId: MUTATION_ID });
+    const [, event] = publish.mock.calls[0];
+    expect(event).toMatchObject({ descriptionChanged: true, descriptionPreview: null });
   });
 
   test('publishes nothing when the write is refused', async () => {

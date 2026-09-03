@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { auth } from '@/lib/auth';
+import { previewOf } from '@/lib/cards-limits';
 import { db } from '@/lib/db';
 import { attachments, cards } from '@/lib/db/schema';
 import { fromDateInputValue, toDateInputValue } from '@/lib/due';
@@ -204,6 +205,7 @@ export async function setCardDescription(input: unknown) {
     title: card.title,
     dueDate: card.dueDate ? toDateInputValue(card.dueDate) : null,
     descriptionChanged: true,
+    descriptionPreview: previewOf(description),
   });
   return { ok: true } as const;
 }

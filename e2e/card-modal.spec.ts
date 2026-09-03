@@ -201,6 +201,75 @@ test('a description survives a reload', async ({ page, context }) => {
   }
 });
 
+test('a description shows on the card face, and a cleared one stops showing', async ({
+  page,
+  context,
+}) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, { boardId, createdById: userId, title: 'Ship it' });
+
+  try {
+    await page.goto(`/boards/${boardId}/cards/${cardId}`);
+    const description = page.getByRole('textbox', { name: 'Description' });
+    await description.fill('Because the board is the product');
+    const saved = written(page);
+    await description.blur();
+    await saved;
+
+    // The actor's own event is ignored by mutationId, so this is the modal
+    // patching the canvas rather than the board hearing about it.
+    await page.goto(`/boards/${boardId}`);
+    await expect(page.getByTestId('card-description')).toHaveText(
+      'Because the board is the product',
+    );
+
+    // The reload is the other half: this one comes from the query's left(),
+    // not from a Pusher payload.
+    await page.reload();
+    await expect(page.getByTestId('card-description')).toHaveText(
+      'Because the board is the product',
+    );
+
+    await page.goto(`/boards/${boardId}/cards/${cardId}`);
+    const cleared = written(page);
+    await page.getByRole('textbox', { name: 'Description' }).fill('');
+    await page.getByRole('textbox', { name: 'Description' }).blur();
+    await cleared;
+
+    await page.goto(`/boards/${boardId}`);
+    await expect(page.getByTestId('card-description')).toHaveCount(0);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
+// The cap is what keeps this inside the payload rule, and it is applied twice
+// — by left() in the query and by previewOf before the publish. A description
+// that overflowed the face would mean one of them is not being applied.
+test('a long description is cut to two clamped lines on the face', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Roadmap');
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, { boardId, createdById: userId, title: 'Ship it' });
+
+  try {
+    await page.goto(`/boards/${boardId}/cards/${cardId}`);
+    const description = page.getByRole('textbox', { name: 'Description' });
+    await description.fill('x'.repeat(4_000));
+    const saved = written(page);
+    await description.blur();
+    await saved;
+
+    await page.goto(`/boards/${boardId}`);
+    const text = await page.getByTestId('card-description').textContent();
+    expect(text).toHaveLength(140);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});
+
 // A card's temp id is not addressable until the create round trip settles —
 // clicking it navigates to a card that does not exist yet. useSortable already
 // disables dragging on `card.pending`; the title must not stay an active link

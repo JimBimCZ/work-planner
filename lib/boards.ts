@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { DESCRIPTION_PREVIEW_MAX } from '@/lib/cards-limits';
 import { db } from '@/lib/db';
 import type { BoardLabel } from '@/lib/labels';
 import type { BoardRole } from '@/lib/permissions';
@@ -29,6 +30,7 @@ export type BoardCardRow = {
   rank: string;
   createdAt: Date;
   dueDate: Date | null;
+  descriptionPreview: string | null;
   cardLabels: { labelId: string }[];
   attachments: { id: string }[];
 };
@@ -62,6 +64,15 @@ export const getBoardWithColumns = cache(async (boardId: string): Promise<BoardW
               createdAt: true,
               dueDate: true,
             },
+            // Cut in SQL, never selected whole: the card face shows two
+            // clamped lines, and a description runs to 10,000 characters.
+            // Selecting the column would put every one of them in the board's
+            // RSC payload to render a hundred and forty.
+            extras: (card, { sql }) => ({
+              descriptionPreview: sql<
+                string | null
+              >`left(${card.description}, ${DESCRIPTION_PREVIEW_MAX})`.as('description_preview'),
+            }),
             orderBy: (card, { asc }) => [asc(card.rank), asc(card.createdAt), asc(card.id)],
             with: {
               cardLabels: { columns: { labelId: true } },

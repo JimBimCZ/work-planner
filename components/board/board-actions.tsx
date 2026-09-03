@@ -8,7 +8,11 @@ import type { LabelAction } from '@/lib/board-state';
 import type { BoardLabel } from '@/lib/labels';
 
 type Handler = () => void;
-export type CardPatch = { title?: string; dueDate?: string | null };
+export type CardPatch = {
+  title?: string;
+  dueDate?: string | null;
+  descriptionPreview?: string | null;
+};
 type PatchCard = (cardId: string, patch: CardPatch) => void;
 type LabelCounts = Record<string, number>;
 type DispatchLabel = (action: LabelAction) => void;
