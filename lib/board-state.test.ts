@@ -9,6 +9,7 @@ import {
   matchesFilter,
   orderedColumns,
   parseLabelFilter,
+  sameDropTarget,
   toBoardState,
   type BoardAction,
   type BoardState,
@@ -611,5 +612,33 @@ describe('label actions', () => {
     });
 
     expect(after.cards[0].labelIds).toEqual(['l2', 'l3']);
+  });
+});
+
+describe('sameDropTarget', () => {
+  const target = { toColumnId: 'c1', beforeCardId: 'a', afterCardId: 'b' };
+
+  test('two nulls are the same target', () => {
+    expect(sameDropTarget(null, null)).toBe(true);
+  });
+
+  test('a target and null are different', () => {
+    expect(sameDropTarget(target, null)).toBe(false);
+    expect(sameDropTarget(null, target)).toBe(false);
+  });
+
+  test('equal fields are the same target, even as separate objects', () => {
+    expect(sameDropTarget(target, { ...target })).toBe(true);
+  });
+
+  test('a different column is a different target', () => {
+    expect(sameDropTarget(target, { ...target, toColumnId: 'c2' })).toBe(false);
+  });
+
+  // The two neighbour fields are what place the line, so a change in either
+  // has to re-render even when the column has not changed.
+  test('a different neighbour is a different target', () => {
+    expect(sameDropTarget(target, { ...target, beforeCardId: 'z' })).toBe(false);
+    expect(sameDropTarget(target, { ...target, afterCardId: null })).toBe(false);
   });
 });
