@@ -841,8 +841,9 @@ stream — see "Realtime" — and its entries cascade with the actor's account, 
 the reasoning.
 
 Remaining sub-projects: member management and invites is shipped in full, Sections A–D; labels the
-same, Sections A–D; attachments the same, Sections A–D; the activity log the same, Sections A–D.
-Nothing is queued behind them.
+same, Sections A–D; attachments the same, Sections A–D; the activity log the same, Sections A–D;
+board legibility the same, Sections A–B — it is a two-section sub-project, not a four, and there is
+no Section C. Nothing is queued behind them.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

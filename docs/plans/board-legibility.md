@@ -883,9 +883,10 @@ gh pr create --base main --title "feat: board legibility Section A — the drag 
 
 The body states the spec and section, what was verified with observed output, and carries the screenshots. No migration in this section.
 
-- [ ] **Step 7: Stop and hand back**
+- [x] **Step 7: Stop and hand back**
 
-Section B starts in a fresh session, from `main`, once this has merged.
+Section B starts in a fresh session, from `main`, once this has merged. — PR #105 merged
+2026-09-03; Section B ran from `main` in its own session and shipped as PR #106.
 
 ---
 
@@ -1362,7 +1363,15 @@ Ticked only against observed output.
 - [x] At 360px, dragging into the visible column arms it, observed by hand.
 - [x] `prefers-reduced-motion` drops the tilt, the scale and the bloom, observed by hand.
 - [x] A column long enough to scroll keeps its name and menu in place, observed by hand.
-- [ ] Screenshots of a drag in progress, both themes and at 360px, attached to the PRs.
+- [ ] Screenshots of a drag in progress, both themes and at 360px, attached to the PRs. **Not
+      done, and no longer closable.** Both sections captured and reviewed the shots — the measured
+      values in the PR bodies are what they showed — but neither PR carries an image. #105 said so
+      plainly (`gh` cannot attach an image to a PR body); #106's body claims they are "attached
+      below" and that is simply untrue, its only comment is Vercel's deployment bot. Nothing was
+      committed under `docs/screenshots/` either, unlike every other section that owed shots. Both
+      PRs are merged, so this box stays open as the record rather than being ticked after the fact.
+      The habit `docs/plans/boards.md` names is the fix: commit the files into
+      `docs/screenshots/<section>/` in the same PR, where a body's claim can be checked.
 
 ## Notes carried from brainstorming
 
