@@ -25,7 +25,7 @@ const line = {
 };
 
 beforeEach(() => {
-  vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [line] } });
+  vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [line], seenAt: null } });
 });
 
 describe('ActivityDrawer', () => {
@@ -41,7 +41,7 @@ describe('ActivityDrawer', () => {
   });
 
   test('invites rather than apologises when the board is new', async () => {
-    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [] } });
+    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [], seenAt: null } });
     render(<ActivityDrawer boardId="b1" />);
 
     await userEvent.click(screen.getByRole('button', { name: /activity/i }));
@@ -80,7 +80,7 @@ describe('ActivityDrawer', () => {
       actorImage: null,
       createdAt: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 9, 0, 0).toISOString(),
     };
-    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [line, yesterdayLine] } });
+    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [line, yesterdayLine], seenAt: null } });
     render(<ActivityDrawer boardId="b1" />);
 
     await userEvent.click(screen.getByRole('button', { name: /activity/i }));
@@ -112,7 +112,7 @@ describe('ActivityDrawer', () => {
         0,
       ).toISOString(),
     };
-    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [futureLine] } });
+    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [futureLine], seenAt: null } });
     render(<ActivityDrawer boardId="b1" />);
 
     await userEvent.click(screen.getByRole('button', { name: /activity/i }));
@@ -130,7 +130,7 @@ describe('ActivityDrawer', () => {
       actorImage: null,
       createdAt: new Date().toISOString(),
     };
-    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [overflowLine] } });
+    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [overflowLine], seenAt: null } });
     render(<ActivityDrawer boardId="b1" />);
 
     await userEvent.click(screen.getByRole('button', { name: /activity/i }));
@@ -145,7 +145,7 @@ describe('ActivityDrawer', () => {
       id: 'i1',
       actorImage: 'https://avatars.githubusercontent.com/u/1',
     };
-    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [imageLine] } });
+    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [imageLine], seenAt: null } });
     // Sheet content is a Radix Portal onto document.body, not a descendant of
     // render()'s own container — query the document, the way screen does.
     render(<ActivityDrawer boardId="b1" />);

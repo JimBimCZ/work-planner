@@ -19,6 +19,23 @@ vi.mock('@/lib/activity', async () => {
   return { ...actual, boardActivity: (boardId: string) => boardActivity(boardId) };
 });
 
+const findFirst = vi.fn();
+const upserted: unknown[] = [];
+const upsertSpy = vi.fn();
+vi.mock('@/lib/db', () => ({
+  db: {
+    query: { activityReads: { findFirst: (...args: unknown[]) => findFirst(...args) } },
+    insert: () => ({
+      values: (values: unknown) => ({
+        onConflictDoUpdate: async () => {
+          upsertSpy(values);
+          upserted.push(values);
+        },
+      }),
+    }),
+  },
+}));
+
 const { openActivity } = await import('./activity');
 
 beforeEach(() => {
@@ -28,6 +45,10 @@ beforeEach(() => {
   assertBoardAccess.mockResolvedValue('viewer');
   lines = [];
   boardActivity.mockClear();
+  findFirst.mockReset();
+  findFirst.mockResolvedValue(undefined);
+  upserted.length = 0;
+  upsertSpy.mockClear();
 });
 
 describe('openActivity', () => {
@@ -69,7 +90,42 @@ describe('openActivity', () => {
 
     await expect(openActivity({ boardId: 'b1' })).resolves.toEqual({
       ok: true,
-      data: { lines },
+      data: { lines, seenAt: null },
     });
+  });
+});
+
+describe('openActivity marks the board as seen', () => {
+  test('returns the marker from before this visit, then moves it', async () => {
+    const previous = new Date('2026-09-02T10:00:00.000Z');
+    findFirst.mockResolvedValue({ lastSeenAt: previous });
+
+    const result = await openActivity({ boardId: 'b1' });
+
+    expect(result).toMatchObject({ ok: true, data: { seenAt: previous.toISOString() } });
+    expect(upserted).toHaveLength(1);
+    // The order is the whole feature: read, answer, then move the marker.
+    expect(findFirst.mock.invocationCallOrder[0]).toBeLessThan(
+      upsertSpy.mock.invocationCallOrder[0],
+    );
+  });
+
+  test('a first visit has no marker and still records one', async () => {
+    findFirst.mockResolvedValue(undefined);
+
+    await expect(openActivity({ boardId: 'b1' })).resolves.toMatchObject({
+      ok: true,
+      data: { seenAt: null },
+    });
+    expect(upserted).toHaveLength(1);
+  });
+
+  test('records nothing for a board the caller cannot reach', async () => {
+    const { BoardAccessError } = await import('@/lib/permissions');
+    assertBoardAccess.mockRejectedValue(new BoardAccessError('NOT_FOUND'));
+
+    await openActivity({ boardId: 'b1' });
+
+    expect(upserted).toHaveLength(0);
   });
 });
