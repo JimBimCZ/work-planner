@@ -236,3 +236,48 @@ test('a filtered board never sees a drop indicator', async ({ page, context }) =
     await removeSeededUser(userId);
   }
 });
+
+// The overlay is not inside a column, so it cannot inherit the card width. A
+// literal is only ever right at one viewport: below 700px the column fills the
+// screen, so a desktop constant leaves the card in flight narrower than the
+// slot it came out of. Both widths are checked, because a fix that hardcodes
+// the other number would pass a single-width test.
+for (const width of [1440, 360]) {
+  test(`the card in flight is as wide as the card it left, at ${width}px`, async ({
+    page,
+    context,
+  }) => {
+    const { userId } = await seedSession(context);
+    const boardId = await seedBoard(userId, 'Roadmap');
+    const [ready] = await boardColumns(boardId);
+    await seedCard(ready.id, { boardId, createdById: userId, title: 'Dragged', rank: 'a0' });
+    await seedCard(ready.id, { boardId, createdById: userId, title: 'Sitting', rank: 'a1' });
+
+    try {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`/boards/${boardId}`);
+
+      const card = page.locator('[data-card-id]').filter({ hasText: 'Dragged' });
+      await expect(card).toBeVisible();
+      const slot = await card.boundingBox();
+
+      await card.hover();
+      await page.mouse.down();
+      await page.mouse.move(0, 0);
+      await expect(card).toHaveAttribute('style', /translate3d/);
+      await page.locator('[data-card-id]').filter({ hasText: 'Sitting' }).hover();
+
+      const overlay = page.getByTestId('drag-overlay');
+      await expect(overlay).toBeVisible();
+      // The overlay carries scale(1.02) and a 3° tilt, so its bounding box is
+      // not its width. Read the laid-out width instead.
+      const flight = await overlay.evaluate((el: HTMLElement) => el.offsetWidth);
+
+      await page.mouse.up();
+
+      expect(flight).toBe(Math.round(slot?.width ?? 0));
+    } finally {
+      await removeSeededUser(userId);
+    }
+  });
+}

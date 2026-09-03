@@ -535,10 +535,11 @@ Empty states are invitations, not apologies: an empty column reads "Nothing here
 - The board scrolls horizontally, columns scroll vertically inside a fixed viewport height. Body scroll stays locked on the board route.
 - Columns are 300px fixed width with 12px gutters on desktop, and both are literal: the 312px
   section spends 12px on a real gutter (`min-[700px]:pr-3`) and the 300px panel inside it carries
-  the well. Cards are 276px — the scroller and the card list each inset 6px — which is where
-  `CARD_WIDTH` in `board-canvas.tsx` comes from. Below 700px the board switches to one full-width
-  column at a time with a column switcher, the panel fills the width with no gutter, and
-  horizontal scroll is dropped rather than shrunk.
+  the well. Cards are 276px — the scroller and the card list each inset 6px. The drag overlay
+  carries no width of its own: `DragOverlay` sizes its wrapper from the dragged node's measured
+  rect, so the card in flight matches the slot at every viewport rather than at one. Below 700px
+  the board switches to one full-width column at a time with a column switcher, the panel fills
+  the width with no gutter, and horizontal scroll is dropped rather than shrunk.
 - Optimistic UI everywhere for card and comment creation.
 - Density is comfortable by default; don't add a density toggle.
 - Loading states are skeletons matching final layout, not spinners.

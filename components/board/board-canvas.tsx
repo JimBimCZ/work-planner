@@ -56,12 +56,6 @@ import { rankBetween, ranksAfter } from '@/lib/rank';
 
 const REDUCED = '(prefers-reduced-motion: reduce)';
 
-// The overlay is not inside a column, so it cannot inherit the card width and
-// has to be told. Derived from the column: a 312px section less its 12px
-// gutter is a 300px panel, and the scroller and the card list inset 6px each,
-// so a card is 300 - 12 - 12.
-const CARD_WIDTH = 276;
-
 function subscribe(onChange: () => void) {
   const query = window.matchMedia(REDUCED);
   query.addEventListener('change', onChange);
@@ -600,11 +594,15 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
             so it is where the brief's shadow, scale and tilt belong. */}
         <DragOverlay dropAnimation={null}>
           {dragging ? (
+            // DragOverlay's own wrapper is already sized from the dragged
+            // node's measured rect, so the face fills it rather than carrying a
+            // width of its own. A literal here was only ever right at one
+            // viewport: below 700px the column fills the screen.
             <article
               aria-hidden
-              className="rounded-[var(--radius-card)] border bg-surface p-3.5 shadow-[0_20px_34px_-10px_rgb(0_0_0/0.75)]"
+              data-testid="drag-overlay"
+              className="w-full rounded-[var(--radius-card)] border bg-surface p-3.5 shadow-[0_20px_34px_-10px_rgb(0_0_0/0.75)]"
               style={{
-                width: CARD_WIDTH,
                 // The hue of the column it came from, so a card in flight
                 // carries its origin rather than borrowing the one under it.
                 borderColor: flowColor(
