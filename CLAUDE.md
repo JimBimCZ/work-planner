@@ -142,9 +142,12 @@ app/
     health/                 # container healthcheck
 components/
   board/                    # Board, Column, Card, CardModal, dnd wiring
+    activity-drawer.tsx     # the feed, read when it opens; renders nothing
+                            # itself — the sentences arrive rendered
   site-footer.tsx           # rendered by each route-group layout, not the root
                             # one; see "Footer and legal pages"
-  ui/                       # shadcn primitives
+  ui/                       # shadcn primitives, including sheet.tsx — the same
+                            # Radix Dialog as dialog.tsx, right side only
 lib/
   auth.ts                   # Auth.js config, exports auth/signIn/signOut
   db/
@@ -155,6 +158,7 @@ lib/
   actions/                  # 'use server' modules, one per aggregate
     labels.ts               # createLabel, renameLabel, deleteLabel, setCardLabels
     attachments.ts          # requestUpload, confirmUpload, deleteAttachment
+    activity.ts             # openActivity — the feed read, at the viewer floor
   permissions.ts            # single source of truth for access checks
   rank.ts                   # fractional index helpers
   events.ts                 # Pusher publish helpers + event types
@@ -162,7 +166,10 @@ lib/
   storage.ts                # only module that speaks S3: presign, head, delete
   attachments.ts            # reads: cardAttachments, boardUsage, uploaderUsage
   attachments-limits.ts     # attachment caps; imports nothing, see "Data model"
-  activity.ts               # the closed activity vocabulary and its renderer
+  activity.ts               # the closed activity vocabulary, its renderer, and
+                            # boardActivity — the feed read. Server-only: it
+                            # imports lib/db, so the drawer takes ActivityLine
+                            # with `import type`, which is erased
   activity-limits.ts        # activity caps; imports nothing, see "Data model"
 docs/
   specs/                    # brainstorm output, one per feature
@@ -227,6 +234,10 @@ Rules:
   because there is nothing left to join to. **`subject` is for things, never for people:** a
   `member.*` entry puts the affected user's id in `subjectId` and leaves `subject` null, so a
   deleted account renders as "a member" rather than retaining a name past an erasure request.
+  The read side is `boardActivity` in `lib/activity.ts`: it joins the actor, and joins the
+  `member.*` subject's *name* at query time, so the promise above is kept by a lookup that finds
+  nothing rather than by remembering to omit something. `lib/activity.test.ts` pins both
+  directions, because an inverted fallback there would silently retain names.
 - The activity caps live in `lib/activity-limits.ts`, which imports nothing for the same reason
   `lib/labels-limits.ts` does. `ACTIVITY_PER_BOARD` (500) is both the retention and the feed's
   depth — the window *is* the retention — and it is enforced on write: every `recordActivity`
@@ -282,6 +293,11 @@ Postgres `LISTEN/NOTIFY` over SSE is **not** viable here. It needs a dedicated, 
 - Payloads carry the changed entity, not a full board refetch, and stay under `PAYLOAD_CEILING` (8,192 bytes, headroom under Pusher's documented 10KB). The two fields that cannot fit are handled by saying so and letting the reader ask:
   - `card.updated` carries `descriptionChanged: boolean` rather than the description; an open card calls `readCardDescription`.
   - `comment.created` degrades to `comment.created.truncated` — id and cardId only — when the whole event would exceed the ceiling; an open thread calls `readComments`. `publishComment` in `lib/events.ts` is the only place that branch lives. The body cap and the ceiling measure different things: `maxLength`/Zod count UTF-16 units, the guard counts UTF-8 bytes, so 2,000 emoji is a legal 4,000-unit comment weighing 8,355 bytes.
+- **The activity drawer deliberately does not stream.** It reads on open and does not change while
+  you read it: no twenty-second event, no change to `EVENT_NAMES` or `EveryEventIsBound`, and no
+  extra Pusher traffic. Doubling every mutation's message volume to keep a rarely-open drawer warm
+  is the wrong place to spend the free tier this section already names as the thing that would
+  force a move to Ably.
 - Presence channels (who else is viewing the board) are a later addition, not part of the first build.
 
 Last-write-wins on card fields is acceptable. Do not build OT/CRDT text merging for descriptions.

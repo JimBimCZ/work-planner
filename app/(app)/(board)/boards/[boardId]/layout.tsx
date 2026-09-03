@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 
 import { TopBar } from '@/components/app/top-bar';
+import { ActivityDrawer } from '@/components/board/activity-drawer';
 import { BoardActionsProvider } from '@/components/board/board-actions';
 import { LabelFilter } from '@/components/board/label-filter';
 import { MembersButton } from '@/components/board/members-button';
@@ -59,6 +60,7 @@ export default async function BoardTitleLayout({
                   viewerId={session.user.id}
                   role={role}
                 />
+                <ActivityDrawer boardId={boardId} />
                 {atLeast(role, 'member') ? <NewCardButton /> : null}
               </>
             }
