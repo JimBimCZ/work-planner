@@ -39,7 +39,7 @@ let cardRow:
       description: string | null;
     }
   | undefined;
-let columnRow: { id: string; boardId: string } | undefined;
+let columnRow: { id: string; boardId: string; name: string } | undefined;
 let attachmentKeys: string[] = [];
 let cardsInColumn: { id: string; rank: string }[] = [];
 
@@ -143,7 +143,7 @@ beforeEach(() => {
     dueDate: null,
     description: 'The long version',
   };
-  columnRow = { id: 'col-1', boardId: 'b1' };
+  columnRow = { id: 'col-1', boardId: 'b1', name: 'In Progress' };
   cardsInColumn = [];
   assertBoardAccess.mockReset();
   assertBoardAccess.mockResolvedValue('member');
@@ -782,5 +782,79 @@ describe('readCardDescription', () => {
   test('publishes nothing — it is a read', async () => {
     await readCardDescription({ cardId: 'card-1' });
     expect(publish).not.toHaveBeenCalled();
+  });
+});
+
+const activityOps = () => ops.filter((op) => op.kind === 'insert' && op.table === 'activity');
+
+describe('activity', () => {
+  test('createCard records the card and the column it landed in', async () => {
+    await createCard({ columnId: 'col-1', title: 'Ship it', mutationId: MUTATION_ID });
+
+    expect(activityOps()).toHaveLength(1);
+    expect(activityOps()[0].values).toMatchObject({
+      type: 'card.created',
+      subject: 'Ship it',
+      detail: 'In Progress',
+    });
+  });
+
+  test('renameCard records both names', async () => {
+    await renameCard({ cardId: 'card-1', title: 'Ship it twice', mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({
+      type: 'card.renamed',
+      subject: 'Ship it twice',
+      detail: 'Ship it',
+    });
+  });
+
+  test('clearing a due date is its own type', async () => {
+    await setCardDueDate({ cardId: 'card-1', dueDate: null, mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({ type: 'card.due_cleared', detail: null });
+  });
+
+  test('deleteCard records the title it is about to destroy', async () => {
+    await deleteCard({ cardId: 'card-1', mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({ type: 'card.deleted', subject: 'Ship it' });
+  });
+
+  // The rule: if it only changed an order, it is not news.
+  test('a move within the same column records nothing', async () => {
+    await moveCard({
+      cardId: 'card-1',
+      toColumnId: 'col-1',
+      beforeCardId: null,
+      afterCardId: null,
+      mutationId: MUTATION_ID,
+    });
+
+    expect(activityOps()).toHaveLength(0);
+  });
+
+  test('a move to another column records the destination', async () => {
+    columnRow = { id: 'col-2', boardId: 'b1', name: 'In Review' };
+    await moveCard({
+      cardId: 'card-1',
+      toColumnId: 'col-2',
+      beforeCardId: null,
+      afterCardId: null,
+      mutationId: MUTATION_ID,
+    });
+
+    expect(activityOps()[0].values).toMatchObject({
+      type: 'card.moved',
+      subject: 'Ship it',
+      detail: 'In Review',
+    });
+  });
+
+  test('the entry is the last write in the transaction', async () => {
+    await createCard({ columnId: 'col-1', title: 'Ship it', mutationId: MUTATION_ID });
+
+    const writes = ops.filter((op) => op.kind !== 'query');
+    expect(writes[writes.length - 1].table).toBe('activity');
   });
 });

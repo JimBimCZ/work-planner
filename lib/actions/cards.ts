@@ -13,7 +13,7 @@ import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 import { ranksAfter, rankBetween } from '@/lib/rank';
 import { forgetObjects } from '@/lib/storage';
 
-import { boardIdForCard, boardIdForColumn, cardEventScope, touchBoard } from './scope';
+import { boardIdForColumn, cardEventScope, recordActivity, touchBoard } from './scope';
 
 const cardTitle = z.string().trim().min(1).max(200);
 const id = z.string().min(1);
@@ -82,6 +82,22 @@ export async function createCard(input: unknown) {
       .returning();
 
     await touchBoard(tx, boardId);
+
+    // The column's name is read here rather than passed in, because the client
+    // sends an id and the entry has to survive that column's rename.
+    const column = await tx.query.columns.findFirst({
+      where: (c, { eq: is }) => is(c.id, parsed.data.columnId),
+      columns: { name: true },
+    });
+    await recordActivity(tx, {
+      boardId,
+      actorId: createdById,
+      type: 'card.created',
+      subjectId: row.id,
+      subject: parsed.data.title,
+      detail: column?.name ?? null,
+    });
+
     return { id: row.id, rank, createdAt: row.createdAt.toISOString() };
   });
 
@@ -120,6 +136,14 @@ export async function renameCard(input: unknown) {
   await db.transaction(async (tx) => {
     await tx.update(cards).set({ title: parsed.data.title }).where(eq(cards.id, parsed.data.cardId));
     await touchBoard(tx, boardId);
+    await recordActivity(tx, {
+      boardId,
+      actorId: session.user.id,
+      type: 'card.renamed',
+      subjectId: parsed.data.cardId,
+      subject: parsed.data.title,
+      detail: card.title,
+    });
   });
 
   revalidatePath('/boards');
@@ -158,6 +182,13 @@ export async function setCardDescription(input: unknown) {
   await db.transaction(async (tx) => {
     await tx.update(cards).set({ description }).where(eq(cards.id, parsed.data.cardId));
     await touchBoard(tx, boardId);
+    await recordActivity(tx, {
+      boardId,
+      actorId: session.user.id,
+      type: 'card.described',
+      subjectId: parsed.data.cardId,
+      subject: card.title,
+    });
   });
 
   revalidatePath('/boards');
@@ -225,6 +256,15 @@ export async function setCardDueDate(input: unknown) {
   await db.transaction(async (tx) => {
     await tx.update(cards).set({ dueDate }).where(eq(cards.id, parsed.data.cardId));
     await touchBoard(tx, boardId);
+    // Date-only in the UI, so date-only in the entry.
+    await recordActivity(tx, {
+      boardId,
+      actorId: session.user.id,
+      type: dueDate ? 'card.due_set' : 'card.due_cleared',
+      subjectId: parsed.data.cardId,
+      subject: card.title,
+      detail: dueDate ? dueDate.toISOString().slice(0, 10) : null,
+    });
   });
 
   revalidatePath('/boards');
@@ -247,8 +287,11 @@ export async function deleteCard(input: unknown) {
   const parsed = deleteSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: 'INVALID' } as const;
 
-  const boardId = await boardIdForCard(parsed.data.cardId);
-  if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
+  // The title is read before the delete, because the entry outlives the card
+  // it names and there is nothing left to read it from afterwards.
+  const card = await cardEventScope(parsed.data.cardId);
+  if (!card) return { ok: false, error: 'NOT_FOUND' } as const;
+  const boardId = card.boardId;
 
   try {
     await assertBoardAccess(session.user.id, boardId, 'member');
@@ -266,6 +309,13 @@ export async function deleteCard(input: unknown) {
   await db.transaction(async (tx) => {
     await tx.delete(cards).where(eq(cards.id, parsed.data.cardId));
     await touchBoard(tx, boardId);
+    await recordActivity(tx, {
+      boardId,
+      actorId: session.user.id,
+      type: 'card.deleted',
+      subjectId: parsed.data.cardId,
+      subject: card.title,
+    });
   });
 
   await forgetObjects(keys.map((row) => row.key));
@@ -290,8 +340,9 @@ export async function moveCard(input: unknown) {
   const { cardId, toColumnId, beforeCardId, afterCardId } = parsed.data;
   if (beforeCardId && beforeCardId === afterCardId) return { ok: false, error: 'INVALID' } as const;
 
-  const boardId = await boardIdForCard(cardId);
-  if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
+  const moving = await cardEventScope(cardId);
+  if (!moving) return { ok: false, error: 'NOT_FOUND' } as const;
+  const boardId = moving.boardId;
 
   try {
     await assertBoardAccess(session.user.id, boardId, 'member');
@@ -321,8 +372,32 @@ export async function moveCard(input: unknown) {
 
     const next = rankBetween(before?.rank ?? null, after?.rank ?? null);
 
+    // Read before the update that changes columnId, or every move reports the
+    // destination as the origin and reads as a reorder.
+    const current = await tx.query.cards.findFirst({
+      where: (card, { eq: is }) => is(card.id, cardId),
+      columns: { columnId: true, title: true },
+    });
+
     await tx.update(cards).set({ columnId: toColumnId, rank: next }).where(eq(cards.id, cardId));
     await touchBoard(tx, boardId);
+
+    // If it only changed an order, it is not news.
+    if (current && current.columnId !== toColumnId) {
+      const destination = await tx.query.columns.findFirst({
+        where: (column, { eq: is }) => is(column.id, toColumnId),
+        columns: { name: true },
+      });
+      await recordActivity(tx, {
+        boardId,
+        actorId: session.user.id,
+        type: 'card.moved',
+        subjectId: cardId,
+        subject: current.title,
+        detail: destination?.name ?? null,
+      });
+    }
+
     return next;
   });
 
