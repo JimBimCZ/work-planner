@@ -156,6 +156,64 @@ describe('ActivityDrawer', () => {
     expect(document.querySelector('img')).toHaveAttribute('alt', '');
   });
 
+  // Today is what dayHeading compares against, so the fixtures are dated
+  // relative to it rather than to a fixed calendar day the run would drift off.
+  const day = (offset: number) => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() - offset, 10, 0, 0);
+  };
+  const older = { ...line, id: 'a0', createdAt: day(2).toISOString() };
+  const newer = { ...line, id: 'a2', createdAt: day(0).toISOString() };
+  const between = new Date(day(1).getTime()).toISOString();
+
+  const rowFor = (entry: { createdAt: string }) => {
+    const time = document.querySelector(`time[datetime="${entry.createdAt}"]`);
+    if (!time) throw new Error(`no row for ${entry.createdAt}`);
+    return time;
+  };
+
+  test('draws the line above what arrived since the last visit', async () => {
+    vi.mocked(openActivity).mockResolvedValue({
+      ok: true,
+      data: { lines: [newer, older], seenAt: between },
+    });
+    render(<ActivityDrawer boardId="b1" />);
+
+    await userEvent.click(screen.getByRole('button', { name: /activity/i }));
+
+    const divider = await screen.findByText('New since your last visit');
+    // Newest first, so the line falls between the two: everything above it
+    // arrived since the marker, everything below was already read.
+    expect(divider.compareDocumentPosition(rowFor(newer))).toBe(Node.DOCUMENT_POSITION_PRECEDING);
+    expect(divider.compareDocumentPosition(rowFor(older))).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
+  test('draws no line on a first visit', async () => {
+    vi.mocked(openActivity).mockResolvedValue({
+      ok: true,
+      data: { lines: [newer, older], seenAt: null },
+    });
+    render(<ActivityDrawer boardId="b1" />);
+
+    await userEvent.click(screen.getByRole('button', { name: /activity/i }));
+
+    await screen.findAllByText(/moved Ship it/);
+    expect(screen.queryByText('New since your last visit')).not.toBeInTheDocument();
+  });
+
+  test('draws no line when nothing is new', async () => {
+    vi.mocked(openActivity).mockResolvedValue({
+      ok: true,
+      data: { lines: [older], seenAt: new Date().toISOString() },
+    });
+    render(<ActivityDrawer boardId="b1" />);
+
+    await userEvent.click(screen.getByRole('button', { name: /activity/i }));
+
+    await screen.findByText(/moved Ship it/);
+    expect(screen.queryByText('New since your last visit')).not.toBeInTheDocument();
+  });
+
   test('falls back to initials-on-hue when the actor has no image', async () => {
     render(<ActivityDrawer boardId="b1" />);
 
