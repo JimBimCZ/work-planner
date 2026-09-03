@@ -28,8 +28,8 @@ const publishedAfterTransaction = () =>
   opsWhenPublished.some((op) => op.kind === 'update' && op.table === 'boards');
 
 
-let columnRow: { id: string; boardId: string } | undefined;
-let boardColumnRows: { id: string; rank: string }[] = [];
+let columnRow: { id: string; boardId: string; name: string } | undefined;
+let boardColumnRows: { id: string; rank: string; name: string }[] = [];
 let cardsInColumns: { id: string; columnId: string; rank: string }[] = [];
 
 function tableName(table: unknown): string {
@@ -76,11 +76,11 @@ const { BoardAccessError } = await import('@/lib/permissions');
 
 beforeEach(() => {
   ops.length = 0;
-  columnRow = { id: 'col-2', boardId: 'b1' };
+  columnRow = { id: 'col-2', boardId: 'b1', name: 'In Progress' };
   boardColumnRows = [
-    { id: 'col-1', rank: 'a0' },
-    { id: 'col-2', rank: 'a1' },
-    { id: 'col-3', rank: 'a2' },
+    { id: 'col-1', rank: 'a0', name: 'In Progress' },
+    { id: 'col-2', rank: 'a1', name: 'Backlog' },
+    { id: 'col-3', rank: 'a2', name: 'Done' },
   ];
   cardsInColumns = [];
   assertBoardAccess.mockReset();
@@ -431,8 +431,14 @@ describe('deleteColumn', () => {
       expect((write.values as { rank: string }).rank > 'b00').toBe(true);
     }
 
-    expect(ops.at(-2)).toMatchObject({ kind: 'delete', table: 'columns' });
-    expect(ops.at(-1)).toMatchObject({ kind: 'update', table: 'boards' });
+    // The column goes after its cards have left, the board is touched, and the
+    // entry with its trim is the last write in the transaction.
+    expect(ops.map((op) => `${op.kind} ${op.table}`).slice(-4)).toEqual([
+      'delete columns',
+      'update boards',
+      'insert activity',
+      'delete activity',
+    ]);
   });
 
   test('keeps the arriving cards in the order they had', async () => {
@@ -493,5 +499,44 @@ describe('deleteColumn', () => {
     boardColumnRows = [{ id: 'col-2', rank: 'a0' }];
     await deleteColumn({ columnId: 'col-2', targetColumnId: 'col-1', mutationId: MUTATION_ID });
     expect(publish).not.toHaveBeenCalled();
+  });
+});
+
+const activityOps = () => ops.filter((op) => op.kind === 'insert' && op.table === 'activity');
+
+describe('activity', () => {
+  test('addColumn records the name', async () => {
+    await addColumn({ boardId: 'b1', name: 'Blocked', afterColumnId: null, mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({ type: 'column.created', subject: 'Blocked' });
+  });
+
+  test('renameColumn records both names', async () => {
+    await renameColumn({ columnId: 'col-1', name: 'Doing', mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({
+      type: 'column.renamed',
+      subject: 'Doing',
+      detail: 'In Progress',
+    });
+  });
+
+  test('deleteColumn records where the cards went, and one entry only', async () => {
+    await deleteColumn({ columnId: 'col-1', targetColumnId: 'col-2', mutationId: MUTATION_ID });
+
+    expect(activityOps()).toHaveLength(1);
+    expect(activityOps()[0].values).toMatchObject({ type: 'column.deleted', detail: 'Backlog' });
+  });
+
+  // A reorder is not news, and moveColumn can only ever be a reorder.
+  test('moveColumn records nothing', async () => {
+    await moveColumn({
+      columnId: 'col-1',
+      beforeColumnId: null,
+      afterColumnId: 'col-2',
+      mutationId: MUTATION_ID,
+    });
+
+    expect(activityOps()).toHaveLength(0);
   });
 });
