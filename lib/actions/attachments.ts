@@ -195,6 +195,8 @@ export async function confirmUpload(input: unknown) {
       actorId,
       type: 'attachment.added',
       subjectId: row.cardId,
+      // The card cannot be gone — the attachment row cascades with it — but a null
+      // title degrades this entry rather than failing an upload that already landed.
       subject: card?.title ?? null,
       detail: row.filename,
     });
@@ -263,6 +265,7 @@ export async function deleteAttachment(input: unknown) {
       actorId,
       type: 'attachment.removed',
       subjectId: row.cardId,
+      // Same tolerance as confirmUpload above: a null title degrades, it doesn't fail.
       subject: card?.title ?? null,
       detail: row.filename,
     });

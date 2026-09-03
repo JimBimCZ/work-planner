@@ -543,9 +543,9 @@ describe('activity', () => {
   // pending one. A board-wide feed is the one place it must not appear.
   test('inviting, revoking and declining record nothing', async () => {
     authMock.mockResolvedValue(signedIn);
-    await inviteMember(invite);
+    await expect(inviteMember(invite)).resolves.toEqual({ ok: true });
     inviteRow = { id: 'invite-1', boardId: 'board-1' };
-    await revokeInvite({ inviteId: 'invite-1' });
+    await expect(revokeInvite({ inviteId: 'invite-1' })).resolves.toEqual({ ok: true });
 
     authMock.mockResolvedValue({ user: { id: 'user-2', email: 'new@example.test' } });
     findPendingInvite.mockResolvedValue({
@@ -554,7 +554,7 @@ describe('activity', () => {
       email: 'new@example.test',
       role: 'member',
     });
-    await declineInvite({ inviteId: 'invite-1' });
+    await expect(declineInvite({ inviteId: 'invite-1' })).resolves.toEqual({ ok: true });
 
     expect(activityOps()).toHaveLength(0);
   });
@@ -609,6 +609,7 @@ describe('activity', () => {
     assertBoardAccess.mockResolvedValue('viewer');
     await leaveBoard({ boardId: 'board-1', mutationId: MUTATION_ID });
 
+    expect(activityOps()).toHaveLength(2);
     for (const op of activityOps()) {
       const values = op.values as { type: string; subject: string | null };
       expect(values, `${values.type} must store no name`).toMatchObject({ subject: null });

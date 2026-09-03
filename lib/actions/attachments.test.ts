@@ -532,7 +532,8 @@ describe('activity', () => {
   // requestUpload creates a pending row for bytes that may never land. The
   // feed must not announce a file that does not exist.
   test('requesting an upload records nothing', async () => {
-    await requestUpload(valid);
+    const result = await requestUpload(valid);
+    expect(result.ok).toBe(true);
     expect(activityOps()).toHaveLength(0);
   });
 
