@@ -872,7 +872,7 @@ In "Drag and drop", after the bullet about the server action receiving ids rathe
   does not.
 ```
 
-- [ ] **Step 6: Tick this section's boxes, commit, open the PR**
+- [x] **Step 6: Tick this section's boxes, commit, open the PR**
 
 ```bash
 git add CLAUDE.md docs/plans/board-legibility.md
