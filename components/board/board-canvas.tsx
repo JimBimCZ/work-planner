@@ -26,6 +26,7 @@ import {
 } from 'react';
 
 import { BoardColumn } from '@/components/board/board-column';
+import { CardFace } from '@/components/board/board-card';
 import { ColumnSwitcher } from '@/components/board/column-switcher';
 import { useBoardActions } from '@/components/board/board-actions';
 import { useRealtime } from '@/components/board/realtime';
@@ -50,10 +51,15 @@ import {
   type StateColumn,
 } from '@/lib/board-state';
 import type { BoardWithCards } from '@/lib/boards';
-import { flowHue } from '@/lib/flow';
+import { flowColor, flowHue } from '@/lib/flow';
 import { rankBetween, ranksAfter } from '@/lib/rank';
 
 const REDUCED = '(prefers-reduced-motion: reduce)';
+
+// The overlay is not inside a column, so it cannot inherit the card width and
+// has to be told. Kept beside the column width it is derived from: 300px of
+// column less the 6px of body padding on each side.
+const CARD_WIDTH = 288;
 
 function subscribe(onChange: () => void) {
   const query = window.matchMedia(REDUCED);
@@ -593,13 +599,21 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
           {dragging ? (
             <article
               aria-hidden
-              className="rounded-[var(--radius-card)] border border-line bg-surface px-3 py-2.5 shadow-[0_12px_24px_-8px_rgb(0_0_0/0.35)]"
+              className="rounded-[var(--radius-card)] border bg-surface px-3 py-2.5 shadow-[0_20px_34px_-10px_rgb(0_0_0/0.75)]"
               style={{
-                width: 288,
+                width: CARD_WIDTH,
+                // The hue of the column it came from, so a card in flight
+                // carries its origin rather than borrowing the one under it.
+                borderColor: flowColor(
+                  flowHue(
+                    columns.findIndex((column) => column.id === dragging.columnId),
+                    total,
+                  ),
+                ),
                 transform: reducedMotion ? undefined : 'scale(1.02) rotate(3deg)',
               }}
             >
-              <h3 className="text-sm font-medium leading-5 text-ink">{dragging.title}</h3>
+              <CardFace card={dragging} labels={state.labels} />
             </article>
           ) : null}
         </DragOverlay>

@@ -74,6 +74,27 @@ function AttachmentCount({ count }: { count: number }) {
   );
 }
 
+function CardMeta({ card, labels }: { card: StateCard; labels: BoardLabel[] }) {
+  return (
+    <>
+      {card.dueDate ? <DueDate value={card.dueDate} /> : null}
+      <LabelLine ids={card.labelIds} labels={labels} />
+      <AttachmentCount count={card.attachmentCount} />
+    </>
+  );
+}
+
+export function CardFace({ card, labels }: { card: StateCard; labels: BoardLabel[] }) {
+  return (
+    <>
+      <h3 data-testid="card-title" className="text-sm font-medium leading-5 text-ink">
+        {card.title}
+      </h3>
+      <CardMeta card={card} labels={labels} />
+    </>
+  );
+}
+
 export function BoardCard({
   card,
   ringHue,
@@ -171,9 +192,7 @@ export function BoardCard({
           )}
         </h3>
 
-        {card.dueDate ? <DueDate value={card.dueDate} /> : null}
-        <LabelLine ids={card.labelIds} labels={labels} />
-        <AttachmentCount count={card.attachmentCount} />
+        <CardMeta card={card} labels={labels} />
 
         {canWrite ? (
           <CardMenu

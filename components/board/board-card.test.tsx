@@ -143,3 +143,24 @@ describe('the card being dragged', () => {
     expect(html).toContain('Fix the rank tie-break');
   });
 });
+
+const { CardFace } = await import('./board-card');
+
+describe('the face carried by the drag overlay', () => {
+  const withMeta = { ...card, dueDate: '2026-09-05', attachmentCount: 2 };
+
+  test('it is the card, not a label for it', () => {
+    const html = renderToStaticMarkup(<CardFace card={withMeta} labels={labels} />);
+    expect(html).toContain('Fix the rank tie-break');
+    expect(html).toContain('bug · blocked');
+    expect(html).toContain('2 attachments');
+  });
+
+  // The overlay is aria-hidden and sits outside the board's own DOM order, so
+  // a link inside it is a duplicate target for keyboard and screen readers.
+  test('it carries no link and no menu', () => {
+    const html = renderToStaticMarkup(<CardFace card={withMeta} labels={labels} />);
+    expect(html).not.toContain('<a ');
+    expect(html).not.toContain('<button');
+  });
+});
