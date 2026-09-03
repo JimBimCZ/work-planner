@@ -50,12 +50,13 @@ let cardRow:
       boardId: string;
       columnId: string;
       rank: string;
+      title: string;
       comments: typeof thread;
       cardLabels: { labelId: string }[];
     }
   | undefined;
 let commentRow:
-  | { authorId: string | null; cardId: string; card: { boardId: string } }
+  | { authorId: string | null; cardId: string; card: { boardId: string; title: string } }
   | undefined;
 
 function tableName(table: unknown): string {
@@ -113,10 +114,11 @@ beforeEach(() => {
     boardId: 'b1',
     columnId: 'col-1',
     rank: 'a0',
+    title: 'Ship it',
     comments: thread,
     cardLabels: [],
   };
-  commentRow = { authorId: 'user-1', cardId: 'card-1', card: { boardId: 'b1' } };
+  commentRow = { authorId: 'user-1', cardId: 'card-1', card: { boardId: 'b1', title: 'Ship it' } };
   assertBoardAccess.mockReset();
   assertBoardAccess.mockResolvedValue('member');
   authMock.mockReset();
@@ -209,7 +211,7 @@ describe('editComment', () => {
     // Order matters: answering authorship first would tell someone with no
     // membership that the comment exists.
     assertBoardAccess.mockRejectedValue(new BoardAccessError('NOT_FOUND'));
-    commentRow = { authorId: 'someone-else', cardId: 'card-1', card: { boardId: 'b1' } };
+    commentRow = { authorId: 'someone-else', cardId: 'card-1', card: { boardId: 'b1', title: 'Ship it' } };
     await expect(
       editComment({ commentId: 'm1', body: 'Edited', mutationId: MUTATION_ID }),
     ).resolves.toEqual({
@@ -219,7 +221,7 @@ describe('editComment', () => {
   });
 
   test('refuses a member who is not the author', async () => {
-    commentRow = { authorId: 'someone-else', cardId: 'card-1', card: { boardId: 'b1' } };
+    commentRow = { authorId: 'someone-else', cardId: 'card-1', card: { boardId: 'b1', title: 'Ship it' } };
     await expect(
       editComment({ commentId: 'm1', body: 'Edited', mutationId: MUTATION_ID }),
     ).resolves.toEqual({
@@ -229,7 +231,7 @@ describe('editComment', () => {
   });
 
   test('refuses everyone on a comment whose author was deleted', async () => {
-    commentRow = { authorId: null, cardId: 'card-1', card: { boardId: 'b1' } };
+    commentRow = { authorId: null, cardId: 'card-1', card: { boardId: 'b1', title: 'Ship it' } };
     await expect(
       editComment({ commentId: 'm1', body: 'Edited', mutationId: MUTATION_ID }),
     ).resolves.toEqual({
@@ -239,7 +241,7 @@ describe('editComment', () => {
   });
 
   test('lets the author edit', async () => {
-    commentRow = { authorId: 'user-1', cardId: 'card-1', card: { boardId: 'b1' } };
+    commentRow = { authorId: 'user-1', cardId: 'card-1', card: { boardId: 'b1', title: 'Ship it' } };
     await expect(
       editComment({ commentId: 'm1', body: 'Edited', mutationId: MUTATION_ID }),
     ).resolves.toEqual({ ok: true });
@@ -280,7 +282,7 @@ describe('editComment', () => {
 
 describe('deleteComment', () => {
   test('refuses a member who is not the author', async () => {
-    commentRow = { authorId: 'someone-else', cardId: 'card-1', card: { boardId: 'b1' } };
+    commentRow = { authorId: 'someone-else', cardId: 'card-1', card: { boardId: 'b1', title: 'Ship it' } };
     await expect(deleteComment({ commentId: 'm1', mutationId: MUTATION_ID })).resolves.toEqual({
       ok: false,
       error: 'FORBIDDEN',
@@ -288,7 +290,7 @@ describe('deleteComment', () => {
   });
 
   test('refuses everyone on a comment whose author was deleted', async () => {
-    commentRow = { authorId: null, cardId: 'card-1', card: { boardId: 'b1' } };
+    commentRow = { authorId: null, cardId: 'card-1', card: { boardId: 'b1', title: 'Ship it' } };
     await expect(deleteComment({ commentId: 'm1', mutationId: MUTATION_ID })).resolves.toEqual({
       ok: false,
       error: 'FORBIDDEN',
@@ -296,7 +298,7 @@ describe('deleteComment', () => {
   });
 
   test('lets the author delete', async () => {
-    commentRow = { authorId: 'user-1', cardId: 'card-1', card: { boardId: 'b1' } };
+    commentRow = { authorId: 'user-1', cardId: 'card-1', card: { boardId: 'b1', title: 'Ship it' } };
     await expect(
       deleteComment({ commentId: 'm1', mutationId: MUTATION_ID }),
     ).resolves.toEqual({ ok: true });
@@ -370,5 +372,32 @@ describe('readComments', () => {
     await readComments({ cardId: 'card-1' });
     expect(publish).not.toHaveBeenCalled();
     expect(publishComment).not.toHaveBeenCalled();
+  });
+});
+
+const activityOps = () => ops.filter((op) => op.kind === 'insert' && op.table === 'activity');
+
+describe('activity', () => {
+  test('a comment records the card, never the body', async () => {
+    await addComment({ cardId: 'card-1', body: 'A secret', mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({
+      type: 'comment.added',
+      subjectId: 'card-1',
+      subject: 'Ship it',
+    });
+    expect(JSON.stringify(activityOps()[0].values)).not.toContain('A secret');
+  });
+
+  test('editing records the card too', async () => {
+    await editComment({ commentId: 'comment-1', body: 'Edited', mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({ type: 'comment.edited', subjectId: 'card-1' });
+  });
+
+  test('deleting records the card too', async () => {
+    await deleteComment({ commentId: 'comment-1', mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({ type: 'comment.deleted', subjectId: 'card-1' });
   });
 });

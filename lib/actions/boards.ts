@@ -12,6 +12,8 @@ import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 import { seedRanks } from '@/lib/rank';
 import { forgetObjects } from '@/lib/storage';
 
+import { recordActivity } from './scope';
+
 const boardName = z.string().trim().min(1).max(80);
 
 const createSchema = z.object({ name: boardName });
@@ -43,6 +45,14 @@ export async function createBoard(input: unknown) {
       })),
     );
 
+    await recordActivity(tx, {
+      boardId: created.id,
+      actorId: ownerId,
+      type: 'board.created',
+      subjectId: created.id,
+      subject: parsed.data.name,
+    });
+
     return created;
   });
 
@@ -63,7 +73,21 @@ export async function renameBoard(input: unknown) {
     return boardAccessResult(error);
   }
 
-  await db.update(boards).set({ name: parsed.data.name }).where(eq(boards.id, parsed.data.boardId));
+  const actorId = session.user.id;
+  await db.transaction(async (tx) => {
+    await tx
+      .update(boards)
+      .set({ name: parsed.data.name })
+      .where(eq(boards.id, parsed.data.boardId));
+
+    await recordActivity(tx, {
+      boardId: parsed.data.boardId,
+      actorId,
+      type: 'board.renamed',
+      subjectId: parsed.data.boardId,
+      subject: parsed.data.name,
+    });
+  });
 
   revalidatePath('/boards');
   return { ok: true } as const;

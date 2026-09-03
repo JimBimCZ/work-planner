@@ -86,14 +86,19 @@ export async function cardEventScope(
 // order.
 export async function commentScope(
   commentId: string,
-): Promise<{ boardId: string; cardId: string; authorId: string | null } | null> {
+): Promise<{ boardId: string; cardId: string; authorId: string | null; title: string } | null> {
   const comment = await db.query.comments.findFirst({
     where: (c, { eq: is }) => is(c.id, commentId),
     columns: { authorId: true, cardId: true },
-    with: { card: { columns: { boardId: true } } },
+    with: { card: { columns: { boardId: true, title: true } } },
   });
 
   return comment
-    ? { boardId: comment.card.boardId, cardId: comment.cardId, authorId: comment.authorId }
+    ? {
+        boardId: comment.card.boardId,
+        cardId: comment.cardId,
+        authorId: comment.authorId,
+        title: comment.card.title,
+      }
     : null;
 }

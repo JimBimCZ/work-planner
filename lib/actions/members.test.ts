@@ -221,6 +221,19 @@ describe('acceptInvite', () => {
         values: { boardId: 'board-1', userId: 'user-2', role: 'viewer' },
       },
       { kind: 'delete', table: 'board_invites' },
+      {
+        kind: 'insert',
+        table: 'activity',
+        values: {
+          boardId: 'board-1',
+          actorId: 'user-2',
+          type: 'member.joined',
+          subjectId: 'user-2',
+          subject: null,
+          detail: null,
+        },
+      },
+      { kind: 'delete', table: 'activity' },
     ]);
   });
 
@@ -289,7 +302,22 @@ describe('changeRole and removeMember', () => {
     await expect(
       changeRole({ boardId: 'board-1', userId: 'user-2', role: 'viewer', mutationId: MUTATION_ID }),
     ).resolves.toEqual({ ok: true });
-    expect(ops).toEqual([{ kind: 'update', table: 'board_members', values: { role: 'viewer' } }]);
+    expect(ops).toEqual([
+      { kind: 'update', table: 'board_members', values: { role: 'viewer' } },
+      {
+        kind: 'insert',
+        table: 'activity',
+        values: {
+          boardId: 'board-1',
+          actorId: 'owner-1',
+          type: 'member.role_changed',
+          subjectId: 'user-2',
+          subject: null,
+          detail: 'viewer',
+        },
+      },
+      { kind: 'delete', table: 'activity' },
+    ]);
   });
 
   test('remove a member', async () => {
@@ -298,7 +326,22 @@ describe('changeRole and removeMember', () => {
     await expect(
       removeMember({ boardId: 'board-1', userId: 'user-2', mutationId: MUTATION_ID }),
     ).resolves.toEqual({ ok: true });
-    expect(ops).toEqual([{ kind: 'delete', table: 'board_members' }]);
+    expect(ops).toEqual([
+      { kind: 'delete', table: 'board_members' },
+      {
+        kind: 'insert',
+        table: 'activity',
+        values: {
+          boardId: 'board-1',
+          actorId: 'owner-1',
+          type: 'member.removed',
+          subjectId: 'user-2',
+          subject: null,
+          detail: null,
+        },
+      },
+      { kind: 'delete', table: 'activity' },
+    ]);
   });
 });
 
@@ -319,7 +362,22 @@ describe('leaveBoard', () => {
     await expect(leaveBoard({ boardId: 'board-1', mutationId: MUTATION_ID })).resolves.toEqual({
       ok: true,
     });
-    expect(ops).toEqual([{ kind: 'delete', table: 'board_members' }]);
+    expect(ops).toEqual([
+      { kind: 'delete', table: 'board_members' },
+      {
+        kind: 'insert',
+        table: 'activity',
+        values: {
+          boardId: 'board-1',
+          actorId: 'owner-1',
+          type: 'member.left',
+          subjectId: 'owner-1',
+          subject: null,
+          detail: null,
+        },
+      },
+      { kind: 'delete', table: 'activity' },
+    ]);
   });
 });
 
@@ -373,6 +431,19 @@ describe('transferOwnership', () => {
       { kind: 'update', table: 'boards', values: { ownerId: 'user-2' } },
       { kind: 'update', table: 'board_members', values: { role: 'owner' } },
       { kind: 'update', table: 'board_members', values: { role: 'member' } },
+      {
+        kind: 'insert',
+        table: 'activity',
+        values: {
+          boardId: 'board-1',
+          actorId: 'owner-1',
+          type: 'member.ownership_transferred',
+          subjectId: 'user-2',
+          subject: null,
+          detail: null,
+        },
+      },
+      { kind: 'delete', table: 'activity' },
     ]);
   });
 });
@@ -462,5 +533,86 @@ describe('membership events', () => {
     inviteRow = { id: 'invite-1', boardId: 'board-1' };
     await revokeInvite({ inviteId: 'invite-1' });
     expect(publish).not.toHaveBeenCalled();
+  });
+});
+
+const activityOps = () => ops.filter((op) => op.kind === 'insert' && op.table === 'activity');
+
+describe('activity', () => {
+  // An invite carries an email address, and only the owner ever sees a
+  // pending one. A board-wide feed is the one place it must not appear.
+  test('inviting, revoking and declining record nothing', async () => {
+    authMock.mockResolvedValue(signedIn);
+    await expect(inviteMember(invite)).resolves.toEqual({ ok: true });
+    inviteRow = { id: 'invite-1', boardId: 'board-1' };
+    await expect(revokeInvite({ inviteId: 'invite-1' })).resolves.toEqual({ ok: true });
+
+    authMock.mockResolvedValue({ user: { id: 'user-2', email: 'new@example.test' } });
+    findPendingInvite.mockResolvedValue({
+      id: 'invite-1',
+      boardId: 'board-1',
+      email: 'new@example.test',
+      role: 'member',
+    });
+    await expect(declineInvite({ inviteId: 'invite-1' })).resolves.toEqual({ ok: true });
+
+    expect(activityOps()).toHaveLength(0);
+  });
+
+  test('accepting an invite records the join', async () => {
+    authMock.mockResolvedValue({ user: { id: 'user-2', email: 'new@example.test' } });
+    findPendingInvite.mockResolvedValue({
+      id: 'invite-1',
+      boardId: 'board-1',
+      email: 'new@example.test',
+      role: 'member',
+    });
+    await acceptInvite({ inviteId: 'invite-1' });
+
+    expect(activityOps()[0].values).toMatchObject({ type: 'member.joined', subjectId: 'user-2' });
+  });
+
+  test('a role change records the role', async () => {
+    authMock.mockResolvedValue(signedIn);
+    membershipRow = { role: 'member' };
+    await changeRole({ boardId: 'board-1', userId: 'user-2', role: 'viewer', mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({
+      type: 'member.role_changed',
+      subjectId: 'user-2',
+      detail: 'viewer',
+    });
+  });
+
+  test('a transfer records one entry, though it publishes two events', async () => {
+    authMock.mockResolvedValue(signedIn);
+    boardRow = { name: 'Roadmap' };
+    membershipRow = { role: 'member' };
+    await transferOwnership({
+      boardId: 'board-1',
+      userId: 'user-2',
+      confirmName: 'Roadmap',
+      mutationId: MUTATION_ID,
+    });
+
+    expect(activityOps()).toHaveLength(1);
+    expect(activityOps()[0].values).toMatchObject({ type: 'member.ownership_transferred' });
+  });
+
+  // The rule the whole erasure promise rests on. An actor's name is cascaded
+  // away with their account; a stored subject name would survive it.
+  test('no member entry stores a name', async () => {
+    authMock.mockResolvedValue(signedIn);
+    membershipRow = { role: 'member' };
+    await removeMember({ boardId: 'board-1', userId: 'user-2', mutationId: MUTATION_ID });
+
+    assertBoardAccess.mockResolvedValue('viewer');
+    await leaveBoard({ boardId: 'board-1', mutationId: MUTATION_ID });
+
+    expect(activityOps()).toHaveLength(2);
+    for (const op of activityOps()) {
+      const values = op.values as { type: string; subject: string | null };
+      expect(values, `${values.type} must store no name`).toMatchObject({ subject: null });
+    }
   });
 });

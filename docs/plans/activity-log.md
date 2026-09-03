@@ -997,7 +997,7 @@ Each task follows the same shape as Tasks 4 and 5: add `const activityOps = () =
 
 **Interfaces:** Consumes `recordActivity`. Produces `comment.added`, `comment.edited`, `comment.deleted` — all carrying the **card**, never the body.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 describe('activity', () => {
@@ -1028,12 +1028,12 @@ describe('activity', () => {
 
 The comment fakes already resolve a `cardId` through `commentScope`; the card's title needs a read in the same place the scope is resolved.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run lib/actions/comments.test.ts > /tmp/b8.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/b8.log`
 Expected: FAIL, `activityOps()` empty.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 // addComment — the entry indexes the card; the comment is where the words are.
@@ -1048,12 +1048,12 @@ await recordActivity(tx, {
 
 `editComment` and `deleteComment` are the same call with `'comment.edited'` and `'comment.deleted'`, using `scope.cardId` and the card title read alongside it.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run lib/actions/comments.test.ts > /tmp/b8.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/b8.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/comments.ts lib/actions/comments.test.ts
@@ -1066,7 +1066,7 @@ git commit -m "feat: record comment activity, carrying the card and not the body
 
 **Interfaces:** Consumes `recordActivity`. Produces `label.created`, `label.renamed`, `label.deleted`, `card.labelled`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 describe('activity', () => {
@@ -1107,12 +1107,12 @@ describe('activity', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run lib/actions/labels.test.ts > /tmp/b9.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/b9.log`
 Expected: FAIL, `activityOps()` empty.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `createLabel`, `renameLabel` and `deleteLabel` do not call `touchBoard` and must not start: their entry is the last write in the transaction, and nothing else about them changes.
 
@@ -1155,12 +1155,12 @@ await recordActivity(tx, {
 });
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run lib/actions/labels.test.ts > /tmp/b9.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/b9.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/labels.ts lib/actions/labels.test.ts
@@ -1173,7 +1173,7 @@ git commit -m "feat: record label activity, one entry per act"
 
 **Interfaces:** Consumes `recordActivity`. Produces `attachment.added` (from `confirmUpload` only) and `attachment.removed`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 describe('activity', () => {
@@ -1213,12 +1213,12 @@ describe('activity', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b10.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/b10.log`
 Expected: FAIL on the second and third; the first passes already and stays as a guard.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 // confirmUpload, inside the transaction that flips status to 'ready'
@@ -1244,12 +1244,12 @@ await recordActivity(tx, {
 
 `requestUpload` is not edited.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run lib/actions/attachments.test.ts > /tmp/b10.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/b10.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/attachments.ts lib/actions/attachments.test.ts
@@ -1262,7 +1262,7 @@ git commit -m "feat: record an attachment when its bytes land, not when they are
 
 **Interfaces:** Consumes `recordActivity`. Produces `member.joined`, `member.left`, `member.removed`, `member.role_changed`, `member.ownership_transferred`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 describe('activity', () => {
@@ -1314,12 +1314,12 @@ describe('activity', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run lib/actions/members.test.ts > /tmp/b11.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/b11.log`
 Expected: FAIL on all but the first.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Every member entry passes `subjectId` and no `subject` — the name is joined at read time, and `member.*` rows that carry one are a privacy bug, not a display improvement.
 
@@ -1358,12 +1358,12 @@ await recordActivity(tx, {
 
 `inviteMember`, `revokeInvite` and `declineInvite` are not edited.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run lib/actions/members.test.ts > /tmp/b11.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/b11.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/members.ts lib/actions/members.test.ts
@@ -1376,7 +1376,7 @@ git commit -m "feat: record membership activity, storing ids and never names"
 
 **Interfaces:** Consumes `recordActivity`. Produces `board.created`, `board.renamed`. `deleteBoard` produces nothing — the feed cascades with the board.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 describe('activity', () => {
@@ -1406,12 +1406,12 @@ describe('activity', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run lib/actions/boards.test.ts > /tmp/b12.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/b12.log`
 Expected: FAIL on the first two.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 // createBoard — after the columns are seeded, one entry for the board itself.
@@ -1435,12 +1435,12 @@ await recordActivity(tx, {
 
 The seeding loop is not edited, and `deleteBoard` is not edited.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run lib/actions/boards.test.ts > /tmp/b12.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/b12.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/boards.ts lib/actions/boards.test.ts
@@ -1449,21 +1449,21 @@ git commit -m "feat: record a board's creation once, and its renames"
 
 ### Task 13: Section B pull request
 
-- [ ] **Step 1: Confirm every call site is covered**
+- [x] **Step 1: Confirm every call site is covered**
 
 Run: `grep -c "recordActivity(tx" lib/actions/*.ts`
 Expected: `boards.ts` 2, `columns.ts` 3, `cards.ts` 6, `comments.ts` 3, `labels.ts` 4, `attachments.ts` 2, `members.ts` 5 — twenty-five, and `scope.ts` 0 matches for that string since it defines rather than calls it.
 
 `account.ts` must also be 0. `deleteAccount` records nothing: the cascade on `activity.actorId` removes the departing member's entries, which is the whole of its activity behaviour, and Task 21 observes it end to end.
 
-- [ ] **Step 2: Run the gates**
+- [x] **Step 2: Run the gates**
 
 Run: `pnpm typecheck > /tmp/t.log 2>&1; echo "TYPECHECK=$?"; pnpm lint > /tmp/l.log 2>&1; echo "LINT=$?"; pnpm test > /tmp/v.log 2>&1; echo "TEST=$?"; tail -4 /tmp/v.log`
 Expected: all three EXIT=0.
 
-- [ ] **Step 3: Tick this section's boxes in this plan**
+- [x] **Step 3: Tick this section's boxes in this plan**
 
-- [ ] **Step 4: Commit and open the PR**
+- [x] **Step 4: Commit and open the PR**
 
 ```bash
 git add docs/plans/activity-log.md

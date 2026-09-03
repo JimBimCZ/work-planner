@@ -48,6 +48,18 @@ const tx = {
       },
     }),
   }),
+  update: () => ({
+    set: (values: { name: string }) => ({
+      where: async () => {
+        updated = { id: 'b1', name: values.name };
+      },
+    }),
+  }),
+  delete: (table: unknown) => ({
+    where: async () => {
+      ops.push(`delete:${tableName(table)}`);
+    },
+  }),
 };
 
 vi.mock('@/lib/db', () => ({
@@ -234,5 +246,38 @@ describe('deleteBoard', () => {
 
     await deleteBoard({ boardId: 'b1', confirmName: 'roadmap' });
     expect(forgetObjects).not.toHaveBeenCalled();
+  });
+});
+
+const activityInserts = () => inserts.filter((i) => i.table === 'activity');
+
+describe('activity', () => {
+  // createBoard seeds five columns. If each seeded one, every board would
+  // open with six entries describing its own birth.
+  test('creating a board records one entry, not one per seeded column', async () => {
+    await createBoard({ name: 'Roadmap' });
+
+    expect(activityInserts()).toHaveLength(1);
+    expect(activityInserts()[0].values).toMatchObject({ type: 'board.created', subject: 'Roadmap' });
+  });
+
+  test('renaming records the new name', async () => {
+    assertBoardAccess.mockResolvedValue('member');
+
+    await renameBoard({ boardId: 'b1', name: 'Roadmap 2027' });
+
+    expect(activityInserts()[0].values).toMatchObject({
+      type: 'board.renamed',
+      subject: 'Roadmap 2027',
+    });
+  });
+
+  test('deleting a board records nothing — the feed goes with it', async () => {
+    assertBoardAccess.mockResolvedValue('owner');
+    boardRow = { name: 'Roadmap' };
+
+    await deleteBoard({ boardId: 'b1', confirmName: 'Roadmap' });
+
+    expect(activityInserts()).toHaveLength(0);
   });
 });
