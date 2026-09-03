@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { DESCRIPTION_PREVIEW_MAX } from '@/lib/cards-limits';
 import { attachments, cards } from '@/lib/db/schema';
 
 let boardRow: unknown;
@@ -13,6 +14,7 @@ const { getBoardWithColumns } = await import('./boards');
 
 type CardsRelationConfig = {
   columns: Record<string, boolean>;
+  extras: CardsExtras;
   orderBy: (card: typeof cards, helpers: { asc: (column: unknown) => unknown }) => unknown[];
   with: {
     attachments: {
@@ -24,6 +26,13 @@ type CardsRelationConfig = {
     };
   };
 };
+
+type SqlTag = (strings: TemplateStringsArray, ...values: unknown[]) => { as: (alias: string) => unknown };
+
+type CardsExtras = (
+  fields: typeof cards,
+  operators: { sql: SqlTag },
+) => Record<string, unknown>;
 
 type FindFirstConfig = { with: { columns: { with: { cards: CardsRelationConfig } } } };
 
@@ -106,6 +115,29 @@ describe('getBoardWithColumns', () => {
       column: attachments.status,
       value: 'ready',
     });
+  });
+
+  test('truncates the description in SQL rather than selecting the whole thing', async () => {
+    // The card face shows two clamped lines. Selecting a 10,000-character
+    // column for every card of a board would put the full text in the RSC
+    // payload to render a hundred and forty of it — and the columns assertion
+    // above is the other half of this rule.
+    await getBoardWithColumns('shape-check');
+
+    const config = findFirst.mock.calls[0][0] as FindFirstConfig;
+    const seen: { values: unknown[]; alias: string }[] = [];
+    const sql: SqlTag = (_strings, ...values) => ({
+      as: (alias: string) => {
+        seen.push({ values, alias });
+        return { values, alias };
+      },
+    });
+
+    const extras = config.with.columns.with.cards.extras(cards, { sql });
+
+    expect(Object.keys(extras)).toEqual(['descriptionPreview']);
+    expect(seen[0].values).toContain(cards.description);
+    expect(seen[0].values).toContain(DESCRIPTION_PREVIEW_MAX);
   });
 
   test('orders cards by rank, then createdAt, then id', async () => {

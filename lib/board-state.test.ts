@@ -23,8 +23,8 @@ const base = (): BoardState => ({
     { id: 'col-2', name: 'In Progress', rank: 'a1' },
   ],
   cards: [
-    { id: 'card-a', columnId: 'col-1', title: 'First', rank: 'b0', createdAt: '2026-01-01', dueDate: null, labelIds: [], attachmentCount: 0 },
-    { id: 'card-b', columnId: 'col-1', title: 'Second', rank: 'b1', createdAt: '2026-01-02', dueDate: null, labelIds: [], attachmentCount: 0 },
+    { id: 'card-a', columnId: 'col-1', title: 'First', rank: 'b0', createdAt: '2026-01-01', dueDate: null, labelIds: [], attachmentCount: 0, descriptionPreview: null },
+    { id: 'card-b', columnId: 'col-1', title: 'Second', rank: 'b1', createdAt: '2026-01-02', dueDate: null, labelIds: [], attachmentCount: 0, descriptionPreview: null },
   ],
 });
 
@@ -45,9 +45,9 @@ describe('selectors', () => {
       labels: [],
       columns: base().columns,
       cards: [
-        { id: 'z', columnId: 'col-1', title: 'z', rank: 'b0', createdAt: '2026-01-02', dueDate: null, labelIds: [], attachmentCount: 0, },
-        { id: 'a', columnId: 'col-1', title: 'a', rank: 'b0', createdAt: '2026-01-01', dueDate: null, labelIds: [], attachmentCount: 0, },
-        { id: 'b', columnId: 'col-1', title: 'b', rank: 'b0', createdAt: '2026-01-01', dueDate: null, labelIds: [], attachmentCount: 0, },
+        { id: 'z', columnId: 'col-1', title: 'z', rank: 'b0', createdAt: '2026-01-02', dueDate: null, labelIds: [], attachmentCount: 0, descriptionPreview: null, },
+        { id: 'a', columnId: 'col-1', title: 'a', rank: 'b0', createdAt: '2026-01-01', dueDate: null, labelIds: [], attachmentCount: 0, descriptionPreview: null, },
+        { id: 'b', columnId: 'col-1', title: 'b', rank: 'b0', createdAt: '2026-01-01', dueDate: null, labelIds: [], attachmentCount: 0, descriptionPreview: null, },
       ],
     };
     expect(cardsIn(state, 'col-1').map((c) => c.id)).toEqual(['a', 'b', 'z']);
@@ -58,7 +58,7 @@ describe('card actions', () => {
   test('create adds a card', () => {
     const card = {
       id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: '2026-02-01',
-      dueDate: null, labelIds: [], attachmentCount: 0, pending: true,
+      dueDate: null, labelIds: [], attachmentCount: 0, descriptionPreview: null, pending: true,
     };
     const next = boardReducer(base(), { type: 'card.create', card });
     expect(cardsIn(next, 'col-2')).toEqual([card]);
@@ -90,13 +90,13 @@ describe('card actions', () => {
   test('settle swaps the temp id for the real one and clears pending', () => {
     const withTemp = boardReducer(base(), {
       type: 'card.create',
-      card: { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x', dueDate: null, labelIds: [], attachmentCount: 0, pending: true },
+      card: { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x', dueDate: null, labelIds: [], attachmentCount: 0, descriptionPreview: null, pending: true },
     });
 
     const next = boardReducer(withTemp, { type: 'card.settle', tempId: 'tmp-1', id: 'card-c', rank: 'c9' });
 
     expect(cardsIn(next, 'col-2')).toEqual([
-      { id: 'card-c', columnId: 'col-2', title: 'New', rank: 'c9', createdAt: 'x', dueDate: null, labelIds: [], attachmentCount: 0, },
+      { id: 'card-c', columnId: 'col-2', title: 'New', rank: 'c9', createdAt: 'x', dueDate: null, labelIds: [], attachmentCount: 0, descriptionPreview: null, },
     ]);
   });
 });
@@ -108,7 +108,7 @@ describe('card.patch', () => {
     cards: [
       {
         id: 'card-1', columnId: 'col-1', title: 'Ship it', rank: 'a0',
-        createdAt: '2026-08-31T00:00:00.000Z', dueDate: '2026-09-10', labelIds: [], attachmentCount: 0,
+        createdAt: '2026-08-31T00:00:00.000Z', dueDate: '2026-09-10', labelIds: [], attachmentCount: 0, descriptionPreview: null,
       },
     ],
   });
@@ -138,6 +138,64 @@ describe('card.patch', () => {
     const action: BoardAction = { type: 'card.patch', cardId: 'card-1', title: 'Shipped' };
     const undone = applyAll(boardReducer(dated(), action), inverse(dated(), action));
     expect(undone.cards[0]).toMatchObject({ title: 'Ship it', dueDate: '2026-09-10' });
+  });
+
+  test('sets the description preview alone', () => {
+    const next = boardReducer(dated(), {
+      type: 'card.patch',
+      cardId: 'card-1',
+      descriptionPreview: 'Why this matters',
+    });
+    expect(next.cards[0]).toMatchObject({
+      title: 'Ship it',
+      dueDate: '2026-09-10',
+      descriptionPreview: 'Why this matters',
+    });
+  });
+
+  // A rename publishes card.updated too and carries no preview, so an absent
+  // key must leave the card face alone rather than blank it.
+  test('a patch with no preview key leaves the preview alone', () => {
+    const described = boardReducer(dated(), {
+      type: 'card.patch',
+      cardId: 'card-1',
+      descriptionPreview: 'Why this matters',
+    });
+    const renamed = boardReducer(described, {
+      type: 'card.patch',
+      cardId: 'card-1',
+      title: 'Shipped',
+    });
+    expect(renamed.cards[0].descriptionPreview).toBe('Why this matters');
+  });
+
+  test('an emptied description clears the preview', () => {
+    const described = boardReducer(dated(), {
+      type: 'card.patch',
+      cardId: 'card-1',
+      descriptionPreview: 'Why this matters',
+    });
+    const cleared = boardReducer(described, {
+      type: 'card.patch',
+      cardId: 'card-1',
+      descriptionPreview: null,
+    });
+    expect(cleared.cards[0].descriptionPreview).toBeNull();
+  });
+
+  test('its inverse restores the preview too', () => {
+    const described = boardReducer(dated(), {
+      type: 'card.patch',
+      cardId: 'card-1',
+      descriptionPreview: 'The old why',
+    });
+    const action: BoardAction = {
+      type: 'card.patch',
+      cardId: 'card-1',
+      descriptionPreview: 'A new why',
+    };
+    const undone = applyAll(boardReducer(described, action), inverse(described, action));
+    expect(undone.cards[0].descriptionPreview).toBe('The old why');
   });
 });
 
@@ -184,7 +242,7 @@ describe('column actions', () => {
       type: 'card.create',
       card: {
         id: 'tmp-1', columnId: 'col-1', title: 'Pending', rank: 'b00',
-        createdAt: '2026-01-03', dueDate: null, labelIds: [], attachmentCount: 0, pending: true,
+        createdAt: '2026-01-03', dueDate: null, labelIds: [], attachmentCount: 0, descriptionPreview: null, pending: true,
       },
     });
 
@@ -250,7 +308,7 @@ describe('inverses', () => {
   };
 
   test('undo a create by deleting it', () => {
-    const card = { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x', dueDate: null, labelIds: [], attachmentCount: 0, };
+    const card = { id: 'tmp-1', columnId: 'col-2', title: 'New', rank: 'c0', createdAt: 'x', dueDate: null, labelIds: [], attachmentCount: 0, descriptionPreview: null, };
     const action = { type: 'card.create', card } as const;
 
     restoresTheBoard(action);
@@ -334,9 +392,9 @@ describe('dropTarget', () => {
       labels: [],
       columns: base().columns,
       cards: [
-        { id: 'k1', columnId: 'col-1', title: '1', rank: 'b0', createdAt: '1', dueDate: null, labelIds: [], attachmentCount: 0, },
-        { id: 'k2', columnId: 'col-1', title: '2', rank: 'b1', createdAt: '2', dueDate: null, labelIds: [], attachmentCount: 0, },
-        { id: 'k3', columnId: 'col-1', title: '3', rank: 'b2', createdAt: '3', dueDate: null, labelIds: [], attachmentCount: 0, },
+        { id: 'k1', columnId: 'col-1', title: '1', rank: 'b0', createdAt: '1', dueDate: null, labelIds: [], attachmentCount: 0, descriptionPreview: null, },
+        { id: 'k2', columnId: 'col-1', title: '2', rank: 'b1', createdAt: '2', dueDate: null, labelIds: [], attachmentCount: 0, descriptionPreview: null, },
+        { id: 'k3', columnId: 'col-1', title: '3', rank: 'b2', createdAt: '3', dueDate: null, labelIds: [], attachmentCount: 0, descriptionPreview: null, },
       ],
     };
 
@@ -374,6 +432,7 @@ describe('toBoardState', () => {
     cardLabels: { labelId: string }[],
     labels: { id: string; name: string }[],
     attachments: { id: string }[] = [],
+    descriptionPreview: string | null = null,
   ) => ({
     id: 'board-1',
     name: 'Roadmap',
@@ -391,6 +450,7 @@ describe('toBoardState', () => {
             rank: 'a0',
             createdAt: new Date('2026-09-01T00:00:00.000Z'),
             dueDate: null,
+            descriptionPreview,
             cardLabels,
             attachments,
           },
@@ -422,6 +482,15 @@ describe('toBoardState', () => {
 
   test('a card with no attachments counts zero, never undefined', () => {
     expect(toBoardState(board([], [])).cards[0].attachmentCount).toBe(0);
+  });
+
+  // Already cut to the cap by the query — see lib/boards.ts — so this carries
+  // it rather than truncating a second time in a second place.
+  test('a card carries the preview the query truncated, and null when there is none', () => {
+    expect(toBoardState(board([], [], [], 'Because the ranks disagree.')).cards[0]).toMatchObject({
+      descriptionPreview: 'Because the ranks disagree.',
+    });
+    expect(toBoardState(board([], [])).cards[0].descriptionPreview).toBeNull();
   });
 });
 
@@ -469,7 +538,7 @@ describe('matchesFilter', () => {
   const card = (labelIds: string[]): StateCard => ({
     id: 'card-1',
     columnId: 'col-1',
-    attachmentCount: 0,
+    attachmentCount: 0, descriptionPreview: null,
     title: 'Card',
     rank: 'a0',
     createdAt: '2026-09-01T00:00:00.000Z',
@@ -530,7 +599,7 @@ describe('label actions', () => {
   const card = (labelIds: string[]): StateCard => ({
     id: 'card-1',
     columnId: 'col-1',
-    attachmentCount: 0,
+    attachmentCount: 0, descriptionPreview: null,
     title: 'First',
     rank: 'b0',
     createdAt: '2026-01-01',

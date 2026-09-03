@@ -468,6 +468,35 @@ test('a description edited elsewhere is refetched', async ({ browser }) => {
   }
 });
 
+// The open card refetches the whole text; the board behind it takes the
+// bounded preview the event carries, which is a different path through the
+// same event.
+test("a description edited elsewhere reaches the other client's card face", async ({ browser }) => {
+  const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
+  const [ready] = await boardColumns(boardId);
+  const cardId = await seedCard(ready.id, {
+    boardId,
+    createdById: alice.userId,
+    title: 'Ship it',
+  });
+
+  try {
+    await pageA.goto(`/boards/${boardId}/cards/${cardId}`);
+    await pageB.goto(`/boards/${boardId}`);
+    await subscribed(pageA);
+    await subscribed(pageB);
+
+    await pageA.getByLabel('Description').fill('Written by Alice');
+    await pageA.getByLabel('Description').blur();
+
+    await expect(pageB.getByTestId('card-description')).toHaveText('Written by Alice', {
+      timeout: 15_000,
+    });
+  } finally {
+    await close();
+  }
+});
+
 test('a card deleted elsewhere says so rather than vanishing', async ({ browser }) => {
   const { boardId, alice, pageA, pageB, close } = await twoBrowsers(browser);
   const [ready] = await boardColumns(boardId);
