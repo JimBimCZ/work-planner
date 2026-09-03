@@ -164,3 +164,15 @@ describe('the face carried by the drag overlay', () => {
     expect(html).not.toContain('<button');
   });
 });
+
+describe('the card has room', () => {
+  test('it is padded at 14px, not 12', () => {
+    expect(render()).toContain('p-3.5');
+  });
+
+  // A title-only card and one carrying a due date, labels and an attachment
+  // count should not differ wildly, so rows across columns broadly line up.
+  test('it has a floor so ragged rows even out', () => {
+    expect(render()).toContain('min-h-[58px]');
+  });
+});

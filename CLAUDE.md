@@ -418,6 +418,8 @@ The brief: a board a developer stares at for eight hours a day. Its job is to an
 --ink         #E7EBF2 / #0E1319     primary text
 --muted       #8A94A6               secondary text, both modes
 --line        #262E3A / #DCE1E9     borders, dividers
+--well        #131820 / #E3E8F0     the column's own body, under its cards
+--well-armed  #18202B / #D7DEE9     that body while it is the drop target
 --slot        #0B0E13 / #D5DBE4     the socket a dragged card leaves behind
 
 --flow-1      #4468D8   indigo   — first column
@@ -427,6 +429,12 @@ The brief: a board a developer stares at for eight hours a day. Its job is to an
 --time-soon   #C98A17   amber
 --time-over   #C8492F   rust
 ```
+
+`--well` and `--well-armed` are **inverted tokens**: lighter than the canvas in dark, darker in
+light, because cards are already pure white there. Both directions read the same way — the card
+floats above its column, and arming it steps the body one further value away from the canvas.
+`--slot` does not invert: cards are lighter than their well in both themes, so "away from the card"
+is downward in both.
 
 Three colour roles, and only three:
 
@@ -464,7 +472,13 @@ Column hue is derived from the column's position, interpolating hue 225° → 14
 
 This is where the gradient budget is spent, and it is the whole budget:
 
-- A 3px rule at the top of each column, gradient from its own hue to the next column's. Side by side they form one unbroken band across the board.
+- A 3px rule at the top of each column, gradient from its own hue to the next column's. The rules
+  cap each column's own panel rather than meeting edge to edge: columns are separated by a real
+  12px gutter so each has a visible body, and the band is one cap per column. This was traded
+  deliberately — a column you can see the edges of is a drop target you can aim at, and the
+  spectrum still reads because the hue derives from position and re-interpolates with the column
+  count. `app/design`'s proof sheet has always rendered the spectrum gapped; the board now
+  matches it.
 - A hue wash behind the column header at 6% alpha, fading to transparent over ~80px.
 
 Nothing else in the app gets a gradient. No gradient buttons, no gradient text, no gradient card surfaces, no mesh or aurora backgrounds. The restraint is what makes the one gradient mean something.
@@ -519,7 +533,12 @@ Empty states are invitations, not apologies: an empty column reads "Nothing here
 - Server Components by default. `'use client'` only where interaction demands it — the board canvas, the modal, forms.
 - Dates: store UTC `timestamptz`, render in the viewer's locale. Due dates are date-only in the UI.
 - The board scrolls horizontally, columns scroll vertically inside a fixed viewport height. Body scroll stays locked on the board route.
-- Columns are 300px fixed width with 12px gutters on desktop. Below 700px the board switches to one full-width column at a time with a column switcher, and horizontal scroll is dropped rather than shrunk.
+- Columns are 300px fixed width with 12px gutters on desktop, and both are literal: the 312px
+  section spends 12px on a real gutter (`min-[700px]:pr-3`) and the 300px panel inside it carries
+  the well. Cards are 276px — the scroller and the card list each inset 6px — which is where
+  `CARD_WIDTH` in `board-canvas.tsx` comes from. Below 700px the board switches to one full-width
+  column at a time with a column switcher, the panel fills the width with no gutter, and
+  horizontal scroll is dropped rather than shrunk.
 - Optimistic UI everywhere for card and comment creation.
 - Density is comfortable by default; don't add a density toggle.
 - Loading states are skeletons matching final layout, not spinners.

@@ -910,7 +910,7 @@ The header currently lives inside the `overflow-y-auto` element (`board-column.t
 - Consumes: everything from Section A.
 - Produces: no new props. `--well` becomes available as `bg-well`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `components/board/board-column.test.tsx`:
 
@@ -941,12 +941,12 @@ describe('the column body', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run components/board/board-column.test.tsx > /tmp/t7.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t7.log`
 Expected: FAIL — no `bg-well`, and the name appears *after* `overflow-y-auto` in the markup.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `app/globals.css`, add to `:root`:
 
@@ -1029,12 +1029,12 @@ than the slot it left. Do not carry the "288px, unchanged" claim into the implem
 checked against the wrong panel width. Insetting the header further would misalign it against the
 cards for no gain.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run components/board/board-column.test.tsx > /tmp/t7.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/t7.log`
 Expected: EXIT=0, 10 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/board-column.tsx components/board/board-column.test.tsx app/globals.css
@@ -1051,7 +1051,7 @@ git commit -m "feat: give the column a body, and keep its name in sight"
 
 **Interfaces:** none new.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `components/board/board-column.test.tsx`:
 
@@ -1091,12 +1091,12 @@ describe('the card count', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run components/board/board-column.test.tsx > /tmp/t8.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t8.log`
 Expected: FAIL — no `column-count` element.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In the header, between the `<h2>` and the `ColumnMenu`:
 
@@ -1108,12 +1108,12 @@ In the header, between the `<h2>` and the `ColumnMenu`:
 
 `cards` is already the filtered array the column renders, so the count matches what is on screen without further work.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run components/board/board-column.test.tsx > /tmp/t8.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/t8.log`
 Expected: EXIT=0, 14 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/board-column.tsx components/board/board-column.test.tsx
@@ -1130,7 +1130,7 @@ git commit -m "feat: say how many cards a column is holding"
 
 **Interfaces:** none new — the column already knows it is the target, because `dropIndicator` is non-null only there.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `components/board/board-column.test.tsx`:
 
@@ -1161,12 +1161,12 @@ describe('the armed column', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run components/board/board-column.test.tsx > /tmp/t9.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t9.log`
 Expected: FAIL — no `data-armed` attribute.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `components/board/board-column.tsx`, above the return:
 
@@ -1223,12 +1223,12 @@ and to `[data-theme="dark"]`:
   --well-armed: #18202B;
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run components/board/board-column.test.tsx > /tmp/t9.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/t9.log`
 Expected: EXIT=0, 18 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/board-column.tsx components/board/board-column.test.tsx app/globals.css
@@ -1246,7 +1246,7 @@ git commit -m "feat: light the column that is about to receive the card"
 
 **Interfaces:** none new.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `components/board/board-card.test.tsx`:
 
@@ -1264,12 +1264,12 @@ describe('the card has room', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run components/board/board-card.test.tsx > /tmp/t10.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t10.log`
 Expected: FAIL — the card is `px-3 py-2.5`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `components/board/board-card.tsx`, replace `px-3 py-2.5` with `min-h-[58px] p-3.5` in the `<article>`'s className.
 
@@ -1279,12 +1279,12 @@ In `components/board/board-canvas.tsx`, apply the same padding to the overlay so
               className="rounded-[var(--radius-card)] border bg-surface p-3.5 shadow-[0_20px_34px_-10px_rgb(0_0_0/0.75)]"
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run components/board/board-card.test.tsx > /tmp/t10.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/t10.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/board-card.tsx components/board/board-canvas.tsx components/board/board-card.test.tsx
@@ -1295,22 +1295,22 @@ git commit -m "feat: give the cards room to breathe"
 
 ### Task 11: Section B pull request
 
-- [ ] **Step 1: Check the board at 360px and at desktop width**
+- [x] **Step 1: Check the board at 360px and at desktop width**
 
 Run `pnpm dev`. At desktop width confirm the wells are separated by real gutters, the headers stay put when a column scrolls, and the counts are right. At 360px confirm the panel fills the width with no side gutter, and that dragging into the visible column arms it. Screenshot both themes and 360px.
 
-- [ ] **Step 2: Confirm a long column keeps its name**
+- [x] **Step 2: Confirm a long column keeps its name**
 
 Seed or add enough cards to make a column scroll, then scroll it. The name and the ⋯ menu must not move. This is the defect the section exists to fix and it is not proven by a unit test alone.
 
-- [ ] **Step 3: Run the gates**
+- [x] **Step 3: Run the gates**
 
 Run: `pnpm typecheck > /tmp/t.log 2>&1; echo "TYPECHECK=$?"; pnpm lint > /tmp/l.log 2>&1; echo "LINT=$?"; pnpm test > /tmp/v.log 2>&1; echo "TEST=$?"; pnpm build > /tmp/b.log 2>&1; echo "BUILD=$?"; pnpm exec playwright test --reporter=line > /tmp/e.log 2>&1; echo "E2E=$?"; tail -3 /tmp/e.log`
 Expected: all five EXIT=0, the number that ran equal to the number collected.
 
 `e2e/board-responsive.spec.ts` and `e2e/columns.spec.ts` exercise the column and must stay green — the markup around `data-column-id` and `column-name` changed shape, so a failure there is this section's doing, not a flake.
 
-- [ ] **Step 4: Update `CLAUDE.md`**
+- [x] **Step 4: Update `CLAUDE.md`**
 
 Three edits, all in the same commit as the work:
 
@@ -1338,7 +1338,7 @@ with a line noting that `--well` is an inverted token: lighter than the canvas i
 
 3. **"UI conventions"** — the "Columns are 300px fixed width with 12px gutters" line is now literally true rather than simulated by inset padding. Say so, and drop the stale explanation from `board-column.tsx`'s top comment in the same change.
 
-- [ ] **Step 5: Tick this section's boxes, commit, open the PR**
+- [x] **Step 5: Tick this section's boxes, commit, open the PR**
 
 ```bash
 git add CLAUDE.md docs/plans/board-legibility.md
@@ -1356,12 +1356,12 @@ No migration in this section either.
 Ticked only against observed output.
 
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build`, each exit code read directly rather than through a pipe.
-- [ ] `pnpm test:e2e` passes, with the number that ran compared against the number collected.
+- [x] `pnpm test:e2e` passes, with the number that ran compared against the number collected.
 - [x] A cross-column drag shows the line in the target column, observed by hand, in both themes.
 - [x] A keyboard drag shows the same line, observed by hand.
-- [ ] At 360px, dragging into the visible column arms it, observed by hand.
+- [x] At 360px, dragging into the visible column arms it, observed by hand.
 - [x] `prefers-reduced-motion` drops the tilt, the scale and the bloom, observed by hand.
-- [ ] A column long enough to scroll keeps its name and menu in place, observed by hand.
+- [x] A column long enough to scroll keeps its name and menu in place, observed by hand.
 - [ ] Screenshots of a drag in progress, both themes and at 360px, attached to the PRs.
 
 ## Notes carried from brainstorming

@@ -132,3 +132,90 @@ describe('the drop indicator', () => {
     expect(html).not.toContain('hsl(173');
   });
 });
+
+describe('the column body', () => {
+  test('the column sits on a well of its own', () => {
+    expect(render()).toContain('bg-well');
+  });
+
+  // The defect this fixes: the header used to live inside the scrolling
+  // element, so a long column scrolled its own name out of view and left the
+  // hue behind. CLAUDE.md requires the name to be visible whenever the hue is.
+  test('the header is not inside the scrolling element', () => {
+    const html = render();
+    const scroller = html.indexOf('overflow-y-auto');
+    const name = html.indexOf('data-testid="column-name"');
+    expect(name).toBeGreaterThan(-1);
+    expect(scroller).toBeGreaterThan(-1);
+    expect(name).toBeLessThan(scroller);
+  });
+
+  // The droppable must stay on the scrolling body: the empty area below the
+  // last card is a drop target, and moving the ref would change which element
+  // answers a drop.
+  test('the cards still scroll', () => {
+    expect(render()).toContain('overflow-y-auto');
+  });
+});
+
+describe('the card count', () => {
+  test('the header says how many cards the column holds', () => {
+    expect(render()).toContain('data-testid="column-count"');
+    const html = render();
+    const start = html.indexOf('data-testid="column-count"');
+    expect(html.slice(start, html.indexOf('</span>', start))).toContain('2');
+  });
+
+  // It counts what is on screen: a filtered column showing one card that says
+  // "2" is describing a board the reader cannot see.
+  test('a filtered column counts what is shown', () => {
+    const html = render({ cards: [cards[0]], filtering: true });
+    const start = html.indexOf('data-testid="column-count"');
+    expect(html.slice(start, html.indexOf('</span>', start))).toContain('1');
+  });
+
+  test('an empty column counts zero', () => {
+    const html = render({ cards: [] });
+    const start = html.indexOf('data-testid="column-count"');
+    expect(html.slice(start, html.indexOf('</span>', start))).toContain('0');
+  });
+
+  // wipLimit was dropped from the schema deliberately. This is a plain count:
+  // no limit, no threshold, and no warm hue, which is reserved for time and
+  // destructive actions.
+  test('the count carries no colour of its own', () => {
+    const html = render();
+    const start = html.indexOf('data-testid="column-count"');
+    const span = html.slice(start, html.indexOf('</span>', start));
+    expect(span).toContain('font-mono');
+    expect(span).not.toContain('text-time-');
+  });
+});
+
+describe('the armed column', () => {
+  test('a column that is not the target is not armed', () => {
+    expect(render()).not.toContain('data-armed="true"');
+  });
+
+  test('the target column arms itself', () => {
+    expect(render({ dropIndicator: indicator('c2') })).toContain('data-armed="true"');
+  });
+
+  // The ring is the column's own hue, so the arming says which column as well
+  // as that one is armed at all.
+  test('the ring is the column hue', () => {
+    const html = render({ dropIndicator: indicator('c2'), hue: 185 });
+    const start = html.indexOf('data-armed="true"');
+    // The opening tag itself, not a window of fixed length before it: the ring
+    // has to be on the armed element, and a character count would only say it
+    // was somewhere nearby.
+    expect(html.slice(html.lastIndexOf('<', start), start)).toContain('hsl(185 60% 45% / 0.45)');
+  });
+
+  // 6% at rest, 13% while armed. Same gradient at a different alpha, not a
+  // second one: the band and the wash remain the whole gradient budget.
+  test('the wash deepens while armed', () => {
+    expect(render()).toContain('hsl(185 60% 45% / 0.06)');
+    expect(render({ dropIndicator: indicator('c2') })).toContain('hsl(185 60% 45% / 0.13)');
+  });
+});
