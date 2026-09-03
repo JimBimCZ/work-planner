@@ -9,10 +9,14 @@ vi.mock('@/lib/permissions', async () => {
   return { ...actual, assertBoardAccess: (...args: unknown[]) => assertBoardAccess(...args) };
 });
 
-const boardActivity = vi.fn(async (..._args: unknown[]) => [] as unknown[]);
+let lines: unknown[] = [];
+const boardActivity = vi.fn(async (boardId: string) => {
+  void boardId;
+  return lines;
+});
 vi.mock('@/lib/activity', async () => {
   const actual = await vi.importActual<typeof import('@/lib/activity')>('@/lib/activity');
-  return { ...actual, boardActivity: (...a: unknown[]) => boardActivity(...a) };
+  return { ...actual, boardActivity: (boardId: string) => boardActivity(boardId) };
 });
 
 const { openActivity } = await import('./activity');
@@ -22,6 +26,7 @@ beforeEach(() => {
   authMock.mockResolvedValue({ user: { id: 'user-1' } });
   assertBoardAccess.mockReset();
   assertBoardAccess.mockResolvedValue('viewer');
+  lines = [];
   boardActivity.mockClear();
 });
 
@@ -48,5 +53,23 @@ describe('openActivity', () => {
 
     await expect(openActivity({ boardId: 'b1' })).resolves.toMatchObject({ ok: false });
     expect(boardActivity).not.toHaveBeenCalled();
+  });
+
+  test('threads the feed straight through on success', async () => {
+    lines = [
+      {
+        id: 'a1',
+        sentence: 'created this board',
+        actorId: 'user-1',
+        actorName: 'Vit',
+        actorImage: null,
+        createdAt: '2026-09-03T10:00:00.000Z',
+      },
+    ];
+
+    await expect(openActivity({ boardId: 'b1' })).resolves.toEqual({
+      ok: true,
+      data: { lines },
+    });
   });
 });

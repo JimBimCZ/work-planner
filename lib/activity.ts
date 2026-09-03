@@ -133,10 +133,13 @@ export async function boardActivity(boardId: string): Promise<ActivityLine[]> {
 
   // A member.* entry's subject is a person, so their name is read here and
   // never stored. Gone means "a member", which describeActivity renders.
-  const subjectIds = rows.filter((r) => r.type.startsWith('member.')).map((r) => r.subjectId);
+  const subjectIds = rows
+    .filter((r) => r.type.startsWith('member.'))
+    .map((r) => r.subjectId)
+    .filter((id): id is string => !!id);
   const people = subjectIds.length
     ? await db.query.users.findMany({
-        where: (u, { inArray }) => inArray(u.id, subjectIds.filter((id): id is string => !!id)),
+        where: (u, { inArray }) => inArray(u.id, subjectIds),
         columns: { id: true, name: true },
       })
     : [];

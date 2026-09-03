@@ -1,10 +1,26 @@
-import { describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { ACTIVITY_PER_BOARD } from './activity-limits';
 
-const findMany = vi.fn(async (..._args: unknown[]) => [] as unknown[]);
+type ActivityQueryConfig = { limit: number; with: Record<string, unknown> };
+
+let activityCaptured: ActivityQueryConfig | null = null;
+let activityRows: unknown[] = [];
+const findMany = vi.fn(async (config: ActivityQueryConfig) => {
+  activityCaptured = config;
+  return activityRows;
+});
+
+let userRows: unknown[] = [];
+const findUsers = vi.fn(async () => userRows);
+
 vi.mock('@/lib/db', () => ({
-  db: { query: { activity: { findMany: (...a: unknown[]) => findMany(...a) } } },
+  db: {
+    query: {
+      activity: { findMany: (config: ActivityQueryConfig) => findMany(config) },
+      users: { findMany: () => findUsers() },
+    },
+  },
 }));
 
 const { boardActivity, describeActivity } = await import('./activity');
@@ -20,6 +36,26 @@ const base: ActivityEntry = {
   actor: { id: 'u1', name: 'Vit', image: null },
   subjectName: null,
 };
+
+// A member.* row as boardActivity reads it off the wire: no stored subject
+// name, only a subjectId for the join to resolve.
+const memberRemovedRow = {
+  id: 'a2',
+  type: 'member.removed',
+  subjectId: 'user-2',
+  subject: null,
+  detail: null,
+  createdAt: new Date('2026-09-03T11:00:00.000Z'),
+  actor: { id: 'u1', name: 'Vit', image: null },
+};
+
+beforeEach(() => {
+  activityCaptured = null;
+  activityRows = [];
+  userRows = [];
+  findMany.mockClear();
+  findUsers.mockClear();
+});
 
 describe('describeActivity', () => {
   test('names the card and the column it landed in', () => {
@@ -86,7 +122,27 @@ describe('describeActivity', () => {
 test('boardActivity asks for the newest entries and joins the actor', async () => {
   await boardActivity('b1');
 
-  const config = findMany.mock.calls[0][0] as { limit: number; with: Record<string, unknown> };
-  expect(config.limit).toBe(ACTIVITY_PER_BOARD);
-  expect(config.with).toHaveProperty('actor');
+  expect(activityCaptured?.limit).toBe(ACTIVITY_PER_BOARD);
+  expect(activityCaptured?.with).toHaveProperty('actor');
+});
+
+test('resolves a member subject name through the users join when the account still exists', async () => {
+  activityRows = [memberRemovedRow];
+  userRows = [{ id: 'user-2', name: 'Alice' }];
+
+  const lines = await boardActivity('b1');
+
+  expect(lines[0].sentence).toBe('removed Alice from the board');
+});
+
+// The erasure promise itself: this is the assertion that fails loudest if the
+// join or its fallback regresses — an inverted `??`, or filtering the wrong
+// field before `inArray`, would leak a name /privacy says should be gone.
+test('degrades to "a member" when the subject account no longer exists', async () => {
+  activityRows = [memberRemovedRow];
+  userRows = [];
+
+  const lines = await boardActivity('b1');
+
+  expect(lines[0].sentence).toBe('removed a member from the board');
 });
