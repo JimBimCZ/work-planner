@@ -95,7 +95,7 @@ export function ActivityDrawer({ boardId }: { boardId: string }) {
       <SheetTrigger className="rounded-[var(--radius-control)] border border-line px-3 py-1.5 text-sm font-medium">
         Activity
       </SheetTrigger>
-      <SheetContent side="right">
+      <SheetContent>
         <SheetTitle>Activity</SheetTitle>
         {status === 'loading' && <SkeletonRows />}
         {status === 'failed' && (

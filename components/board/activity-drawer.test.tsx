@@ -50,15 +50,51 @@ describe('ActivityDrawer', () => {
   });
 
   test('says what happened when the read fails', async () => {
-    // openActivity itself never resolves to UNREACHABLE — attempt() maps a
-    // rejected call to that shape at the call site. Resolving with it here
-    // is the simplest way to drive the drawer through its failed state.
-    // @ts-expect-error UNREACHABLE is attempt()'s shape, not openActivity's own.
-    vi.mocked(openActivity).mockResolvedValue({ ok: false, error: 'UNREACHABLE' });
+    // A rejection — a dropped connection, a deploy mid-request — not a resolved
+    // error shape: openActivity never resolves to UNREACHABLE itself, attempt()
+    // maps a rejected call to that at the call site (lib/attempt.ts). Rejecting
+    // here drives the real path instead of assuming the wrapping works.
+    vi.mocked(openActivity).mockRejectedValue(new Error('network error'));
     render(<ActivityDrawer boardId="b1" />);
 
     await userEvent.click(screen.getByRole('button', { name: /activity/i }));
 
     expect(await screen.findByText(/could not load/i)).toBeInTheDocument();
+  });
+
+  test('groups activity by calendar day', async () => {
+    const now = new Date();
+    const yesterdayLine = {
+      id: 'y1',
+      sentence: 'renamed the column In Review to Review',
+      actorId: 'u2',
+      actorName: 'Ada',
+      actorImage: null,
+      createdAt: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 9, 0, 0).toISOString(),
+    };
+    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [line, yesterdayLine] } });
+    render(<ActivityDrawer boardId="b1" />);
+
+    await userEvent.click(screen.getByRole('button', { name: /activity/i }));
+
+    expect(await screen.findByText('Today')).toBeInTheDocument();
+    expect(screen.getByText('Yesterday')).toBeInTheDocument();
+  });
+
+  test('folds a few minutes of clock skew into today, not a broken heading', async () => {
+    const futureLine = {
+      id: 'f1',
+      sentence: 'added a comment on Ship it',
+      actorId: 'u3',
+      actorName: 'Grace',
+      actorImage: null,
+      createdAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+    };
+    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [futureLine] } });
+    render(<ActivityDrawer boardId="b1" />);
+
+    await userEvent.click(screen.getByRole('button', { name: /activity/i }));
+
+    expect(await screen.findByText('Today')).toBeInTheDocument();
   });
 });
