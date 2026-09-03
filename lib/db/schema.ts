@@ -267,6 +267,22 @@ export const activity = pgTable(
   (t) => [index('activity_board_id_created_at_idx').on(t.boardId, t.createdAt)],
 );
 
+// Where a reader had got to, so the drawer can draw a line under it. One row
+// per board per reader, and nothing of value in it: it goes with either.
+export const activityReads = pgTable(
+  'activity_reads',
+  {
+    boardId: text('board_id')
+      .notNull()
+      .references(() => boards.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.boardId, t.userId] })],
+);
+
 export const comments = pgTable(
   'comments',
   {

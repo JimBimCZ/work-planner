@@ -1907,7 +1907,7 @@ Branch: `feat/activity-divider`, from `main` once C has landed.
 **Interfaces:**
 - Produces: `activityReads` table — `boardId`, `userId`, `lastSeenAt`, primary key `(boardId, userId)`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `e2e/activity.spec.ts`:
 
@@ -1936,12 +1936,12 @@ test('a read marker goes with its board and with its user', async ({ context }) 
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec playwright test e2e/activity.spec.ts --reporter=line > /tmp/d17.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/d17.log`
 Expected: FAIL with `relation "activity_reads" does not exist`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 export const activityReads = pgTable(
@@ -1959,12 +1959,12 @@ export const activityReads = pgTable(
 );
 ```
 
-- [ ] **Step 4: Generate, migrate, and re-run**
+- [x] **Step 4: Generate, migrate, and re-run**
 
 Run: `pnpm db:generate` then `pnpm db:migrate`, then the Playwright command from Step 2.
 Expected: EXIT=0, 3 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/db/schema.ts lib/db/migrations e2e/activity.spec.ts
@@ -1982,7 +1982,7 @@ git commit -m "feat: add activity_reads, cascading on board and user"
 
 This is the task the feature lives or dies on. Opening the drawer both answers "where was I" and updates the answer; done in the wrong order the line is always at the top and the feature is a no-op.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 describe('openActivity marks the board as seen', () => {
@@ -2023,12 +2023,12 @@ describe('openActivity marks the board as seen', () => {
 
 Extend the file's `@/lib/db` mock with `query.activityReads.findFirst` (as `findFirst`) and an `insert().values().onConflictDoUpdate()` chain recording into `upserted` through `upsertSpy`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run lib/actions/activity.test.ts > /tmp/d18.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/d18.log`
 Expected: FAIL — `seenAt` is undefined and nothing is upserted.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
   // Read before write, and in that order deliberately: the answer to "what is
@@ -2055,12 +2055,12 @@ Expected: FAIL — `seenAt` is undefined and nothing is upserted.
   } as const;
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run lib/actions/activity.test.ts > /tmp/d18.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/d18.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/activity.ts lib/actions/activity.test.ts
@@ -2073,7 +2073,7 @@ git commit -m "feat: answer where you left off, then move the marker"
 
 **Interfaces:** Consumes `seenAt` (Task 18). Produces nothing.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 const older = { ...line, id: 'a0', createdAt: '2026-09-01T10:00:00.000Z' };
@@ -2121,12 +2121,12 @@ test('draws no line when nothing is new', async () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run components/board/activity-drawer.test.tsx > /tmp/d19.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/d19.log`
 Expected: FAIL — no divider is rendered.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```tsx
 // Entries arrive newest first, so the line goes before the first one the
@@ -2145,12 +2145,12 @@ Rendered as a 1px `--line` rule with a `--muted` label reading "New since your l
 **not amber.** Warm is never at rest on the board, and a "new" marker is exactly where a hand
 reaches for it.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run components/board/activity-drawer.test.tsx > /tmp/d19.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/d19.log`
 Expected: EXIT=0, 6 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/activity-drawer.tsx components/board/activity-drawer.test.tsx
@@ -2165,7 +2165,7 @@ git commit -m "feat: draw the line where you last looked"
 
 The policy and the code must not drift, and this is a promise the code has to honour.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```tsx
 test('the policy says a record of board activity is kept', () => {
@@ -2181,12 +2181,12 @@ test('and that it is deleted with the account', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/d20.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/d20.log`
 Expected: FAIL, neither sentence found.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Add to the "What you create" list:
 
@@ -2198,12 +2198,12 @@ And to the retention and deletion section:
 
 Update the "last updated" date on the page, as the policy requires whenever it changes.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run "app/(legal)/privacy/page.test.tsx" > /tmp/d20.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/d20.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add "app/(legal)/privacy/page.tsx" "app/(legal)/privacy/page.test.tsx"
@@ -2214,7 +2214,7 @@ git commit -m "docs: say in the policy what the activity log keeps and when it g
 
 **Files:** Modify `e2e/activity.spec.ts`, `CLAUDE.md`, `docs/plans/activity-log.md`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 test('a member sees what the other one did, under the line', async ({ browser }) => {
@@ -2264,12 +2264,12 @@ test('a member sees what the other one did, under the line', async ({ browser })
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail before the assertions are satisfied**
+- [x] **Step 2: Run it and watch it fail before the assertions are satisfied**
 
 Run: `pnpm exec playwright test e2e/activity.spec.ts --reporter=line > /tmp/d21.log 2>&1; echo "EXIT=$?"; tail -6 /tmp/d21.log`
 Compare the number that ran against the number collected — a passing count is not a passing suite.
 
-- [ ] **Step 3: Fix whatever it finds**
+- [x] **Step 3: Fix whatever it finds**
 
 Any failure here is a real defect in Tasks 17–20, not a test to relax.
 
@@ -2278,7 +2278,14 @@ Any failure here is a real defect in Tasks 17–20, not a test to relax.
 Run: `pnpm typecheck > /tmp/t.log 2>&1; echo "TYPECHECK=$?"; pnpm lint > /tmp/l.log 2>&1; echo "LINT=$?"; pnpm test > /tmp/v.log 2>&1; echo "TEST=$?"; pnpm build > /tmp/b.log 2>&1; echo "BUILD=$?"; pnpm exec playwright test --reporter=line > /tmp/e.log 2>&1; echo "E2E=$?"; tail -3 /tmp/e.log`
 Expected: all five EXIT=0.
 
-- [ ] **Step 5: Close the sub-project**
+Observed on 2026-09-03: `TYPECHECK=0 LINT=0 TEST=0` (610 passed, 8 skipped) and `BUILD=0`.
+`E2E=1` — 145 passed and 3 failed of 148 collected, all three in `e2e/attachments.spec.ts`
+(`Nothing attached yet` never renders). Neither `.env` nor `.env.local` carries `S3_ENDPOINT` and
+no MinIO is running locally, so `storageConfigured()` is false and no attachment surface exists to
+test. Unrelated to this section, which touches nothing in that path — but the box stays unticked
+until the run is green somewhere that has a bucket, which is what CI is for.
+
+- [x] **Step 5: Close the sub-project**
 
 In `CLAUDE.md`: add `activity_reads` to the data model, move the activity log out of "Open decisions" into a settled paragraph pointing at `docs/specs/activity-log.md`, and leave board archive versus hard delete as the last open decision. Then:
 
@@ -2303,10 +2310,10 @@ Confirm `activity_reads` is in `information_schema.tables` and that the applied 
 
 Ticked only against observed output. These are the spec's boxes; the task steps above are how they get filled.
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build` all pass, each exit code read directly rather than through a pipe.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build` all pass, each exit code read directly rather than through a pipe.
 - [ ] `pnpm test:e2e` passes, with the number that ran compared against the number collected.
 - [ ] Migration `0007` (A) and `0008` (D) applied to production in the same sitting as their merges, confirmed by reading `information_schema.tables` back.
-- [ ] A within-column drag writes no entry, observed against the real table rather than inferred from the test.
+- [x] A within-column drag writes no entry, observed against the real table rather than inferred from the test.
 - [ ] The drawer opens, reads and closes on a deployed preview at 360px as well as at desktop width.
-- [ ] The divider sits above the unseen entries on a second browser, and moves on the next open.
-- [ ] Deleting an account removes that member's entries from a board owned by somebody else, observed in the database.
+- [x] The divider sits above the unseen entries on a second browser, and moves on the next open.
+- [x] Deleting an account removes that member's entries from a board owned by somebody else, observed in the database.

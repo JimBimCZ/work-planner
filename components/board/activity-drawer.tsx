@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 
 import { openActivity } from '@/lib/actions/activity';
 // import type, not import: lib/activity imports lib/db, which builds a pg pool
@@ -56,6 +56,29 @@ function groupByDay(lines: ActivityLine[]): { heading: string; items: ActivityLi
   return groups;
 }
 
+// Entries arrive newest first, so the line goes before the first one the
+// reader has already seen. Null seenAt is a first visit — everything is new,
+// which means nothing is marked as new.
+function dividerBefore(lines: ActivityLine[], seenAt: string | null): string | null {
+  if (!seenAt) return null;
+  const first = lines.find((line) => line.createdAt <= seenAt);
+  // Nothing older than the marker means the whole feed is new; nothing newer
+  // means nothing happened. Neither draws a line.
+  return first && first.id !== lines[0]?.id ? first.id : null;
+}
+
+// --line and --muted, never amber: "new" is exactly where a hand reaches for a
+// warning colour, and warm is never at rest on the board.
+function Divider() {
+  return (
+    <li role="separator" className="flex items-center gap-3">
+      <span aria-hidden className="h-px flex-1 bg-line" />
+      <span className="shrink-0 text-xs text-muted">New since your last visit</span>
+      <span aria-hidden className="h-px flex-1 bg-line" />
+    </li>
+  );
+}
+
 function SkeletonRows() {
   return (
     <ul className="mt-4 space-y-4" aria-hidden>
@@ -74,6 +97,7 @@ export function ActivityDrawer({ boardId }: { boardId: string }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
   const [lines, setLines] = useState<ActivityLine[]>([]);
+  const [seenAt, setSeenAt] = useState<string | null>(null);
 
   // Read on open, not on mount: the drawer is opened deliberately, and a
   // board nobody opens it on should cost nothing.
@@ -85,8 +109,11 @@ export function ActivityDrawer({ boardId }: { boardId: string }) {
       return;
     }
     setLines(result.data.lines);
+    setSeenAt(result.data.seenAt);
     setStatus('ready');
   }
+
+  const dividerId = dividerBefore(lines, seenAt);
 
   const statusMessage =
     status === 'loading'
@@ -133,32 +160,35 @@ export function ActivityDrawer({ boardId }: { boardId: string }) {
                   </h3>
                   <ul className="mt-2 space-y-3">
                     {items.map((entry) => (
-                      <li key={entry.id} className="flex items-start gap-3">
-                        <span
-                          aria-hidden
-                          className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-medium text-white"
-                          style={
-                            entry.actorImage
-                              ? undefined
-                              : { background: `hsl(${avatarHue(entry.actorId)} 45% 40%)` }
-                          }
-                        >
-                          {entry.actorImage ? (
-                            <Image src={entry.actorImage} alt="" width={28} height={28} />
-                          ) : (
-                            initials(entry.actorName ?? 'Someone', '')
-                          )}
-                        </span>
-                        <span className="min-w-0 flex-1 break-words text-[15px] leading-6">
-                          <strong>{entry.actorName ?? 'Someone'}</strong> {entry.sentence}
-                        </span>
-                        <time
-                          dateTime={entry.createdAt}
-                          className="shrink-0 font-mono text-xs text-muted"
-                        >
-                          {relative(entry.createdAt)}
-                        </time>
-                      </li>
+                      <Fragment key={entry.id}>
+                        {entry.id === dividerId && <Divider />}
+                        <li className="flex items-start gap-3">
+                          <span
+                            aria-hidden
+                            className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-medium text-white"
+                            style={
+                              entry.actorImage
+                                ? undefined
+                                : { background: `hsl(${avatarHue(entry.actorId)} 45% 40%)` }
+                            }
+                          >
+                            {entry.actorImage ? (
+                              <Image src={entry.actorImage} alt="" width={28} height={28} />
+                            ) : (
+                              initials(entry.actorName ?? 'Someone', '')
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1 break-words text-[15px] leading-6">
+                            <strong>{entry.actorName ?? 'Someone'}</strong> {entry.sentence}
+                          </span>
+                          <time
+                            dateTime={entry.createdAt}
+                            className="shrink-0 font-mono text-xs text-muted"
+                          >
+                            {relative(entry.createdAt)}
+                          </time>
+                        </li>
+                      </Fragment>
                     ))}
                   </ul>
                 </li>

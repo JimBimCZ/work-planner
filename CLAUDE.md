@@ -204,6 +204,7 @@ attachments        id, boardId, cardId, uploaderId, key, filename,
                    createdAt                                           unique (key)
 activity           id, boardId, actorId, type, subjectId, subject,
                    detail, createdAt                                   index (boardId, createdAt)
+activity_reads     boardId, userId, lastSeenAt                         PK (boardId, userId)
 ```
 
 Rules:
@@ -245,6 +246,16 @@ Rules:
   feed reads. Vercel rules out a scheduled job, so trimming on write is the only way this table is
   ever bounded. `ACTIVITY_SUBJECT_MAX` (120) caps the stored name. Neither is a check constraint,
   matching the label and attachment caps.
+- `activity_reads` holds where a reader had got to on a board, so the drawer can draw a line under
+  it. Both references cascade — the row is worth nothing without its board or its reader — and it
+  carries no id of its own: the pair *is* the key. **`openActivity` reads the marker before it
+  writes it**, and that order is the whole feature: upserting first would make `seenAt` always
+  "now", the line would sit at the top of every visit, and the drawer would answer "what is new"
+  with "everything". The divider is drawn client-side by `dividerBefore` in
+  `components/board/activity-drawer.tsx`, immediately above the newest entry the reader has already
+  seen — so it marks the boundary rather than heading a group. It draws nothing when the marker is
+  absent (a first visit) or when every entry is newer than it, because a line under the whole feed
+  says the same thing as no line at all.
 - `recordActivity` is written **inside** the transaction, unlike `publish` and for the opposite
   reason: an event announces something that already happened, while an entry is part of what
   happened. It is the last write in that transaction, after `touchBoard` where that applies, and it
@@ -765,7 +776,6 @@ One section of the plan, one branch, one PR. Ship the PR as soon as the section 
 
 Not settled yet — raise these rather than deciding unilaterally:
 
-- Activity log.
 - Board archive vs hard delete.
 
 **Account deletion is settled** and built: self-service from `/account`, immediate, hard delete, in
@@ -788,8 +798,16 @@ kept live over two Pusher events with a count on the card face. The uploader or 
 delete one — the single place a board owner outranks an author, and "Auth and permissions" says why.
 `docs/specs/attachments.md` holds the reasoning.
 
+**The activity log is settled** and built: a board-wide feed of who did what, written inside the
+transaction that did it, trimmed to `ACTIVITY_PER_BOARD` on every write, read at the viewer floor
+when the drawer opens, and marked with a line where the reader last looked. It deliberately does not
+stream — see "Realtime" — and its entries cascade with the actor's account, which is what lets
+`/privacy` say the record of what you did is deleted with you. `docs/specs/activity-log.md` holds
+the reasoning.
+
 Remaining sub-projects: member management and invites is shipped in full, Sections A–D; labels the
-same, Sections A–D; attachments the same, Sections A–D. Nothing is queued behind them.
+same, Sections A–D; attachments the same, Sections A–D; the activity log the same, Sections A–D.
+Nothing is queued behind them.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

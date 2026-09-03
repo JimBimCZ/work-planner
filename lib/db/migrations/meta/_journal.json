@@ -57,6 +57,13 @@
       "when": 1788440922245,
       "tag": "0007_chief_beyonder",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788455508806,
+      "tag": "0008_messy_nightshade",
+      "breakpoints": true
     }
   ]
 }
