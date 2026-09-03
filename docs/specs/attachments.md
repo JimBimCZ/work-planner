@@ -576,7 +576,11 @@ that did not actually check it.
       is checked before the bucket exists. What would close this box is an
       authenticated `HeadBucket` against the plain endpoint returning
       `NoSuchBucket` rather than `AccessDenied`, and it still needs the
-      production Cloudflare credentials.
+      production Cloudflare credentials. That check is now written down as
+      `pnpm r2:verify` (`scripts/verify-r2-jurisdiction.mts`), so closing this
+      box is running one command with those four values exported — the script
+      keeps the account id out of its own output, so its verdict can be pasted
+      into a public pull request.
 - [x] The production bucket's CORS policy admits the browser's presigned `PUT`
       — verified 2026-09-03 with an `OPTIONS` preflight against the real bucket,
       not a dashboard reading. Both production aliases answer `204` with
