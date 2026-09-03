@@ -553,7 +553,7 @@ describe('setCardDueDate', () => {
 
 describe('moveCard', () => {
   beforeEach(() => {
-    columnRow = { id: 'col-2', boardId: 'b1' };
+    columnRow = { id: 'col-2', boardId: 'b1', name: 'In Review' };
     cardsInColumn = [
       { id: 'card-a', rank: 'a0' },
       { id: 'card-b', rank: 'a1' },
@@ -629,7 +629,7 @@ describe('moveCard', () => {
   });
 
   test('refuses a target column on another board', async () => {
-    columnRow = { id: 'col-2', boardId: 'other-board' };
+    columnRow = { id: 'col-2', boardId: 'other-board', name: 'Elsewhere' };
     await expect(
       moveCard({
         cardId: 'card-1',
@@ -681,7 +681,7 @@ describe('moveCard', () => {
   // Access is decided before the cross-board question is asked. Answering that
   // first would tell a non-member whether two ids sit on the same board.
   test('refuses a non-member before it says whether the target is on their board', async () => {
-    columnRow = { id: 'col-2', boardId: 'other-board' };
+    columnRow = { id: 'col-2', boardId: 'other-board', name: 'Elsewhere' };
     assertBoardAccess.mockRejectedValue(new BoardAccessError('NOT_FOUND'));
 
     await expect(

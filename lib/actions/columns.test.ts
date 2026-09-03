@@ -388,7 +388,7 @@ describe('deleteColumn', () => {
   });
 
   test("refuses to delete a board's last column", async () => {
-    boardColumnRows = [{ id: 'col-2', rank: 'a0' }];
+    boardColumnRows = [{ id: 'col-2', rank: 'a0', name: 'Backlog' }];
     await expect(
       deleteColumn({ columnId: 'col-2', targetColumnId: 'col-2', mutationId: MUTATION_ID }),
     ).resolves.toEqual({
@@ -496,7 +496,7 @@ describe('deleteColumn', () => {
   });
 
   test('publishes nothing when the column is the last one', async () => {
-    boardColumnRows = [{ id: 'col-2', rank: 'a0' }];
+    boardColumnRows = [{ id: 'col-2', rank: 'a0', name: 'Backlog' }];
     await deleteColumn({ columnId: 'col-2', targetColumnId: 'col-1', mutationId: MUTATION_ID });
     expect(publish).not.toHaveBeenCalled();
   });

@@ -57,6 +57,8 @@ export async function addColumn(input: unknown) {
     return boardAccessResult(error);
   }
 
+  const actorId = session.user.id;
+
   const created = await db.transaction(async (tx) => {
     const siblings = await siblingColumns(tx, boardId);
 
@@ -71,7 +73,7 @@ export async function addColumn(input: unknown) {
     await touchBoard(tx, boardId);
     await recordActivity(tx, {
       boardId,
-      actorId: session.user.id,
+      actorId,
       type: 'column.created',
       subjectId: row.id,
       subject: name,
@@ -109,6 +111,8 @@ export async function renameColumn(input: unknown) {
     return boardAccessResult(error);
   }
 
+  const actorId = session.user.id;
+
   await db.transaction(async (tx) => {
     // The old name is read before the update, because the entry names both.
     const previous = await tx.query.columns.findFirst({
@@ -123,7 +127,7 @@ export async function renameColumn(input: unknown) {
     await touchBoard(tx, boardId);
     await recordActivity(tx, {
       boardId,
-      actorId: session.user.id,
+      actorId,
       type: 'column.renamed',
       subjectId: parsed.data.columnId,
       subject: parsed.data.name,
@@ -210,6 +214,8 @@ export async function deleteColumn(input: unknown) {
     return boardAccessResult(error);
   }
 
+  const actorId = session.user.id;
+
   const outcome = await db.transaction(async (tx) => {
     const siblings = await siblingColumns(tx, boardId);
     if (siblings.length <= 1) return 'LAST_COLUMN' as const;
@@ -243,7 +249,7 @@ export async function deleteColumn(input: unknown) {
     // the whole of what happened.
     await recordActivity(tx, {
       boardId,
-      actorId: session.user.id,
+      actorId,
       type: 'column.deleted',
       subjectId: columnId,
       subject: column?.name ?? null,

@@ -133,12 +133,14 @@ export async function renameCard(input: unknown) {
     return boardAccessResult(error);
   }
 
+  const actorId = session.user.id;
+
   await db.transaction(async (tx) => {
     await tx.update(cards).set({ title: parsed.data.title }).where(eq(cards.id, parsed.data.cardId));
     await touchBoard(tx, boardId);
     await recordActivity(tx, {
       boardId,
-      actorId: session.user.id,
+      actorId,
       type: 'card.renamed',
       subjectId: parsed.data.cardId,
       subject: parsed.data.title,
@@ -179,12 +181,14 @@ export async function setCardDescription(input: unknown) {
   // An emptied field is a cleared description, not a rejected one.
   const description = parsed.data.description === '' ? null : parsed.data.description;
 
+  const actorId = session.user.id;
+
   await db.transaction(async (tx) => {
     await tx.update(cards).set({ description }).where(eq(cards.id, parsed.data.cardId));
     await touchBoard(tx, boardId);
     await recordActivity(tx, {
       boardId,
-      actorId: session.user.id,
+      actorId,
       type: 'card.described',
       subjectId: parsed.data.cardId,
       subject: card.title,
@@ -253,13 +257,15 @@ export async function setCardDueDate(input: unknown) {
     return boardAccessResult(error);
   }
 
+  const actorId = session.user.id;
+
   await db.transaction(async (tx) => {
     await tx.update(cards).set({ dueDate }).where(eq(cards.id, parsed.data.cardId));
     await touchBoard(tx, boardId);
     // Date-only in the UI, so date-only in the entry.
     await recordActivity(tx, {
       boardId,
-      actorId: session.user.id,
+      actorId,
       type: dueDate ? 'card.due_set' : 'card.due_cleared',
       subjectId: parsed.data.cardId,
       subject: card.title,
@@ -306,12 +312,14 @@ export async function deleteCard(input: unknown) {
     .from(attachments)
     .where(eq(attachments.cardId, parsed.data.cardId));
 
+  const actorId = session.user.id;
+
   await db.transaction(async (tx) => {
     await tx.delete(cards).where(eq(cards.id, parsed.data.cardId));
     await touchBoard(tx, boardId);
     await recordActivity(tx, {
       boardId,
-      actorId: session.user.id,
+      actorId,
       type: 'card.deleted',
       subjectId: parsed.data.cardId,
       subject: card.title,
@@ -355,6 +363,8 @@ export async function moveCard(input: unknown) {
   const targetBoardId = await boardIdForColumn(toColumnId);
   if (targetBoardId !== boardId) return { ok: false, error: 'INVALID' } as const;
 
+  const actorId = session.user.id;
+
   const rank = await db.transaction(async (tx) => {
     const siblings = await tx.query.cards.findMany({
       where: (card, { eq: is }) => is(card.columnId, toColumnId),
@@ -390,7 +400,7 @@ export async function moveCard(input: unknown) {
       });
       await recordActivity(tx, {
         boardId,
-        actorId: session.user.id,
+        actorId,
         type: 'card.moved',
         subjectId: cardId,
         subject: current.title,
