@@ -87,9 +87,7 @@ function CardMeta({ card, labels }: { card: StateCard; labels: BoardLabel[] }) {
 export function CardFace({ card, labels }: { card: StateCard; labels: BoardLabel[] }) {
   return (
     <>
-      <h3 data-testid="card-title" className="text-sm font-medium leading-5 text-ink">
-        {card.title}
-      </h3>
+      <h3 className="text-sm font-medium leading-5 text-ink">{card.title}</h3>
       <CardMeta card={card} labels={labels} />
     </>
   );
