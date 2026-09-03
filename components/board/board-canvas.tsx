@@ -602,7 +602,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
           {dragging ? (
             <article
               aria-hidden
-              className="rounded-[var(--radius-card)] border bg-surface px-3 py-2.5 shadow-[0_20px_34px_-10px_rgb(0_0_0/0.75)]"
+              className="rounded-[var(--radius-card)] border bg-surface p-3.5 shadow-[0_20px_34px_-10px_rgb(0_0_0/0.75)]"
               style={{
                 width: CARD_WIDTH,
                 // The hue of the column it came from, so a card in flight

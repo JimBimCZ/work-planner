@@ -154,7 +154,7 @@ export function BoardCard({
         transition,
         boxShadow: ringHue === undefined ? undefined : `0 0 0 2px hsl(${ringHue} 55% 55% / 0.9)`,
       }}
-      className={`card-enter group relative rounded-[var(--radius-card)] border px-3 py-2.5 transition-shadow duration-200 ${
+      className={`card-enter group relative min-h-[58px] rounded-[var(--radius-card)] border p-3.5 transition-shadow duration-200 ${
         // The card in flight is carried by the overlay; what is left behind is
         // the socket it came out of, so it reads as absence rather than as a
         // faded second copy. The border stays and turns transparent — removing
