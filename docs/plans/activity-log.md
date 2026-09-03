@@ -2273,7 +2273,7 @@ Compare the number that ran against the number collected — a passing count is 
 
 Any failure here is a real defect in Tasks 17–20, not a test to relax.
 
-- [ ] **Step 4: Run every gate**
+- [x] **Step 4: Run every gate**
 
 Run: `pnpm typecheck > /tmp/t.log 2>&1; echo "TYPECHECK=$?"; pnpm lint > /tmp/l.log 2>&1; echo "LINT=$?"; pnpm test > /tmp/v.log 2>&1; echo "TEST=$?"; pnpm build > /tmp/b.log 2>&1; echo "BUILD=$?"; pnpm exec playwright test --reporter=line > /tmp/e.log 2>&1; echo "E2E=$?"; tail -3 /tmp/e.log`
 Expected: all five EXIT=0.
@@ -2284,6 +2284,12 @@ Observed on 2026-09-03: `TYPECHECK=0 LINT=0 TEST=0` (610 passed, 8 skipped) and 
 no MinIO is running locally, so `storageConfigured()` is false and no attachment surface exists to
 test. Unrelated to this section, which touches nothing in that path — but the box stays unticked
 until the run is green somewhere that has a bucket, which is what CI is for.
+
+CI is that place, and it is green. PR #102's `verify` job — which runs `db:migrate`, `typecheck`,
+`lint`, `test` and `test:e2e` against its own throwaway Postgres and a MinIO bucket it creates
+itself — reports **148 passed** and numbers the last test `148`, so the number that ran equals the
+number collected. The three local attachment failures are absent there, which is what a missing
+bucket rather than a defect looks like. Run 33785584615.
 
 - [x] **Step 5: Close the sub-project**
 
@@ -2296,13 +2302,27 @@ git push -u origin feat/activity-divider
 gh pr create --base main --title "feat: activity log Section D — the divider and the policy"
 ```
 
-- [ ] **Step 6: Apply `0008` to production on merge, and read the table list back**
+- [x] **Step 6: Apply `0008` to production on merge, and read the table list back**
 
 ```bash
 MIGRATE_URL="$(npx --yes neonctl@4 connection-string main --project-id withered-glade-54206401 --org-id org-silent-block-21833986)" pnpm db:migrate
 ```
 
 Confirm `activity_reads` is in `information_schema.tables` and that the applied count in `drizzle.__drizzle_migrations` equals the file count in `lib/db/migrations/`. Five against six is what the labels incident looked like from the outside.
+
+**Applied 2026-09-03**, in the same sitting as PR #102's merge (`b061c0a`). Read back rather than
+trusted to the success line — and read *before* as well, which is what makes the after meaningful:
+production stood at **8 applied against 9 files** with no `activity_reads`, exactly the shape of
+the labels incident. After the migration it is **9 against 9**, `activity_reads` is in `public`,
+its columns are `board_id`, `user_id`, `last_seen_at`, all three `not null`,
+`activity_reads_board_id_user_id_pk` is the composite primary key with no id of its own, and
+`pg_constraint` reports `confdeltype = 'c'` on both foreign keys.
+
+Nobody hit the gap. Vercel's runtime errors over the window from the 17:44 merge to the migration
+carry no `relation "activity_reads" does not exist`; the newest entry of any kind is 16:35, and the
+only errors in the last six hours are the already-fixed `S3_ENDPOINT` placeholder from 11:53.
+After the migration `/api/health` answers `200` from `x-vercel-id: fra1::fra1::…` and `/boards`
+still `307`s to `/signin`.
 
 ---
 
@@ -2311,9 +2331,9 @@ Confirm `activity_reads` is in `information_schema.tables` and that the applied 
 Ticked only against observed output. These are the spec's boxes; the task steps above are how they get filled.
 
 - [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build` all pass, each exit code read directly rather than through a pipe.
-- [ ] `pnpm test:e2e` passes, with the number that ran compared against the number collected.
-- [ ] Migration `0007` (A) and `0008` (D) applied to production in the same sitting as their merges, confirmed by reading `information_schema.tables` back.
+- [x] `pnpm test:e2e` passes, with the number that ran compared against the number collected. 148 of 148 in CI (run 33785584615); locally 145 of 148, the three gaps being `e2e/attachments.spec.ts` with no bucket configured.
+- [x] Migration `0007` (A) and `0008` (D) applied to production in the same sitting as their merges, confirmed by reading `information_schema.tables` back. `0007` at 8 of 8, `0008` at 9 of 9.
 - [x] A within-column drag writes no entry, observed against the real table rather than inferred from the test.
-- [ ] The drawer opens, reads and closes on a deployed preview at 360px as well as at desktop width.
+- [ ] The drawer opens, reads and closes on a deployed preview at 360px as well as at desktop width. Checked against `pnpm dev` at both widths and captured in `docs/screenshots/activity-section-d/`, but **not** on a deployed preview: that needs a signed-in browser, and sign-in is OAuth only. Left for a human with a session.
 - [x] The divider sits above the unseen entries on a second browser, and moves on the next open.
 - [x] Deleting an account removes that member's entries from a board owned by somebody else, observed in the database.
