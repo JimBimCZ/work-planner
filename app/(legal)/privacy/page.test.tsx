@@ -83,6 +83,16 @@ describe('privacy policy', () => {
     expect(html()).toMatch(/stays in the database/i);
   });
 
+  test('says a record of board activity is kept', () => {
+    expect(html()).toMatch(/record of what changed on a board/i);
+  });
+
+  // The cascade in lib/db/schema.ts is what makes this sentence true. If the
+  // schema ever changes to set null, this test is the thing that should stop it.
+  test('and that it is deleted with the account', () => {
+    expect(html()).toMatch(/record of what you did .* deleted with your account/i);
+  });
+
   test('is statically rendered and titled', () => {
     expect(metadata.title).toBeTruthy();
   });

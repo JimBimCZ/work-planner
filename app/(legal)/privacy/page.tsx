@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: 'What Work Planner collects, why, and what you can ask us to do about it.',
 };
 
-const LAST_UPDATED = '2 September 2026';
+const LAST_UPDATED = '3 September 2026';
 
 const CONTROLLER = 'Vit Busek';
 const CONTACT_EMAIL = 'busek.vit@gmail.com';
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
       </Section>
 
       <Section title="What we collect">
-        <p className="text-[15px]/6">Four things, and nothing beyond them:</p>
+        <p className="text-[15px]/6">Five things, and nothing beyond them:</p>
         <ul className="flex list-disc flex-col gap-2 pl-5 text-[15px]/6">
           <li>
             <strong className="font-medium">Your profile from Google or GitHub</strong> — name,
@@ -66,6 +66,11 @@ export default function PrivacyPage() {
             <strong className="font-medium">What you create</strong> — boards, columns, cards,
             descriptions, due dates, and comments, and any files you attach to a card — their
             contents, filename, size and type — along with who made them and when.
+          </li>
+          <li>
+            <strong className="font-medium">A record of board activity</strong> — a record of what
+            changed on a board and who changed it, kept for the most recent 500 changes to that
+            board.
           </li>
           <li>
             <strong className="font-medium">A session cookie</strong> — so the app knows you are
@@ -152,7 +157,9 @@ export default function PrivacyPage() {
           <span className="font-mono text-sm">{CONTACT_EMAIL}</span> before you delete your account,
           because afterwards nothing links them to you. Files you attached to boards owned by other
           people stay on those boards too, and stop being linked to you, on the same terms and for
-          the same reason.
+          the same reason. The record of what you did on a board, on the other hand, is deleted with
+          your account, on every board — it is a record of an action rather than something you
+          wrote, so nothing another member left goes with it.
         </p>
       </Section>
 
