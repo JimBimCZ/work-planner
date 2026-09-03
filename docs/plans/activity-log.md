@@ -1493,7 +1493,7 @@ Branch: `feat/activity-drawer`, from `main` once B has landed.
 
 The sentence is rendered **on the server**. That is what keeps `lib/activity.ts` — which imports `lib/db` from this task on — out of the client bundle: the drawer takes `ActivityLine` through `import type`, which is erased.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `lib/activity.test.ts`:
 
@@ -1573,12 +1573,12 @@ describe('openActivity', () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm exec vitest run lib/activity.test.ts lib/actions/activity.test.ts > /tmp/c14.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/c14.log`
 Expected: FAIL — neither `boardActivity` nor `openActivity` exists.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Add to `lib/activity.ts`:
 
@@ -1674,12 +1674,12 @@ export async function openActivity(input: unknown) {
 not duplicate it. `lib/activity.test.ts` also needs `import { ACTIVITY_PER_BOARD } from './activity-limits';`
 for the new assertion.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `pnpm exec vitest run lib/activity.test.ts lib/actions/activity.test.ts > /tmp/c14.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/c14.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/activity.ts lib/activity.test.ts lib/actions/activity.ts lib/actions/activity.test.ts
@@ -1696,7 +1696,7 @@ git commit -m "feat: read a board's feed, rendered on the server"
 - Consumes: `openActivity` (Task 14), `ActivityLine` (Task 14) through `import type`.
 - Produces: `<ActivityDrawer boardId={string} />`. Task 19 adds the divider to this component.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `components/board/activity-drawer.test.tsx`:
 
@@ -1763,12 +1763,12 @@ describe('ActivityDrawer', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run components/board/activity-drawer.test.tsx > /tmp/c15.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/c15.log`
 Expected: FAIL — cannot resolve `activity-drawer`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `components/ui/sheet.tsx` from shadcn's Sheet — it is the same `@radix-ui/react-dialog` `components/ui/dialog.tsx` already uses, so no dependency is added. Re-tokenise it the way `dialog.tsx` is: `--surface` panel, `--line` border, radius 16 on the inner edge only, and the 2px accent focus ring at 2px offset. Keep only the `side="right"` variant; delete the other three rather than carrying code nothing calls.
 
@@ -1852,12 +1852,12 @@ respects `prefers-reduced-motion` by appearing in place with no slide transform.
 
 Add `<ActivityDrawer boardId={boardId} />` to the board header beside the members button.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run components/board/activity-drawer.test.tsx > /tmp/c15.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/c15.log`
 Expected: EXIT=0, 3 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/ui/sheet.tsx components/board/activity-drawer.tsx components/board/activity-drawer.test.tsx
@@ -1866,21 +1866,21 @@ git commit -m "feat: add the activity drawer, read when it opens"
 
 ### Task 16: Section C pull request
 
-- [ ] **Step 1: Check the drawer at 360px and at desktop width**
+- [x] **Step 1: Check the drawer at 360px and at desktop width**
 
 Run `pnpm dev`, open a board, and confirm the drawer is full width below 700px and does not make the body scroll horizontally. Screenshot both for the PR — `CLAUDE.md` requires screenshots for a UI change.
 
-- [ ] **Step 2: Confirm the client bundle stayed clean**
+- [x] **Step 2: Confirm the client bundle stayed clean**
 
 Run: `pnpm build > /tmp/build.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/build.log`
 Expected: EXIT=0. A `dns`/`fs`/`net`/`tls` failure here means the drawer imported a value from `lib/activity.ts` rather than a type — only bundling catches that.
 
-- [ ] **Step 3: Run the gates**
+- [x] **Step 3: Run the gates**
 
 Run: `pnpm typecheck > /tmp/t.log 2>&1; echo "TYPECHECK=$?"; pnpm lint > /tmp/l.log 2>&1; echo "LINT=$?"; pnpm test > /tmp/v.log 2>&1; echo "TEST=$?"; tail -4 /tmp/v.log`
 Expected: all three EXIT=0.
 
-- [ ] **Step 4: Tick this section's boxes, commit, open the PR**
+- [x] **Step 4: Tick this section's boxes, commit, open the PR**
 
 ```bash
 git add docs/plans/activity-log.md CLAUDE.md
