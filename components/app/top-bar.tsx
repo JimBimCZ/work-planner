@@ -8,6 +8,7 @@ export function TopBar({
   email,
   image,
   title,
+  nav,
   actions,
 }: {
   userId: string;
@@ -15,16 +16,23 @@ export function TopBar({
   email: string;
   image: string | null;
   title?: string;
+  // Navigation, not an action: it sits to the left of the title so the bar
+  // reads as "Boards / this board" rather than burying the way out among the
+  // things you do to the board you are on.
+  nav?: React.ReactNode;
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="flex shrink-0 items-center justify-between border-b border-line bg-surface px-4 py-2.5">
-      {title ? (
-        <h1 className="text-[15px] font-medium tracking-[-0.01em]">{title}</h1>
-      ) : (
-        <span className="text-[15px] font-medium">Work Planner</span>
-      )}
-      <div className="flex items-center gap-3">
+    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-4 py-2.5">
+      <div className="flex min-w-0 items-center gap-3">
+        {nav}
+        {title ? (
+          <h1 className="truncate text-[15px] font-medium tracking-[-0.01em]">{title}</h1>
+        ) : (
+          <span className="text-[15px] font-medium">Work Planner</span>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-3">
         {actions}
         <AccountMenu userId={userId} name={name} email={email} image={image} />
       </div>

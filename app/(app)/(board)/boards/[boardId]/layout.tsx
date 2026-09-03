@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 
+import { BoardsDrawer } from '@/components/app/boards-drawer';
 import { TopBar } from '@/components/app/top-bar';
 import { ActivityDrawer } from '@/components/board/activity-drawer';
 import { BoardActionsProvider } from '@/components/board/board-actions';
@@ -9,7 +10,7 @@ import { MembershipWatch } from '@/components/board/membership-watch';
 import { NewCardButton } from '@/components/board/new-card-button';
 import { RealtimeProvider } from '@/components/board/realtime';
 import { auth } from '@/lib/auth';
-import { getBoardWithColumns } from '@/lib/boards';
+import { getBoardWithColumns, listBoardsForUser } from '@/lib/boards';
 import { assertBoardAccess, atLeast, BoardAccessError } from '@/lib/permissions';
 
 // This layout and the page it wraps both check access and both read the board.
@@ -40,6 +41,11 @@ export default async function BoardTitleLayout({
   const board = await getBoardWithColumns(boardId);
   if (!board) notFound();
 
+  // Read here rather than on open: one indexed query on board_members(userId),
+  // which buys the drawer a list with no loading state, and router.refresh()
+  // from NewBoardDialog and BoardRowMenu keeps it current.
+  const boards = await listBoardsForUser(session.user.id);
+
   return (
     <RealtimeProvider boardId={boardId}>
       <MembershipWatch viewerId={session.user.id} />
@@ -47,6 +53,7 @@ export default async function BoardTitleLayout({
         <div className="flex h-screen flex-col overflow-hidden">
           <TopBar
             title={board.name}
+            nav={<BoardsDrawer boards={boards} currentBoardId={boardId} />}
             actions={
               <>
                 <LabelFilter
