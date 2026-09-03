@@ -1,3 +1,8 @@
+import { desc } from 'drizzle-orm';
+
+import { db } from '@/lib/db';
+import { ACTIVITY_PER_BOARD } from '@/lib/activity-limits';
+
 // The union is closed and the switch below is exhaustive, so adding a type
 // without giving it a sentence fails `pnpm typecheck` on the `never`
 // assignment — the guarantee EveryEventIsBound gives the event set.
@@ -107,4 +112,51 @@ export function describeActivity(entry: ActivityEntry): string {
       return unreachable;
     }
   }
+}
+
+export type ActivityLine = {
+  id: string;
+  sentence: string;
+  actorId: string;
+  actorName: string | null;
+  actorImage: string | null;
+  createdAt: string;
+};
+
+export async function boardActivity(boardId: string): Promise<ActivityLine[]> {
+  const rows = await db.query.activity.findMany({
+    where: (a, { eq }) => eq(a.boardId, boardId),
+    orderBy: (a) => [desc(a.createdAt)],
+    limit: ACTIVITY_PER_BOARD,
+    with: { actor: { columns: { id: true, name: true, image: true } } },
+  });
+
+  // A member.* entry's subject is a person, so their name is read here and
+  // never stored. Gone means "a member", which describeActivity renders.
+  const subjectIds = rows.filter((r) => r.type.startsWith('member.')).map((r) => r.subjectId);
+  const people = subjectIds.length
+    ? await db.query.users.findMany({
+        where: (u, { inArray }) => inArray(u.id, subjectIds.filter((id): id is string => !!id)),
+        columns: { id: true, name: true },
+      })
+    : [];
+  const nameOf = new Map(people.map((p) => [p.id, p.name]));
+
+  return rows.map((row) => ({
+    id: row.id,
+    sentence: describeActivity({
+      id: row.id,
+      type: row.type as ActivityType,
+      subjectId: row.subjectId,
+      subject: row.subject,
+      detail: row.detail,
+      createdAt: row.createdAt,
+      actor: row.actor,
+      subjectName: row.subjectId ? (nameOf.get(row.subjectId) ?? null) : null,
+    }),
+    actorId: row.actor.id,
+    actorName: row.actor.name,
+    actorImage: row.actor.image,
+    createdAt: row.createdAt.toISOString(),
+  }));
 }

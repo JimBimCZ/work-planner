@@ -1,6 +1,14 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
-import { describeActivity, type ActivityEntry } from './activity';
+import { ACTIVITY_PER_BOARD } from './activity-limits';
+
+const findMany = vi.fn(async (..._args: unknown[]) => [] as unknown[]);
+vi.mock('@/lib/db', () => ({
+  db: { query: { activity: { findMany: (...a: unknown[]) => findMany(...a) } } },
+}));
+
+const { boardActivity, describeActivity } = await import('./activity');
+type ActivityEntry = import('./activity').ActivityEntry;
 
 const base: ActivityEntry = {
   id: 'a1',
@@ -73,4 +81,12 @@ describe('describeActivity', () => {
       }),
     ).toBe('made Alice a viewer');
   });
+});
+
+test('boardActivity asks for the newest entries and joins the actor', async () => {
+  await boardActivity('b1');
+
+  const config = findMany.mock.calls[0][0] as { limit: number; with: Record<string, unknown> };
+  expect(config.limit).toBe(ACTIVITY_PER_BOARD);
+  expect(config.with).toHaveProperty('actor');
 });
