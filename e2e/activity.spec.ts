@@ -88,3 +88,28 @@ test('a board keeps its newest entries and drops the rest', async ({ context }) 
     await removeSeededUser(userId);
   }
 });
+
+// The marker is per board and per reader, and belongs to neither beyond their
+// own lifetime: both references cascade.
+test('a read marker goes with its board and with its user', async ({ context }) => {
+  const { userId } = await seedSession(context);
+  const boardId = await seedBoard(userId, 'Marker');
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+  try {
+    await pool.query(
+      'insert into activity_reads (board_id, user_id, last_seen_at) values ($1, $2, now())',
+      [boardId, userId],
+    );
+    await pool.query('delete from boards where id = $1', [boardId]);
+
+    const { rows } = await pool.query<{ n: number }>(
+      'select count(*)::int as n from activity_reads where board_id = $1',
+      [boardId],
+    );
+    expect(rows[0].n).toBe(0);
+  } finally {
+    await pool.end();
+    await removeSeededUser(userId);
+  }
+});
