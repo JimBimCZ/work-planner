@@ -11,7 +11,7 @@ import { comments } from '@/lib/db/schema';
 import { publish, publishComment } from '@/lib/events';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 
-import { boardIdForCard, commentScope, touchBoard } from './scope';
+import { cardEventScope, commentScope, recordActivity, touchBoard } from './scope';
 
 const id = z.string().min(1);
 const body = z.string().trim().min(1).max(4_000);
@@ -33,8 +33,9 @@ export async function addComment(input: unknown) {
 
   const authorId = session.user.id;
 
-  const boardId = await boardIdForCard(parsed.data.cardId);
-  if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
+  const card = await cardEventScope(parsed.data.cardId);
+  if (!card) return { ok: false, error: 'NOT_FOUND' } as const;
+  const boardId = card.boardId;
 
   // A viewer may comment. This is the only write in the app with that floor.
   try {
@@ -54,6 +55,14 @@ export async function addComment(input: unknown) {
       .returning();
 
     await touchBoard(tx, boardId);
+    // The entry indexes the card; the comment is where the words are.
+    await recordActivity(tx, {
+      boardId,
+      actorId: authorId,
+      type: 'comment.added',
+      subjectId: parsed.data.cardId,
+      subject: card.title,
+    });
     return { id: row.id, createdAt: row.createdAt.toISOString() };
   });
 
@@ -93,12 +102,21 @@ export async function editComment(input: unknown) {
 
   if (scope.authorId !== session.user.id) return { ok: false, error: 'FORBIDDEN' } as const;
 
+  const actorId = session.user.id;
+
   await db.transaction(async (tx) => {
     await tx
       .update(comments)
       .set({ body: parsed.data.body })
       .where(eq(comments.id, parsed.data.commentId));
     await touchBoard(tx, scope.boardId);
+    await recordActivity(tx, {
+      boardId: scope.boardId,
+      actorId,
+      type: 'comment.edited',
+      subjectId: scope.cardId,
+      subject: scope.title,
+    });
   });
 
   revalidatePath('/boards');
@@ -132,9 +150,18 @@ export async function deleteComment(input: unknown) {
 
   if (scope.authorId !== session.user.id) return { ok: false, error: 'FORBIDDEN' } as const;
 
+  const actorId = session.user.id;
+
   await db.transaction(async (tx) => {
     await tx.delete(comments).where(eq(comments.id, parsed.data.commentId));
     await touchBoard(tx, scope.boardId);
+    await recordActivity(tx, {
+      boardId: scope.boardId,
+      actorId,
+      type: 'comment.deleted',
+      subjectId: scope.cardId,
+      subject: scope.title,
+    });
   });
 
   revalidatePath('/boards');
