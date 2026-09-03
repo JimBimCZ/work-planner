@@ -971,7 +971,7 @@ gh pr create --base main --title "feat: attachments Section A — storage founda
 
 The body states which spec and plan section this implements, what was verified with actual observed output, and that the migration must be run against production by hand when this lands.
 
-- [ ] **Step 6: Run the migration against production**
+- [x] **Step 6: Run the migration against production**
 
 Vercel deploys straight from a push to `main`, so CI cannot gate it. When this PR lands:
 
@@ -980,6 +980,13 @@ MIGRATE_URL="$(npx --yes neonctl@4 connection-string main --project-id withered-
 ```
 
 Confirm with `\dt`, not with the success line.
+
+**Done, one section late.** Section A merged without applying it; Section B's PR
+(#91) found `0006` unapplied — 6 applied rows against 7 files, no `attachments`
+table — applied it, and read the table list back: **12 tables, 7 applied
+migrations**. No outage followed, because nothing on `main` read the table until
+Section B itself. Section C's PR (#92) re-confirmed 7/7 before starting. The box
+stayed unticked until 2026-09-03; the evidence is in #91's body.
 
 ---
 

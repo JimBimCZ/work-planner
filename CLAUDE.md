@@ -473,15 +473,42 @@ What that constrains:
   aspirational: it isn't a setting that could quietly drift, it's a different endpoint the bucket
   doesn't exist behind. Verify a change here by requesting the bucket against the plain endpoint and
   confirming it cannot be found, the same way `fra1` is verified from a response header rather than
-  from `vercel.json`.
+  from `vercel.json`. The bucket is `work-planner`; its account id lives only in Vercel's
+  `S3_ENDPOINT` and is deliberately not written down here, since this repository is public.
+  **Partially verified 2026-09-03:** the CORS preflight above answers `204` on the `.eu.` host and
+  `403` on the plain one, which is what "the plain host has no knowledge of this bucket" looks like
+  from outside. That is evidence, not proof — an unauthenticated `GET` cannot discriminate, because
+  both hosts answer `400 InvalidArgument: Authorization`, checking the signature before the bucket.
+  The conclusive check is an authenticated `HeadBucket` against the plain endpoint expecting
+  `NoSuchBucket` rather than `AccessDenied`, and it has not been run.
 - The browser PUTs a presigned upload straight to R2, which makes it a cross-origin request, and
   Cloudflare documents that a bucket with no CORS policy refuses that upload even though the presigned
-  URL itself is valid (https://developers.cloudflare.com/r2/buckets/cors/). **Unverified against the
-  production bucket as of 2026-09-02.** Neither local MinIO nor CI's MinIO catches a missing policy —
-  both default to allowing every origin — so a green e2e run proves nothing about R2; check this the
-  way `fra1` and the EU-jurisdiction endpoint above are checked, from the outside against the real
-  endpoint, not from a dashboard reading. Until it's checked, a missing CORS policy would surface to a
-  user as the generic "That file could not be attached. Try again." — nothing in the app would say why.
+  URL itself is valid (https://developers.cloudflare.com/r2/buckets/cors/). Neither local MinIO nor
+  CI's MinIO catches a missing policy — both default to allowing every origin — so a green e2e run
+  proves nothing about R2. **Verified 2026-09-03** against the production bucket from the outside,
+  with an unauthenticated `OPTIONS` preflight rather than a dashboard reading: both production aliases
+  (`work-planner-seven.vercel.app`, `work-planner-jimbimczs-projects.vercel.app`) answer `204` with
+  `Access-Control-Allow-Origin` echoing the origin, `Allow-Methods: PUT`, `Allow-Headers:
+  content-type`, `Max-Age: 3600`; an unlisted origin answers `403`, so the policy is scoped rather
+  than open. `content-type` is the whole of `AllowedHeaders` because it is the only header the
+  uploader sets (`components/board/card-attachments.tsx:50`), and `PUT` the whole of `AllowedMethods`
+  because downloads are an `<a href>` and an `<img src>` to `/api/attachments/[id]`, which no
+  preflight covers. Preview deployments each get their own origin and are deliberately **not** listed:
+  a preview that could upload would write into the production bucket. Re-run the preflight after any
+  change to the policy or to the production domain.
+- **A malformed `S3_*` value reads to the user as a network failure, not a misconfiguration.**
+  `lib/storage.ts` checks only that the five variables are *present*; an `S3_ENDPOINT` that does not
+  parse throws `TypeError: Invalid URL` inside the server action, which rejects rather than returning
+  a refusal, and `lib/attempt.ts` maps any rejection to `UNREACHABLE` — rendered as "Could not reach
+  the server. Try again." Production hit exactly this on 2026-09-03 by storing the literal
+  `https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com` placeholder. The evidence was in Vercel's runtime
+  errors, which name the offending `input`; the message in the browser points at the wrong layer, so
+  read the logs before believing it.
+- **After changing a production variable, redeploy *and* reload the tab.** Vercel pins a page's
+  server-action requests back to the deployment that rendered it, so an open tab keeps calling the old
+  build and its old environment. The same 2026-09-03 fix appeared not to work for exactly this reason:
+  the alias already pointed at the new deployment while the failing request was still being served by
+  the previous one, which the error group's `lastDeployment` is what revealed.
 - Preview deployments get their own Neon branch. OAuth callback URLs must include the preview domain pattern or sign-in will fail on previews — expect to test auth on a stable preview alias.
 - Local development uses the Neon `dev` branch, never production `main`. The integration scopes its variables to Production and Preview only, so a bare `vercel env pull` finds nothing; `pnpm db:dev-branch` creates the branch and registers it as Development-scoped, and `pnpm env:pull development` refreshes `.env.local` from it.
 - `AUTH_URL`/`AUTH_TRUST_HOST` need care on previews. Set `AUTH_TRUST_HOST=true` and let Auth.js infer the host rather than hardcoding.

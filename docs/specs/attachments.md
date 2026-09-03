@@ -566,8 +566,26 @@ that did not actually check it.
       reported as a pass. Its own first test only enforces `storageConfigured()`
       when `CI === 'true'`. Export the variables before trusting it locally.
 - [ ] The production bucket is on the EU jurisdiction endpoint — confirmed by
-      the fact that the plain endpoint cannot see it. Needs the production
-      Cloudflare credentials, which this session did not have.
+      the fact that the plain endpoint cannot see it. **Still open, but no longer
+      unevidenced.** Checked 2026-09-03 from the outside: an unauthenticated
+      `OPTIONS` preflight for the bucket answers `204` with the CORS headers on
+      `https://<account_id>.eu.r2.cloudflarestorage.com` and `403` on the plain
+      `r2.cloudflarestorage.com`, which is what a bucket invisible to the plain
+      host looks like without credentials. An unauthenticated `GET` adds nothing
+      — both hosts answer `400 InvalidArgument: Authorization`, so the signature
+      is checked before the bucket exists. What would close this box is an
+      authenticated `HeadBucket` against the plain endpoint returning
+      `NoSuchBucket` rather than `AccessDenied`, and it still needs the
+      production Cloudflare credentials.
+- [x] The production bucket's CORS policy admits the browser's presigned `PUT`
+      — verified 2026-09-03 with an `OPTIONS` preflight against the real bucket,
+      not a dashboard reading. Both production aliases answer `204` with
+      `Access-Control-Allow-Origin` echoing the origin, `Allow-Methods: PUT`,
+      `Allow-Headers: content-type` and `Max-Age: 3600`; an unlisted origin
+      answers `403`. Confirmed end to end afterwards by a real upload through
+      the card modal on production, which is what proves the credentials as
+      well as the policy. Neither MinIO catches a missing policy, so this can
+      only ever be checked against R2 itself.
 - [ ] Two real browsers: one attaches a file, the other's card shows the count
       without a reload. `e2e/attachments.spec.ts` proves this across two
       Playwright browser contexts on a real Pusher channel — the watcher never
