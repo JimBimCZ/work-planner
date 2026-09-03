@@ -1338,7 +1338,7 @@ with a line noting that `--well` is an inverted token: lighter than the canvas i
 
 3. **"UI conventions"** — the "Columns are 300px fixed width with 12px gutters" line is now literally true rather than simulated by inset padding. Say so, and drop the stale explanation from `board-column.tsx`'s top comment in the same change.
 
-- [ ] **Step 5: Tick this section's boxes, commit, open the PR**
+- [x] **Step 5: Tick this section's boxes, commit, open the PR**
 
 ```bash
 git add CLAUDE.md docs/plans/board-legibility.md
