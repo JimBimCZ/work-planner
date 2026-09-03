@@ -1,10 +1,20 @@
+import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 import { Pool } from 'pg';
 
 import { recordActivity } from '../lib/actions/scope';
 import { ACTIVITY_PER_BOARD } from '../lib/activity-limits';
 import { db } from '../lib/db';
-import { closeSeedPool, removeSeededUser, seedBoard, seedSession } from './support/session';
+import {
+  boardColumns,
+  closeSeedPool,
+  removeSeededUser,
+  seedBoard,
+  seedCard,
+  seedMember,
+  seedSession,
+  written,
+} from './support/session';
 
 test.afterAll(async () => {
   await closeSeedPool();
@@ -111,5 +121,90 @@ test('a read marker goes with its board and with its user', async ({ context }) 
   } finally {
     await pool.end();
     await removeSeededUser(userId);
+  }
+});
+
+// dnd-kit's PointerSensor has a 5px activation distance and only starts the
+// drag once it has seen the pointer move, so Playwright's dragTo is silently
+// ignored. This is the sequence board-dnd.spec.ts proved works.
+async function dragCard(page: Page, title: string, columnId: string) {
+  const card = page.locator('[data-card-id]').filter({ hasText: title });
+  await card.hover();
+  await page.mouse.down();
+  await page.mouse.move(0, 0);
+  await expect(card).toHaveAttribute('style', /translate3d/);
+  await page.locator(`[data-column-id="${columnId}"]`).hover();
+  const moved = written(page);
+  await page.mouse.up();
+  await moved;
+}
+
+// Two browsers, two drags, three drawer reads and two reloads: well past the
+// 30s default, and the budget is what the work takes rather than a hang.
+test('a member sees what the other one did, above the line', async ({ browser }) => {
+  test.setTimeout(120_000);
+
+  const readerContext = await browser.newContext();
+  const actorContext = await browser.newContext();
+  const reader = await seedSession(readerContext);
+  const other = await seedSession(actorContext);
+  // The reader owns the board and the actor is a member on it, so deleting the
+  // actor's account leaves the board standing — which is the whole point of
+  // the cascade assertion at the end.
+  const boardId = await seedBoard(reader.userId, 'Catch up');
+  await seedMember(boardId, other.userId, 'member');
+  const [first, second] = await boardColumns(boardId);
+  await seedCard(first.id, { boardId, createdById: reader.userId, title: 'Ship it', rank: 'a0' });
+  await seedCard(first.id, {
+    boardId,
+    createdById: reader.userId,
+    title: 'Roll it back',
+    rank: 'a1',
+  });
+
+  const actor = await actorContext.newPage();
+  const watcher = await readerContext.newPage();
+
+  try {
+    await actor.goto(`/boards/${boardId}`);
+    await dragCard(actor, 'Roll it back', second.id);
+
+    // The reader reads that one first, so a marker exists and the line has
+    // somewhere to go. Without this the run proves only that entries render.
+    await watcher.goto(`/boards/${boardId}`);
+    await watcher.getByRole('button', { name: 'Activity' }).click();
+    await expect(watcher.getByText(/moved Roll it back to/)).toBeVisible({ timeout: 15_000 });
+    await expect(watcher.getByText('New since your last visit')).toHaveCount(0);
+    await watcher.keyboard.press('Escape');
+
+    await dragCard(actor, 'Ship it', second.id);
+
+    await watcher.reload();
+    await watcher.getByRole('button', { name: 'Activity' }).click();
+    const fresh = watcher.getByText(/moved Ship it to/);
+    await expect(fresh).toBeVisible({ timeout: 15_000 });
+
+    // The line marks the boundary: what arrived since the last visit sits
+    // above it, what was already read sits below.
+    const divider = watcher.getByText('New since your last visit');
+    await expect(divider).toBeVisible();
+    const line = await divider.boundingBox();
+    const unseen = await fresh.boundingBox();
+    const seen = await watcher.getByText(/moved Roll it back to/).boundingBox();
+    expect(unseen!.y).toBeLessThan(line!.y);
+    expect(seen!.y).toBeGreaterThan(line!.y);
+
+    // The cascade, observed rather than argued: the actor deletes their
+    // account and their entries leave a board they never owned.
+    await actorContext.close();
+    await removeSeededUser(other.userId);
+    await watcher.reload();
+    await watcher.getByRole('button', { name: 'Activity' }).click();
+    await expect(watcher.getByText('Nothing here yet').first()).toBeVisible({ timeout: 15_000 });
+    await expect(watcher.getByText(/moved Ship it to/)).toHaveCount(0);
+  } finally {
+    await readerContext.close();
+    await actorContext.close();
+    await removeSeededUser(reader.userId);
   }
 });
