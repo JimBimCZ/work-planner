@@ -191,3 +191,31 @@ describe('the card count', () => {
     expect(span).not.toContain('text-time-');
   });
 });
+
+describe('the armed column', () => {
+  test('a column that is not the target is not armed', () => {
+    expect(render()).not.toContain('data-armed="true"');
+  });
+
+  test('the target column arms itself', () => {
+    expect(render({ dropIndicator: indicator('c2') })).toContain('data-armed="true"');
+  });
+
+  // The ring is the column's own hue, so the arming says which column as well
+  // as that one is armed at all.
+  test('the ring is the column hue', () => {
+    const html = render({ dropIndicator: indicator('c2'), hue: 185 });
+    const start = html.indexOf('data-armed="true"');
+    // The opening tag itself, not a window of fixed length before it: the ring
+    // has to be on the armed element, and a character count would only say it
+    // was somewhere nearby.
+    expect(html.slice(html.lastIndexOf('<', start), start)).toContain('hsl(185 60% 45% / 0.45)');
+  });
+
+  // 6% at rest, 13% while armed. Same gradient at a different alpha, not a
+  // second one: the band and the wash remain the whole gradient budget.
+  test('the wash deepens while armed', () => {
+    expect(render()).toContain('hsl(185 60% 45% / 0.06)');
+    expect(render({ dropIndicator: indicator('c2') })).toContain('hsl(185 60% 45% / 0.13)');
+  });
+});

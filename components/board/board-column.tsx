@@ -95,28 +95,49 @@ export function BoardColumn({
   const left = columns[index - 1];
   const rest = columns.filter((c) => c.id !== column.id && c.id !== left?.id);
   const others = left ? [left, ...rest] : rest;
+  const armed = dropIndicator !== null;
   return (
     <section
       ref={ref}
       data-column-id={column.id}
       className="flex h-full w-screen shrink-0 snap-start flex-col min-[700px]:w-[312px] min-[700px]:snap-align-none min-[700px]:pr-3"
     >
-      <div className="flex min-h-0 flex-1 flex-col bg-well min-[700px]:rounded-b-xl">
+      <div
+        className="flex min-h-0 flex-1 flex-col bg-well transition-colors duration-150 min-[700px]:rounded-b-xl"
+        style={
+          armed
+            ? {
+                background: 'var(--well-armed)',
+                boxShadow: `inset 0 0 0 1px ${flowColor(hue, 0.45)}`,
+              }
+            : undefined
+        }
+        data-armed={armed ? 'true' : undefined}
+      >
         <div
           className="h-[3px] shrink-0"
           style={{ background: `linear-gradient(90deg, ${flowColor(hue)}, ${flowColor(nextHue)})` }}
         />
         <div
           className="flex shrink-0 items-center gap-1 px-3 pb-2 pt-3"
-          style={{ background: `linear-gradient(${flowColor(hue, 0.06)}, transparent 80px)` }}
+          style={{
+            background: `linear-gradient(${flowColor(hue, armed ? 0.13 : 0.06)}, transparent ${
+              armed ? 90 : 80
+            }px)`,
+          }}
         >
           <h2
             data-testid="column-name"
-            className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-[0.08em] text-muted"
+            className={`min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-[0.08em] ${
+              armed ? 'text-ink' : 'text-muted'
+            }`}
           >
             {column.name}
           </h2>
-          <span data-testid="column-count" className="font-mono text-xs text-muted">
+          <span
+            data-testid="column-count"
+            className={`font-mono text-xs ${armed ? 'text-ink' : 'text-muted'}`}
+          >
             {cards.length}
           </span>
           {canWrite ? (
