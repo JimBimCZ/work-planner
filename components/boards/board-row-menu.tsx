@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
@@ -20,6 +20,14 @@ export function BoardRowMenu({ board }: { board: BoardSummary }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const pathname = usePathname();
+
+  // This menu opens from the board list and, since the boards drawer, from the
+  // board's own top bar. Deleting the board you are looking at cannot end in
+  // router.refresh(): the layout would re-render onto a board that no longer
+  // exists and notFound() the user out of the app. Compared segment-wise
+  // rather than by prefix, or /boards/b10 would count as /boards/b1.
+  const viewing = pathname === `/boards/${board.id}` || pathname.startsWith(`/boards/${board.id}/`);
 
   function close() {
     setOpen(null);
@@ -53,7 +61,8 @@ export function BoardRowMenu({ board }: { board: BoardSummary }) {
         return;
       }
       close();
-      router.refresh();
+      if (viewing) router.push('/boards');
+      else router.refresh();
     });
   }
 

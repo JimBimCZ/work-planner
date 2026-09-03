@@ -5,14 +5,27 @@ import { BoardRowMenu } from '@/components/boards/board-row-menu';
 import type { BoardSummary } from '@/lib/boards';
 import { formatRelative } from '@/lib/relative-time';
 
-export function BoardList({ boards }: { boards: BoardSummary[] }) {
+export function BoardList({
+  boards,
+  currentBoardId,
+}: {
+  boards: BoardSummary[];
+  // Set only by the boards drawer, which opens from a board you are already
+  // looking at. The /boards page has no current board to mark.
+  currentBoardId?: string;
+}) {
   return (
     <ul className="divide-y divide-line overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface">
       {boards.map((board) => (
         <li key={board.id} className="flex items-center justify-between gap-3 px-4 py-3">
           <Link
             href={`/boards/${board.id}`}
-            className="text-[15px] font-medium text-ink hover:underline"
+            // An active state, which is what the accent is for. Nothing else
+            // on this row is teal.
+            aria-current={board.id === currentBoardId ? 'page' : undefined}
+            className={`text-[15px] font-medium hover:underline ${
+              board.id === currentBoardId ? 'text-flow-mid' : 'text-ink'
+            }`}
           >
             {board.name}
           </Link>
