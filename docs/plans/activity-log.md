@@ -969,13 +969,19 @@ gh pr create --base main --title "feat: activity log Section A — the table and
 
 The PR body states what was verified with observed output, and that migration `0007` must be applied to production by hand in the same sitting as the merge.
 
-- [ ] **Step 5: Apply `0007` to production on merge, and read the table list back**
+- [x] **Step 5: Apply `0007` to production on merge, and read the table list back**
 
 ```bash
 MIGRATE_URL="$(npx --yes neonctl@4 connection-string main --project-id withered-glade-54206401 --org-id org-silent-block-21833986)" pnpm db:migrate
 ```
 
 Then confirm `activity` is in `information_schema.tables` and that the applied count in `drizzle.__drizzle_migrations` equals the file count in `lib/db/migrations/`.
+
+**Applied 2026-09-03**, in the same sitting as PR #98's merge (`b47beb8`). Read back rather than
+trusted to the success line: `activity` is in `public`, the applied count is 8 against 8 files, the
+columns are `id, board_id, actor_id, type, subject_id, subject, detail, created_at`,
+`activity_board_id_created_at_idx` exists, and `pg_constraint` reports `confdeltype = 'c'` on both
+foreign keys with none at all on `subject_id`.
 
 ---
 
