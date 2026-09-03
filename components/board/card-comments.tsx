@@ -8,8 +8,31 @@ import { attempt } from '@/lib/attempt';
 import { addComment, deleteComment, editComment, readComments } from '@/lib/actions/comments';
 import type { CardComment, Viewer } from '@/lib/cards';
 import { reinsertOrdered } from '@/lib/comment-order';
+import { formatAbsolute, formatRelative } from '@/lib/relative-time';
+import { useMounted } from '@/lib/use-mounted';
 
 type Row = CardComment & { pending?: boolean };
+
+function CommentTime({ at }: { at: Date }) {
+  // Both the relative label and the tooltip read the viewer's clock, locale and
+  // time zone, none of which the server knows — the hydration trap DueDate
+  // already avoids in board-card.tsx. The element and its machine-readable
+  // instant are identical on both renders; only what a person reads waits.
+  // now is derived rather than stored, so a thread left open past the hour
+  // re-reads the clock on its next render instead of freezing at mount.
+  const mounted = useMounted();
+
+  return (
+    <time
+      data-testid="comment-time"
+      dateTime={at.toISOString()}
+      title={mounted ? formatAbsolute(at) : undefined}
+      className="font-mono"
+    >
+      {mounted ? formatRelative(at, new Date()) : null}
+    </time>
+  );
+}
 
 function commentLabel(body: string): string {
   const oneLine = body.replace(/\s+/g, ' ').trim();
@@ -184,8 +207,11 @@ export function CardComments({
         <ul className="flex flex-col gap-3">
           {rows.map((row) => (
             <li key={row.id} className={row.pending ? 'opacity-60' : ''}>
-              <p className="text-xs text-muted">
-                {row.author === null ? 'Deleted account' : (row.author.name ?? 'Someone')}
+              <p className="flex items-baseline gap-2 text-xs text-muted">
+                <span>
+                  {row.author === null ? 'Deleted account' : (row.author.name ?? 'Someone')}
+                </span>
+                <CommentTime at={row.createdAt} />
               </p>
               <p data-testid="comment-body" className="whitespace-pre-wrap text-sm text-ink">
                 {row.body}

@@ -28,10 +28,17 @@ test('a comment appears immediately and survives a reload', async ({ page, conte
     await page.getByRole('button', { name: 'Comment' }).click();
 
     await expect(page.getByTestId('comment-body')).toHaveText(['This needs a test']);
+    // Stamped before the server has answered, not only after it lands.
+    await expect(page.getByTestId('comment-time')).toHaveText(['this minute']);
 
     await posted;
     await page.reload();
     await expect(page.getByTestId('comment-body')).toHaveText(['This needs a test']);
+    // The relative text is client-only — it is absent from the server's HTML
+    // and filled in on hydration, which is the whole reason it is gated. A
+    // mismatch here would be a console error no unit test can see.
+    await expect(page.getByTestId('comment-time')).toHaveText(['this minute']);
+    await expect(page.getByTestId('comment-time')).toHaveAttribute('title', /\d{4}/);
   } finally {
     await removeSeededUser(userId);
   }
