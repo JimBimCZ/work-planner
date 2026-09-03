@@ -15,7 +15,8 @@
     "db:dev-branch": "bash scripts/setup-dev-branch.sh",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "r2:verify": "node scripts/verify-r2-jurisdiction.mts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "1.11.3",

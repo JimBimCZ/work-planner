@@ -55,6 +55,7 @@ pnpm db:dev-branch      # create the Neon dev branch, point Vercel Development a
 pnpm db:generate        # generate SQL migration from schema changes
 pnpm db:migrate         # apply migrations
 pnpm db:studio          # drizzle studio
+pnpm r2:verify          # prove the production bucket is EU-jurisdiction only
 
 docker compose up --build          # app + postgres locally
 docker build -t kanban .           # app image only, self-host
@@ -480,7 +481,13 @@ What that constrains:
   from outside. That is evidence, not proof — an unauthenticated `GET` cannot discriminate, because
   both hosts answer `400 InvalidArgument: Authorization`, checking the signature before the bucket.
   The conclusive check is an authenticated `HeadBucket` against the plain endpoint expecting
-  `NoSuchBucket` rather than `AccessDenied`, and it has not been run.
+  `NoSuchBucket` rather than `AccessDenied`. It is now one command — `pnpm r2:verify`, with the four
+  `S3_*` values in the environment — and **it has still not been run**, because Vercel returns
+  `[SENSITIVE]` for the three secret ones and the credentials have to come from Cloudflare. The
+  script prints the verdict and nothing else: it masks the account id out of its own output, and
+  reports an error's name without its message, since a network-level message carries the hostname.
+  `PASS` is exit 0, `FAIL` — the plain host *can* see the bucket, so `/privacy` is wrong — is exit 1,
+  and `AccessDenied`, which discriminates nothing, is exit 2.
 - The browser PUTs a presigned upload straight to R2, which makes it a cross-origin request, and
   Cloudflare documents that a bucket with no CORS policy refuses that upload even though the presigned
   URL itself is valid (https://developers.cloudflare.com/r2/buckets/cors/). Neither local MinIO nor
