@@ -9,6 +9,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
@@ -25,6 +26,7 @@ import {
 } from 'react';
 
 import { BoardColumn } from '@/components/board/board-column';
+import { CardFace } from '@/components/board/board-card';
 import { ColumnSwitcher } from '@/components/board/column-switcher';
 import { useBoardActions } from '@/components/board/board-actions';
 import { useRealtime } from '@/components/board/realtime';
@@ -41,16 +43,23 @@ import {
   orderedColumns,
   matchesFilter,
   parseLabelFilter,
+  sameDropTarget,
   toBoardState,
   type BoardAction,
+  type DropTarget,
   type StateCard,
   type StateColumn,
 } from '@/lib/board-state';
 import type { BoardWithCards } from '@/lib/boards';
-import { flowHue } from '@/lib/flow';
+import { flowColor, flowHue } from '@/lib/flow';
 import { rankBetween, ranksAfter } from '@/lib/rank';
 
 const REDUCED = '(prefers-reduced-motion: reduce)';
+
+// The overlay is not inside a column, so it cannot inherit the card width and
+// has to be told. Kept beside the column width it is derived from: 300px of
+// column less the 6px of body padding on each side.
+const CARD_WIDTH = 288;
 
 function subscribe(onChange: () => void) {
   const query = window.matchMedia(REDUCED);
@@ -64,6 +73,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [target, setTarget] = useState<DropTarget | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const columnRefs = useRef(new Map<string, HTMLElement>());
   // Ephemeral UI, so deliberately not in the reducer: lib/board-state.ts is
@@ -488,28 +498,38 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     setDraggingId(String(active.id));
   }
 
+  // onDragOver fires when the droppable under the pointer changes, not every
+  // frame. Different `over` ids often mean the same target (a column's own id
+  // and its last card both mean "after the last card"), so the guard still
+  // earns its place — every write here re-renders every column.
+  function onDragOver({ active, over }: DragOverEvent) {
+    const next = over ? dropTarget(state, String(active.id), String(over.id)) : null;
+    setTarget((current) => (sameDropTarget(current, next) ? current : next));
+  }
+
   function onDragEnd({ active, over }: DragEndEvent) {
     setDraggingId(null);
+    setTarget(null);
     if (!over || !canWrite) return;
 
-    const target = dropTarget(state, String(active.id), String(over.id));
-    if (!target) return;
+    const landing = dropTarget(state, String(active.id), String(over.id));
+    if (!landing) return;
 
-    const before = target.beforeCardId
-      ? state.cards.find((card) => card.id === target.beforeCardId)
+    const before = landing.beforeCardId
+      ? state.cards.find((card) => card.id === landing.beforeCardId)
       : null;
-    const after = target.afterCardId
-      ? state.cards.find((card) => card.id === target.afterCardId)
+    const after = landing.afterCardId
+      ? state.cards.find((card) => card.id === landing.afterCardId)
       : null;
 
     run(
       {
         type: 'card.move',
         cardId: String(active.id),
-        toColumnId: target.toColumnId,
+        toColumnId: landing.toColumnId,
         rank: rankBetween(before?.rank ?? null, after?.rank ?? null),
       },
-      () => moveCard({ cardId: String(active.id), ...target, mutationId: claim() }),
+      () => moveCard({ cardId: String(active.id), ...landing, mutationId: claim() }),
       'That card could not be moved. Try again.',
     );
   }
@@ -526,8 +546,12 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={onDragStart}
+        onDragOver={onDragOver}
         onDragEnd={onDragEnd}
-        onDragCancel={() => setDraggingId(null)}
+        onDragCancel={() => {
+          setDraggingId(null);
+          setTarget(null);
+        }}
       >
         {/* Snapping belongs on the element that scrolls, so the switcher sits
             outside it rather than scrolling away with the columns. */}
@@ -554,6 +578,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 onAddCard={(title) => addCard(column.id, title)}
                 columns={columns}
                 labels={state.labels}
+                dropIndicator={target?.toColumnId === column.id ? target : null}
                 onRenameCard={renameCardTo}
                 onDeleteCard={removeCard}
                 onMoveCardTo={moveCardTo}
@@ -576,13 +601,24 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
           {dragging ? (
             <article
               aria-hidden
-              className="rounded-[var(--radius-card)] border border-line bg-surface px-3 py-2.5 shadow-[0_12px_24px_-8px_rgb(0_0_0/0.35)]"
+              className="rounded-[var(--radius-card)] border bg-surface px-3 py-2.5 shadow-[0_20px_34px_-10px_rgb(0_0_0/0.75)]"
               style={{
-                width: 288,
+                width: CARD_WIDTH,
+                // The hue of the column it came from, so a card in flight
+                // carries its origin rather than borrowing the one under it.
+                borderColor: flowColor(
+                  flowHue(
+                    Math.max(
+                      0,
+                      columns.findIndex((column) => column.id === dragging.columnId),
+                    ),
+                    total,
+                  ),
+                ),
                 transform: reducedMotion ? undefined : 'scale(1.02) rotate(3deg)',
               }}
             >
-              <h3 className="text-sm font-medium leading-5 text-ink">{dragging.title}</h3>
+              <CardFace card={dragging} labels={state.labels} />
             </article>
           ) : null}
         </DragOverlay>

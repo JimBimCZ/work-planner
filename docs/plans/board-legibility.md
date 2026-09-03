@@ -58,7 +58,7 @@ Branch: `feat/board-legibility-drag`, from `main`.
 - Consumes: nothing.
 - Produces: `export type DropTarget = { toColumnId: string; beforeCardId: string | null; afterCardId: string | null }` and `export function sameDropTarget(a: DropTarget | null, b: DropTarget | null): boolean`. `dropTarget` keeps its behaviour and now declares `DropTarget | null` as its return type.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `lib/board-state.test.ts`:
 
@@ -94,12 +94,12 @@ describe('sameDropTarget', () => {
 
 Add `sameDropTarget` to the existing import from `./board-state` at the top of the file.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run lib/board-state.test.ts > /tmp/t1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t1.log`
 Expected: FAIL — `sameDropTarget is not a function`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `lib/board-state.ts`, above the existing `dropTarget`:
 
@@ -127,12 +127,12 @@ Change `dropTarget`'s signature to use the type. Its body does not change:
 export function dropTarget(state: BoardState, activeId: string, overId: string): DropTarget | null {
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run lib/board-state.test.ts > /tmp/t1.log 2>&1; echo "EXIT=$?"; tail -6 /tmp/t1.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/board-state.ts lib/board-state.test.ts
@@ -152,7 +152,7 @@ git commit -m "feat: name the drop target, and say when two are the same"
 - Consumes: `DropTarget` from Task 1; `flowColor` from `lib/flow.ts`.
 - Produces: `BoardColumn` gains a required prop `dropIndicator: DropTarget | null`. **The canvas passes it only to the target column and `null` to every other**, so the column itself never compares ids. Every existing call site must pass it.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `components/board/board-column.test.tsx`:
 
@@ -274,12 +274,12 @@ describe('the drop indicator', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run components/board/board-column.test.tsx > /tmp/t2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t2.log`
 Expected: FAIL — `dropIndicator` is not a recognised prop and no `drop-indicator` element exists.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `app/globals.css`, after the `.card-enter` block:
 
@@ -376,12 +376,12 @@ Replace the `cards.length === 0 ? … : …` block with:
         )}
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run components/board/board-column.test.tsx > /tmp/t2.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/t2.log`
 Expected: EXIT=0, 7 passed. `pnpm typecheck` will still fail — `board-canvas.tsx` does not pass the new required prop yet. That is Task 3.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/board-column.tsx components/board/board-column.test.tsx app/globals.css
@@ -400,7 +400,7 @@ git commit -m "feat: draw the line where the card will land"
 - Consumes: `sameDropTarget`, `DropTarget` (Task 1); `BoardColumn`'s `dropIndicator` prop (Task 2).
 - Produces: nothing further tasks import.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `e2e/board-dnd.spec.ts`:
 
@@ -515,12 +515,12 @@ signatures, checked rather than assumed: `seedMember(boardId, userId, role)` ret
 `seedLabel(boardId, name)` returns the label id as a bare string, `assignLabel(cardId, labelId)`
 returns nothing, and `seedCard(columnId, opts)` returns the card id.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec playwright test e2e/board-dnd.spec.ts --reporter=line > /tmp/t3.log 2>&1; echo "EXIT=$?"; tail -12 /tmp/t3.log`
 Expected: FAIL — the indicator is never visible, because nothing tracks the pointer. Compare the number that ran against the number collected.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `components/board/board-canvas.tsx`, add `type DragOverEvent` to the `@dnd-kit/core` type imports, and `dropTarget` is already imported. Add `sameDropTarget` and `type DropTarget` to the `@/lib/board-state` import.
 
@@ -567,14 +567,14 @@ Pass the indicator to each column, target only:
                 dropIndicator={target?.toColumnId === column.id ? target : null}
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec playwright test e2e/board-dnd.spec.ts --reporter=line > /tmp/t3.log 2>&1; echo "EXIT=$?"; tail -6 /tmp/t3.log`
 Expected: EXIT=0, 5 passed of 5 collected.
 
 Then: `pnpm typecheck > /tmp/tc.log 2>&1; echo "EXIT=$?"` — expected 0, since the required prop now has a value at its only call site.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/board-canvas.tsx e2e/board-dnd.spec.ts
@@ -594,7 +594,7 @@ git commit -m "feat: follow the pointer, and say where the card would go"
 - Consumes: nothing from earlier tasks.
 - Produces: nothing. The `useSortable` mock in `board-card.test.tsx` gains an `isDragging` override.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `components/board/board-card.test.tsx`, replace the static `useSortable` mock with one that can be steered, at the top of the file:
 
@@ -655,12 +655,12 @@ describe('the card being dragged', () => {
 
 Add `afterEach` to the `vitest` import.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run components/board/board-card.test.tsx > /tmp/t4.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t4.log`
 Expected: FAIL — `bg-slot` does not exist, `opacity-40` still does.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `app/globals.css`, add to `:root`:
 
@@ -700,12 +700,12 @@ Wrap the existing children — the `<h3>`, `DueDate`, `LabelLine`, `AttachmentCo
       <div className={isDragging ? 'invisible' : undefined}>
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run components/board/board-card.test.tsx > /tmp/t4.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/t4.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/board-card.tsx components/board/board-card.test.tsx app/globals.css
@@ -727,7 +727,7 @@ The overlay renders the title alone in a hardcoded 288px box. It should be the c
 - Consumes: `flowHue` (already imported by the canvas), `StateCard`, `BoardLabel`.
 - Produces: `export function CardFace({ card, labels }: { card: StateCard; labels: BoardLabel[] })` from `components/board/board-card.tsx` — title, due date, label line and attachment count, with no link, no menu and no sortable wiring. `BoardCard` renders it; the overlay renders it.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `components/board/board-card.test.tsx`:
 
@@ -754,12 +754,12 @@ describe('the face carried by the drag overlay', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run components/board/board-card.test.tsx > /tmp/t5.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t5.log`
 Expected: FAIL — `CardFace` is not exported.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `components/board/board-card.tsx`, add above `BoardCard`:
 
@@ -816,14 +816,14 @@ Add `flowColor` to the `@/lib/flow` import. Replace the hardcoded `288` by decla
 const CARD_WIDTH = 288;
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run components/board/board-card.test.tsx > /tmp/t5.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/t5.log`
 Expected: EXIT=0.
 
 Then: `pnpm typecheck > /tmp/tc.log 2>&1; echo "EXIT=$?"` — expected 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/board-card.tsx components/board/board-canvas.tsx components/board/board-card.test.tsx
@@ -834,24 +834,24 @@ git commit -m "feat: carry the whole card, and the colour it came from"
 
 ### Task 6: Section A pull request
 
-- [ ] **Step 1: Check the drag by hand, in both themes**
+- [x] **Step 1: Check the drag by hand, in both themes**
 
 Run `pnpm dev`, open a board with cards in two columns. Drag across columns and confirm: the line appears in the target column at the position the card lands, the source card is a sunken slot, the overlay carries the due date and labels and is bordered in the source column's hue. Switch theme from the account menu and repeat. Screenshot both for the PR.
 
-- [ ] **Step 2: Check the keyboard drag**
+- [x] **Step 2: Check the keyboard drag**
 
 Tab to a card, press space, arrow to another column, confirm the line appears without a pointer, press space to drop. This needs no code — it is the claim that `over` is set by the keyboard sensor, and it is unverified until observed.
 
-- [ ] **Step 3: Check reduced motion**
+- [x] **Step 3: Check reduced motion**
 
 With the OS set to reduce motion, confirm the overlay does not tilt or scale and the line has no bloom.
 
-- [ ] **Step 4: Run the gates**
+- [x] **Step 4: Run the gates**
 
 Run: `pnpm typecheck > /tmp/t.log 2>&1; echo "TYPECHECK=$?"; pnpm lint > /tmp/l.log 2>&1; echo "LINT=$?"; pnpm test > /tmp/v.log 2>&1; echo "TEST=$?"; pnpm build > /tmp/b.log 2>&1; echo "BUILD=$?"; pnpm exec playwright test --reporter=line > /tmp/e.log 2>&1; echo "E2E=$?"; tail -3 /tmp/e.log`
 Expected: all five EXIT=0. Compare the number that ran against the number collected. Attachment specs fail locally without `S3_ENDPOINT` and a bucket — if that is the only failure, say so explicitly and let CI be the green run.
 
-- [ ] **Step 5: Update `CLAUDE.md`**
+- [x] **Step 5: Update `CLAUDE.md`**
 
 In "Drag and drop", after the bullet about the server action receiving ids rather than an index, add:
 
@@ -860,11 +860,19 @@ In "Drag and drop", after the bullet about the server action receiving ids rathe
   `dropTarget` — the same function `onDragEnd` calls to decide the real move — turns it into the
   line rendered in the target column. There is deliberately no second "where would this land"
   helper: a parallel calculation is a thing that can disagree with the drop, and this one cannot.
-  Only a target that differs from the one already held is written to state, because `onDragOver`
-  fires continuously and every write re-renders every column.
+  `onDragOver` fires when the droppable under the pointer *changes*, not on every frame —
+  `@dnd-kit/core@6.3.1` runs it from an effect keyed on `over.id`. `sameDropTarget` still earns
+  its place, because two different `over` ids resolve to the same target more often than not (a
+  column's own id and its last card both mean "after the last card"), and a `setTarget` here
+  re-renders every column.
+- A card being dragged leaves a **slot**, not a hole. The source card keeps its border and its box
+  height, recolours that border to transparent, paints `--slot`, and hides its content with
+  `invisible` rather than unmounting it — so the column does not reflow as the drag starts. Its
+  title is therefore present but not visible mid-drag: `toHaveText` still matches it, `toBeVisible`
+  does not.
 ```
 
-- [ ] **Step 6: Tick this section's boxes, commit, open the PR**
+- [x] **Step 6: Tick this section's boxes, commit, open the PR**
 
 ```bash
 git add CLAUDE.md docs/plans/board-legibility.md
@@ -1013,9 +1021,13 @@ The wash moves onto the header, where it is now 80px of a much shorter element; 
 **The header is inset 6px (`px-1.5`), matching the scroller and the card list, and that is
 load-bearing arithmetic rather than taste.** The section is 312px and now spends 12px of it on a
 real gutter, so the panel is 300px. The scroller and the `ul` each add `px-1.5`, which is 12px a
-side, leaving cards at **288px — exactly what they are today**, which is what lets the spec promise
-the card width is unchanged and lets `CARD_WIDTH` in the overlay stay at 288. Insetting the header
-further would misalign it against the cards for no gain.
+side, leaving cards at **276px, not the 288px they are today.** The panel lost 12px to the new
+gutter and nothing else changed to compensate, so the card width moves with it: 300 − 12 − 12 =
+276. **`CARD_WIDTH` in the overlay must be re-derived — updated to 276, or better, read from the
+dragged node's measured rect rather than left as a literal** — or the card in flight is 12px wider
+than the slot it left. Do not carry the "288px, unchanged" claim into the implementation; it was
+checked against the wrong panel width. Insetting the header further would misalign it against the
+cards for no gain.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1261,7 +1273,7 @@ Expected: FAIL — the card is `px-3 py-2.5`.
 
 In `components/board/board-card.tsx`, replace `px-3 py-2.5` with `min-h-[58px] p-3.5` in the `<article>`'s className.
 
-In `components/board/board-canvas.tsx`, apply the same padding to the overlay so the card in flight matches the one it left. `CARD_WIDTH` is **not** touched: the card is still 288px wide — Task 7's arithmetic preserved that deliberately — and only its internal padding changed.
+In `components/board/board-canvas.tsx`, apply the same padding to the overlay so the card in flight matches the one it left. **`CARD_WIDTH` must already have moved to 276 in Task 7** (or been replaced by a measured-rect width) — the card is 276px wide after Task 7's real gutter, not the 288px it was in Section A, and only its internal padding changes here.
 
 ```tsx
               className="rounded-[var(--radius-card)] border bg-surface p-3.5 shadow-[0_20px_34px_-10px_rgb(0_0_0/0.75)]"
@@ -1343,12 +1355,12 @@ No migration in this section either.
 
 Ticked only against observed output.
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build`, each exit code read directly rather than through a pipe.
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build`, each exit code read directly rather than through a pipe.
 - [ ] `pnpm test:e2e` passes, with the number that ran compared against the number collected.
-- [ ] A cross-column drag shows the line in the target column, observed by hand, in both themes.
-- [ ] A keyboard drag shows the same line, observed by hand.
+- [x] A cross-column drag shows the line in the target column, observed by hand, in both themes.
+- [x] A keyboard drag shows the same line, observed by hand.
 - [ ] At 360px, dragging into the visible column arms it, observed by hand.
-- [ ] `prefers-reduced-motion` drops the tilt, the scale and the bloom, observed by hand.
+- [x] `prefers-reduced-motion` drops the tilt, the scale and the bloom, observed by hand.
 - [ ] A column long enough to scroll keeps its name and menu in place, observed by hand.
 - [ ] Screenshots of a drag in progress, both themes and at 360px, attached to the PRs.
 

@@ -351,16 +351,28 @@ export function inverse(state: BoardState, action: BoardAction): BoardAction[] {
   }
 }
 
+export type DropTarget = {
+  toColumnId: string;
+  beforeCardId: string | null;
+  afterCardId: string | null;
+};
+
+export function sameDropTarget(a: DropTarget | null, b: DropTarget | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.toColumnId === b.toColumnId &&
+    a.beforeCardId === b.beforeCardId &&
+    a.afterCardId === b.afterCardId
+  );
+}
+
 // The hardest part of a drag, kept pure and out of the component so it is
 // testable without a browser: onDragEnd becomes three lines that call this.
 // The dragged card is removed from the target list before neighbours are read,
 // so it is never its own neighbour — which would ask the server to rank a card
 // against itself.
-export function dropTarget(
-  state: BoardState,
-  activeId: string,
-  overId: string,
-): { toColumnId: string; beforeCardId: string | null; afterCardId: string | null } | null {
+export function dropTarget(state: BoardState, activeId: string, overId: string): DropTarget | null {
   if (activeId === overId) return null;
 
   const overCard = state.cards.find((card) => card.id === overId);

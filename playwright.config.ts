@@ -16,6 +16,12 @@ for (const file of ['.env', '.env.local']) {
 }
 
 const isCI = Boolean(process.env.CI);
+// Defaults to 3000 so CI and every existing local workflow are unchanged;
+// E2E_PORT exists for a machine where something else already holds 3000 —
+// `next start` reads the `PORT` env var (Next 16 CLI reference, `next start`:
+// "-p or --port <port> ... default: 3000, env: PORT"), and webServer.env below
+// merges into, rather than replaces, the process env the server inherits.
+const port = process.env.E2E_PORT ?? '3000';
 
 export default defineConfig({
   testDir: './e2e',
@@ -24,7 +30,7 @@ export default defineConfig({
   retries: isCI ? 2 : 0,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: `http://localhost:${port}`,
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
@@ -34,11 +40,12 @@ export default defineConfig({
     // auth-gated routes, so probing it makes suite startup depend on whichever
     // page that chain currently ends at — a signed-out run lands on /signin,
     // and any 4xx there stalls the whole suite behind a webServer timeout.
-    url: 'http://localhost:3000/api/health',
+    url: `http://localhost:${port}/api/health`,
     // Always start a fresh production server: reusing a stray `next dev` on
     // port 3000 would run the suite against dev overlays instead of the
     // build this config exists to test.
     reuseExistingServer: false,
     timeout: 180_000,
+    env: { PORT: port },
   },
 });
