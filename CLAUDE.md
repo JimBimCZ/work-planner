@@ -162,6 +162,8 @@ lib/
   storage.ts                # only module that speaks S3: presign, head, delete
   attachments.ts            # reads: cardAttachments, boardUsage, uploaderUsage
   attachments-limits.ts     # attachment caps; imports nothing, see "Data model"
+  activity.ts               # the closed activity vocabulary and its renderer
+  activity-limits.ts        # activity caps; imports nothing, see "Data model"
 docs/
   specs/                    # brainstorm output, one per feature
   plans/                    # implementation plans with checkboxes
@@ -193,6 +195,8 @@ card_labels        cardId, labelId                                     PK (cardI
 attachments        id, boardId, cardId, uploaderId, key, filename,
                    contentType, size, status ('pending'|'ready'),
                    createdAt                                           unique (key)
+activity           id, boardId, actorId, type, subjectId, subject,
+                   detail, createdAt                                   index (boardId, createdAt)
 ```
 
 Rules:
@@ -208,6 +212,34 @@ Rules:
 - `labels.boardId` cascades from `boards`: a label is board vocabulary, gone when the board is. `card_labels.labelId` and `card_labels.cardId` both cascade too, for different reasons — deleting a label takes it off every card, which is the promise a managed set makes (nothing dangles referencing a label that no longer exists); deleting a card takes its label assignments with it, the same way it takes its comments.
 - `cards.assigneeId` and `columns.wipLimit` were **dropped, not deferred.** Both were speculative — no requirement, no UI, no enforcement rule — and YAGNI says an unused column is a liability, not a head start. Adding either later is one migration; carrying a column nothing writes to costs a permanent explanation. Do not reintroduce them without a requirement that needs them.
 - `attachments.boardId` and `attachments.cardId` both cascade from their parent: an attachment is denormalised the same way `cards.boardId` is, so every permission check and a board-wide bucket sweep can read the object keys without joining through `cards`, and both rows going with their parent is the same promise `card_labels` makes. `attachments.uploaderId` sets null on delete, not cascade — it follows `comments.authorId`, because `/privacy` promises boards owned by other people keep your contributions after you delete your account. `key` is unique and shaped `boards/<boardId>/<attachmentId>`; `status` (`pending`|`ready`) exists because the browser writes bytes to the bucket directly and the server only learns what actually landed via a `HEAD` — a row can outlive an abandoned upload, which is what `PENDING_TTL_MINUTES` bounds.
+- `activity.actorId` is `not null` and **cascades** from `users` — the one user reference in this
+  schema that does, and a deliberate departure from `comments.authorId` and
+  `attachments.uploaderId`, which set null so `/privacy`'s promise holds that boards owned by other
+  people keep what you contributed. An entry is not a contribution: it is a record *about* an
+  action, it is trimmed at `ACTIVITY_PER_BOARD` regardless, and nothing another member wrote goes
+  with it. Cascading buys a true sentence in the policy — the record of what you did on a board is
+  deleted with your account — instead of a feed full of "Someone renamed a card", which answers
+  nobody's question in a feature whose whole job is saying who did what. `activity.boardId`
+  cascades from `boards`, the argument `labels.boardId` makes. `subjectId` carries **no** foreign
+  key, deliberately: half of all entries describe something that no longer exists — that is what
+  "deleted the card 'Ship it'" means — and a reference would delete the row as it became
+  interesting. `subject` is the name as it was at the time, capped at `ACTIVITY_SUBJECT_MAX`,
+  because there is nothing left to join to. **`subject` is for things, never for people:** a
+  `member.*` entry puts the affected user's id in `subjectId` and leaves `subject` null, so a
+  deleted account renders as "a member" rather than retaining a name past an erasure request.
+- The activity caps live in `lib/activity-limits.ts`, which imports nothing for the same reason
+  `lib/labels-limits.ts` does. `ACTIVITY_PER_BOARD` (500) is both the retention and the feed's
+  depth — the window *is* the retention — and it is enforced on write: every `recordActivity`
+  insert is followed by a delete of that board's rows beyond the newest 500, over the index the
+  feed reads. Vercel rules out a scheduled job, so trimming on write is the only way this table is
+  ever bounded. `ACTIVITY_SUBJECT_MAX` (120) caps the stored name. Neither is a check constraint,
+  matching the label and attachment caps.
+- `recordActivity` is written **inside** the transaction, unlike `publish` and for the opposite
+  reason: an event announces something that already happened, while an entry is part of what
+  happened. It is the last write in that transaction, after `touchBoard` where that applies, and it
+  is deliberately not folded into `touchBoard` — that helper is called only by the mutations that
+  should reorder `/boards`, and merging them would quietly change that ordering. **A reorder writes
+  nothing:** `moveColumn` records none at all, and `moveCard` records only when the column changed.
 - Attachments are capped six ways, in `lib/attachments-limits.ts`, which imports nothing for the same reason `lib/labels-limits.ts` does — the file picker is a client component and needs the size cap. `ATTACHMENT_SIZE_MAX` (10 MB) and `ATTACHMENTS_PER_CARD` (10) bound one upload and one card. `STORAGE_PER_BOARD` (1 GB) and `STORAGE_PER_ACCOUNT` (2 GB) bound total bytes and are derived, not picked: ten boards filled to `STORAGE_PER_BOARD` is exactly Cloudflare R2's 10 GB-month free tier, so the service cannot produce a surprising bill, only a slowly growing legible one; `STORAGE_PER_ACCOUNT` is twice that because it counts one uploader across every board they can reach, which the per-board cap alone can't see, and at 2,147,483,648 it lands one byte **over** `int4`'s maximum (2,147,483,647) — nowhere near `bigint`'s ceiling. Postgres's `sum(int4)` already returns `bigint` on its own, so the hazard is never the default behaviour; it's an explicit `::int` cast on a size sum, the pattern this repo otherwise uses for counts (`e2e/schema.spec.ts:33`). The rule: never cast a size sum to `int`. `FILENAME_MAX` (200) and `PENDING_TTL_MINUTES` (15) round out the six. None of the six is a check constraint, matching the label caps.
 
 ## Ordering: fractional ranks
