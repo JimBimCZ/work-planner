@@ -100,16 +100,29 @@ describe('the drop indicator', () => {
   });
 
   // dnd-kit already announces the move; the line must not be the only channel.
+  // aria-hidden sits on the wrapping <li>, not just DropLine's own div — a
+  // reader must not see the column's list gain an extra item while dragging.
   test('the line is hidden from assistive technology', () => {
     const html = render({ dropIndicator: indicator('c2') });
-    const start = html.indexOf('data-testid="drop-indicator"');
-    expect(html.slice(html.lastIndexOf('<', start), start)).toContain('aria-hidden');
+    const innerTagStart = html.lastIndexOf('<', html.indexOf('data-testid="drop-indicator"'));
+    const wrapperStart = html.lastIndexOf('<', innerTagStart - 1);
+    expect(html.slice(wrapperStart, innerTagStart)).toContain('aria-hidden');
   });
 
-  // The hue is the column's own, so the line says which column as well as where.
+  test('the line is hidden from assistive technology in an empty column', () => {
+    const html = render({ cards: [], dropIndicator: indicator(null) });
+    const innerTagStart = html.lastIndexOf('<', html.indexOf('data-testid="drop-indicator"'));
+    const wrapperStart = html.lastIndexOf('<', innerTagStart - 1);
+    expect(html.slice(wrapperStart, innerTagStart)).toContain('aria-hidden');
+  });
+
+  // The hue is the column's own, so the line says which column as well as
+  // where. hsl(173 80% 36%) is --flow-mid (#12A594) converted to the same
+  // "H S% L%" shape flowColor emits — the accent's actual rendered form,
+  // not just its hex spelling.
   test('the line takes the column hue, not the accent', () => {
     const html = render({ dropIndicator: indicator('c2'), hue: 185 });
     expect(html).toContain('hsl(185 60% 45%)');
-    expect(html).not.toContain('12A594');
+    expect(html).not.toContain('hsl(173 80% 36%)');
   });
 });

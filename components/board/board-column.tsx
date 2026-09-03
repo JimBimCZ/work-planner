@@ -137,7 +137,7 @@ export function BoardColumn({
 
         {cards.length === 0 ? (
           dropIndicator ? (
-            <div className="mt-3 px-1.5">
+            <div aria-hidden className="mt-3 px-1.5">
               <DropLine hue={hue} />
             </div>
           ) : (
@@ -154,7 +154,7 @@ export function BoardColumn({
               {cards.map((card) => (
                 <Fragment key={card.id}>
                   {dropIndicator?.afterCardId === card.id ? (
-                    <li>
+                    <li aria-hidden>
                       <DropLine hue={hue} />
                     </li>
                   ) : null}
@@ -175,7 +175,7 @@ export function BoardColumn({
                 </Fragment>
               ))}
               {dropIndicator && dropIndicator.afterCardId === null ? (
-                <li>
+                <li aria-hidden>
                   <DropLine hue={hue} />
                 </li>
               ) : null}

@@ -498,8 +498,10 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     setDraggingId(String(active.id));
   }
 
-  // onDragOver fires continuously, and every setState here re-renders every
-  // column. Only a target that actually differs is worth a render.
+  // onDragOver fires when the droppable under the pointer changes, not every
+  // frame. Different `over` ids often mean the same target (a column's own id
+  // and its last card both mean "after the last card"), so the guard still
+  // earns its place — every write here re-renders every column.
   function onDragOver({ active, over }: DragOverEvent) {
     const next = over ? dropTarget(state, String(active.id), String(over.id)) : null;
     setTarget((current) => (sameDropTarget(current, next) ? current : next));
@@ -510,24 +512,24 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     setTarget(null);
     if (!over || !canWrite) return;
 
-    const target = dropTarget(state, String(active.id), String(over.id));
-    if (!target) return;
+    const landing = dropTarget(state, String(active.id), String(over.id));
+    if (!landing) return;
 
-    const before = target.beforeCardId
-      ? state.cards.find((card) => card.id === target.beforeCardId)
+    const before = landing.beforeCardId
+      ? state.cards.find((card) => card.id === landing.beforeCardId)
       : null;
-    const after = target.afterCardId
-      ? state.cards.find((card) => card.id === target.afterCardId)
+    const after = landing.afterCardId
+      ? state.cards.find((card) => card.id === landing.afterCardId)
       : null;
 
     run(
       {
         type: 'card.move',
         cardId: String(active.id),
-        toColumnId: target.toColumnId,
+        toColumnId: landing.toColumnId,
         rank: rankBetween(before?.rank ?? null, after?.rank ?? null),
       },
-      () => moveCard({ cardId: String(active.id), ...target, mutationId: claim() }),
+      () => moveCard({ cardId: String(active.id), ...landing, mutationId: claim() }),
       'That card could not be moved. Try again.',
     );
   }
@@ -606,7 +608,10 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 // carries its origin rather than borrowing the one under it.
                 borderColor: flowColor(
                   flowHue(
-                    columns.findIndex((column) => column.id === dragging.columnId),
+                    Math.max(
+                      0,
+                      columns.findIndex((column) => column.id === dragging.columnId),
+                    ),
                     total,
                   ),
                 ),
