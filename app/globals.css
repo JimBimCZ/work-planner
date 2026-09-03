@@ -94,3 +94,11 @@
     animation: none;
   }
 }
+
+/* The bloom is inline, because its colour is the column's own hue. Only
+   !important can override an inline style from a media query. */
+@media (prefers-reduced-motion: reduce) {
+  .drop-bloom {
+    box-shadow: none !important;
+  }
+}

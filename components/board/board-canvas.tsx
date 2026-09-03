@@ -554,6 +554,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 onAddCard={(title) => addCard(column.id, title)}
                 columns={columns}
                 labels={state.labels}
+                dropIndicator={null}
                 onRenameCard={renameCardTo}
                 onDeleteCard={removeCard}
                 onMoveCardTo={moveCardTo}

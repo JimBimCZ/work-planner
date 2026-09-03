@@ -2,15 +2,36 @@
 
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useState, type Ref } from 'react';
+import { Fragment, useState, type Ref } from 'react';
 
 import { AddCard } from '@/components/board/add-card';
 import { BoardCard } from '@/components/board/board-card';
 import { ColumnMenu } from '@/components/board/column-menu';
 import { DeleteColumnDialog } from '@/components/board/delete-column-dialog';
-import type { StateCard, StateColumn } from '@/lib/board-state';
+import type { DropTarget, StateCard, StateColumn } from '@/lib/board-state';
 import type { BoardLabel } from '@/lib/labels';
 import { flowColor } from '@/lib/flow';
+
+function DropLine({ hue }: { hue: number }) {
+  const color = flowColor(hue);
+  return (
+    <div
+      aria-hidden
+      data-testid="drop-indicator"
+      className="drop-bloom relative h-[3px] rounded-full"
+      style={{ background: color, boxShadow: `0 0 10px ${flowColor(hue, 0.6)}` }}
+    >
+      <span
+        className="absolute -left-1 top-1/2 size-2 -translate-y-1/2 rounded-full"
+        style={{ background: color }}
+      />
+      <span
+        className="absolute -right-1 top-1/2 size-2 -translate-y-1/2 rounded-full"
+        style={{ background: color }}
+      />
+    </div>
+  );
+}
 
 // Columns sit flush so the 3px rules meet edge to edge and read as one band
 // across the board; the 12px gutter is inset padding instead, which keeps the
@@ -31,6 +52,7 @@ export function BoardColumn({
   onAddCard,
   columns,
   labels,
+  dropIndicator,
   onRenameCard,
   onDeleteCard,
   onMoveCardTo,
@@ -56,6 +78,7 @@ export function BoardColumn({
   onAddCard: (title: string) => void;
   columns: StateColumn[];
   labels: BoardLabel[];
+  dropIndicator: DropTarget | null;
   onRenameCard: (card: StateCard, title: string) => void;
   onDeleteCard: (card: StateCard) => void;
   onMoveCardTo: (card: StateCard, toColumnId: string) => void;
@@ -113,9 +136,15 @@ export function BoardColumn({
         </div>
 
         {cards.length === 0 ? (
-          <p className="px-1.5 pt-6 text-sm text-muted">
-            {filtering ? 'Nothing here matches' : 'Nothing here yet'}
-          </p>
+          dropIndicator ? (
+            <div className="mt-3 px-1.5">
+              <DropLine hue={hue} />
+            </div>
+          ) : (
+            <p className="px-1.5 pt-6 text-sm text-muted">
+              {filtering ? 'Nothing here matches' : 'Nothing here yet'}
+            </p>
+          )
         ) : (
           <SortableContext
             items={cards.map((card) => card.id)}
@@ -123,21 +152,33 @@ export function BoardColumn({
           >
             <ul className="mt-3 space-y-2 px-1.5">
               {cards.map((card) => (
-                <li key={card.id}>
-                  <BoardCard
-                    card={card}
-                    ringHue={rings.get(card.id)}
-                    boardId={boardId}
-                    canWrite={canWrite}
-                    columns={columns}
-                    labels={labels}
-                    filtering={filtering}
-                    onRename={(title) => onRenameCard(card, title)}
-                    onDelete={() => onDeleteCard(card)}
-                    onMoveTo={(toColumnId) => onMoveCardTo(card, toColumnId)}
-                  />
-                </li>
+                <Fragment key={card.id}>
+                  {dropIndicator?.afterCardId === card.id ? (
+                    <li>
+                      <DropLine hue={hue} />
+                    </li>
+                  ) : null}
+                  <li>
+                    <BoardCard
+                      card={card}
+                      ringHue={rings.get(card.id)}
+                      boardId={boardId}
+                      canWrite={canWrite}
+                      columns={columns}
+                      labels={labels}
+                      filtering={filtering}
+                      onRename={(title) => onRenameCard(card, title)}
+                      onDelete={() => onDeleteCard(card)}
+                      onMoveTo={(toColumnId) => onMoveCardTo(card, toColumnId)}
+                    />
+                  </li>
+                </Fragment>
               ))}
+              {dropIndicator && dropIndicator.afterCardId === null ? (
+                <li>
+                  <DropLine hue={hue} />
+                </li>
+              ) : null}
             </ul>
           </SortableContext>
         )}
