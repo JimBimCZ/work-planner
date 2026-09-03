@@ -135,50 +135,56 @@ export function BoardCard({
         transition,
         boxShadow: ringHue === undefined ? undefined : `0 0 0 2px hsl(${ringHue} 55% 55% / 0.9)`,
       }}
-      className={`card-enter group relative rounded-[var(--radius-card)] border border-line bg-surface px-3 py-2.5 shadow-[0_1px_2px_rgb(0_0_0/0.04)] transition-shadow duration-200 ${
-        // The overlay carries the card while it is dragged, so what is left
-        // behind is the hole it came from, not a second copy.
-        isDragging ? 'opacity-40' : ''
+      className={`card-enter group relative rounded-[var(--radius-card)] border px-3 py-2.5 transition-shadow duration-200 ${
+        // The card in flight is carried by the overlay; what is left behind is
+        // the socket it came out of, so it reads as absence rather than as a
+        // faded second copy. The border stays and turns transparent — removing
+        // it would change the box height and reflow the column mid-drag.
+        isDragging
+          ? 'border-transparent bg-slot shadow-[inset_0_1px_3px_rgb(0_0_0/0.45)]'
+          : 'border-line bg-surface shadow-[0_1px_2px_rgb(0_0_0/0.04)]'
       }`}
     >
-      <h3
-        data-testid="card-title"
-        className={`text-sm font-medium leading-5 text-ink ${canWrite ? 'pr-6' : ''}`}
-      >
-        {card.pending ? (
-          // A temp id is not a card the server knows about yet — the same
-          // reason useSortable disables dragging above. Not a link until it
-          // settles.
-          card.title
-        ) : (
-          <Link
-            href={`/boards/${boardId}/cards/${card.id}`}
-            className="after:absolute after:inset-0"
-            // The browser's default mousedown action focuses this link before
-            // the click even fires, blurring whatever had focus — including an
-            // open, empty "Add card" composer elsewhere on the board, which
-            // closes itself on blur. Opening a card must not have that side
-            // effect on state that lives underneath the modal.
-            onMouseDown={(event) => event.preventDefault()}
-          >
-            {card.title}
-          </Link>
-        )}
-      </h3>
+      <div className={isDragging ? 'invisible' : undefined}>
+        <h3
+          data-testid="card-title"
+          className={`text-sm font-medium leading-5 text-ink ${canWrite ? 'pr-6' : ''}`}
+        >
+          {card.pending ? (
+            // A temp id is not a card the server knows about yet — the same
+            // reason useSortable disables dragging above. Not a link until it
+            // settles.
+            card.title
+          ) : (
+            <Link
+              href={`/boards/${boardId}/cards/${card.id}`}
+              className="after:absolute after:inset-0"
+              // The browser's default mousedown action focuses this link before
+              // the click even fires, blurring whatever had focus — including an
+              // open, empty "Add card" composer elsewhere on the board, which
+              // closes itself on blur. Opening a card must not have that side
+              // effect on state that lives underneath the modal.
+              onMouseDown={(event) => event.preventDefault()}
+            >
+              {card.title}
+            </Link>
+          )}
+        </h3>
 
-      {card.dueDate ? <DueDate value={card.dueDate} /> : null}
-      <LabelLine ids={card.labelIds} labels={labels} />
-      <AttachmentCount count={card.attachmentCount} />
+        {card.dueDate ? <DueDate value={card.dueDate} /> : null}
+        <LabelLine ids={card.labelIds} labels={labels} />
+        <AttachmentCount count={card.attachmentCount} />
 
-      {canWrite ? (
-        <CardMenu
-          card={card}
-          columns={columns}
-          onRename={onRename}
-          onDelete={onDelete}
-          onMoveTo={onMoveTo}
-        />
-      ) : null}
+        {canWrite ? (
+          <CardMenu
+            card={card}
+            columns={columns}
+            onRename={onRename}
+            onDelete={onDelete}
+            onMoveTo={onMoveTo}
+          />
+        ) : null}
+      </div>
     </article>
   );
 }

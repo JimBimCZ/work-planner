@@ -16,6 +16,8 @@
   --time-soon: #C98A17;
   --time-over: #C8492F;
 
+  --slot: #D5DBE4;
+
   --radius-control: 8px;
   --radius-card: 10px;
   --radius-modal: 16px;
@@ -41,6 +43,7 @@
   --surface: #19202A;
   --ink: #E7EBF2;
   --line: #262E3A;
+  --slot: #0B0E13;
 }
 
 @theme inline {
@@ -54,6 +57,7 @@
   --color-flow-last: var(--flow-last);
   --color-time-soon: var(--time-soon);
   --color-time-over: var(--time-over);
+  --color-slot: var(--slot);
 
   --font-sans: var(--font-roboto);
   --font-mono: var(--font-roboto-mono);

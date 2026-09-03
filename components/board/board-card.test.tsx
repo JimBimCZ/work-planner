@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
+const dragging = vi.hoisted(() => ({ current: false }));
 vi.mock('@dnd-kit/sortable', () => ({
   useSortable: () => ({
     attributes: {},
@@ -8,7 +9,9 @@ vi.mock('@dnd-kit/sortable', () => ({
     setNodeRef: () => {},
     transform: null,
     transition: undefined,
-    isDragging: false,
+    get isDragging() {
+      return dragging.current;
+    },
   }),
 }));
 vi.mock('@/lib/use-mounted', () => ({ useMounted: () => true }));
@@ -103,5 +106,40 @@ describe('the attachment count', () => {
     const line = html.slice(start, html.indexOf('</p>', start));
     expect(line).toContain('text-muted');
     expect(line).not.toContain('text-time-');
+  });
+});
+
+describe('the card being dragged', () => {
+  afterEach(() => {
+    dragging.current = false;
+  });
+
+  test('at rest it is a surface with a border', () => {
+    const html = render();
+    expect(html).toContain('bg-surface');
+    expect(html).not.toContain('bg-slot');
+  });
+
+  test('while dragging it becomes a slot, not a faded card', () => {
+    dragging.current = true;
+    const html = render();
+    expect(html).toContain('bg-slot');
+    expect(html).toContain('inset');
+    // The old treatment. A 40% card still reads as a card.
+    expect(html).not.toContain('opacity-40');
+  });
+
+  // The border is kept and made transparent rather than removed: dropping a
+  // 1px border changes the box height, and a column must not reflow mid-drag.
+  test('the slot keeps the border box it had', () => {
+    dragging.current = true;
+    expect(render()).toContain('border-transparent');
+  });
+
+  test('the slot hides the content without unmounting it', () => {
+    dragging.current = true;
+    const html = render();
+    expect(html).toContain('invisible');
+    expect(html).toContain('Fix the rank tie-break');
   });
 });
