@@ -284,7 +284,24 @@ Column reordering uses the same helper against sibling columns. There is one ord
 
 ## Drag and drop
 
-- `DndContext` wraps the board; each column is a `useDroppable`, each card a `useSortable`.
+- `DndContext` wraps the board; each column is a `useDroppable`, each card a `useSortable`. The
+  column's droppable is the whole `<section>` — its 12px gutter and its header included — not the
+  list that scrolls inside it, so the columns tile the board with no seam: wherever the pointer is,
+  it is inside exactly one column. The empty area below the last card is still a drop target, which
+  is what the narrower droppable was for.
+- **Collision detection is `boardCollision` in `lib/board-collision.ts`: the pointer decides.**
+  `closestCorners` alone cannot do this job here, and the reason is arithmetic rather than taste —
+  it scores a droppable by the mean distance between corresponding corners of the dragged card's
+  rect and the droppable's, and never looks at the pointer at all. A column rect is as tall as the
+  board, so its two bottom corners cost it ~730px that a card-sized droppable never pays: measured
+  on a 1440px board, a card 278px *behind* the cursor scored 278 against the surrounding column's
+  400. The target therefore followed the nearest card rather than the cursor, and a column armed
+  only when it happened to own that card — which is what "it only works one time in five" looked
+  like from the outside. `pointerWithin` considers only droppables the pointer is actually inside
+  and ranks them by distance from it, so the column under the cursor arms and the card under the
+  cursor still wins inside it. It reports nothing when there are no pointer coordinates — a
+  keyboard drag — so the fallback stays `closestCorners`, and must: it is the whole of the keyboard
+  path. `lib/board-collision.test.ts` pins the measured geometry in both directions.
 - Optimistic update first: mutate local state in `onDragEnd`, then call the server action, then roll back on rejection. Dragging must never wait on the network.
 - The server action receives `{ cardId, toColumnId, beforeCardId, afterCardId }` — not an index. Indexes are stale the moment another user moves something.
 - The drop target is **drawn**, not merely computed. `onDragOver` records `over.id`, and
@@ -301,6 +318,9 @@ Column reordering uses the same helper against sibling columns. There is one ord
   `invisible` rather than unmounting it — so the column does not reflow as the drag starts. Its
   title is therefore present but not visible mid-drag: `toHaveText` still matches it, `toBeVisible`
   does not.
+- Hovering the dragged card's own slot arms nothing, and that is deliberate: `dropTarget` answers
+  null when `over` is the active card, because dropping a card where it already is should write
+  nothing. The slot itself is the indicator there.
 - Use `PointerSensor` with an activation distance of ~5px so clicking a card still opens the modal.
 - Keyboard sensor stays enabled. Cards need `aria-roledescription` and drag announcements; do not strip dnd-kit's accessibility props.
 

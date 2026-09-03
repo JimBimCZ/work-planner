@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  closestCorners,
   DndContext,
   DragOverlay,
   KeyboardSensor,
@@ -35,6 +34,7 @@ import { createCard, deleteCard, moveCard, renameCard } from '@/lib/actions/card
 import { addColumn, deleteColumn, moveColumn, renameColumn } from '@/lib/actions/columns';
 import { attempt } from '@/lib/attempt';
 import { avatarHue } from '@/lib/avatar';
+import { boardCollision } from '@/lib/board-collision';
 import {
   boardReducer,
   cardsIn,
@@ -539,7 +539,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
       <DndContext
         id="board"
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={boardCollision}
         onDragStart={onDragStart}
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
