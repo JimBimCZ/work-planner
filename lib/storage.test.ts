@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import {
   contentDisposition,
@@ -149,5 +149,82 @@ describe('contentDisposition', () => {
     const result = contentDisposition('trailing\\', false);
     expect(result).toContain('filename="trailing"');
     expect(result).toContain("filename*=UTF-8''" + encodeURIComponent('trailing\\'));
+  });
+});
+
+
+// Present is not the same as usable. Every one of these runs unconditionally:
+// they configure the module by hand rather than borrowing whatever bucket the
+// shell happens to point at.
+describe('configuration', () => {
+  const SETTINGS: Record<string, string> = {
+    S3_ENDPOINT: 'https://abc123.eu.r2.cloudflarestorage.com',
+    S3_REGION: 'auto',
+    S3_BUCKET: 'work-planner',
+    S3_ACCESS_KEY_ID: 'access-key',
+    S3_SECRET_ACCESS_KEY: 'secret-key',
+  };
+
+  let saved: Record<string, string | undefined>;
+
+  beforeEach(() => {
+    saved = { ...process.env };
+    Object.assign(process.env, SETTINGS);
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(SETTINGS)) delete process.env[key];
+    Object.assign(process.env, saved);
+    vi.restoreAllMocks();
+  });
+
+  test("R2's endpoint configures storage", () => {
+    expect(storageConfigured()).toBe(true);
+  });
+
+  test("MinIO's endpoint configures storage too", () => {
+    // The check must not reject the local and CI shape: no TLS, a port, a host
+    // that is a container name rather than a domain.
+    process.env.S3_ENDPOINT = 'http://minio:9000';
+    expect(storageConfigured()).toBe(true);
+  });
+
+  test('an endpoint that does not parse leaves storage unconfigured', () => {
+    // The literal value production ran with on 2026-09-03: the documented
+    // placeholder, stored verbatim. It threw TypeError: Invalid URL from
+    // inside the S3 client, which reached the user as "Could not reach the
+    // server" — a network failure, which it was not.
+    process.env.S3_ENDPOINT = 'https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com';
+    expect(storageConfigured()).toBe(false);
+  });
+
+  test('an endpoint that parses but is not http(s) leaves storage unconfigured', () => {
+    process.env.S3_ENDPOINT = 's3://work-planner';
+    expect(storageConfigured()).toBe(false);
+  });
+
+  test('an unusable endpoint names itself in the log', () => {
+    // The message is the whole point: this is what turns a support question
+    // into a one-line fix, and it is where the evidence lands in Vercel.
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.S3_ENDPOINT = 'not a url';
+    storageConfigured();
+    expect(error).toHaveBeenCalledOnce();
+    expect(String(error.mock.calls[0]?.[0])).toContain('S3_ENDPOINT');
+  });
+
+  test('an absent endpoint is silent, because that is the no-bucket configuration', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    delete process.env.S3_ENDPOINT;
+    expect(storageConfigured()).toBe(false);
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  test('presigning refuses rather than throwing from inside the SDK', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.S3_ENDPOINT = 'https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com';
+    await expect(presignPut('boards/b1/a1', 'text/plain')).rejects.toThrow(
+      'Attachment storage is not configured',
+    );
   });
 });

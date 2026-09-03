@@ -21,7 +21,29 @@ function config() {
   const accessKeyId = process.env.S3_ACCESS_KEY_ID;
   const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
   if (!endpoint || !region || !bucket || !accessKeyId || !secretAccessKey) return null;
+  if (!usable(endpoint)) {
+    // Logged on every call rather than once: suppressing the repeat needs
+    // module-level state, which CLAUDE.md's deployment constraints rule out,
+    // and the repetition is what makes a misconfigured deployment findable in
+    // the runtime logs.
+    console.error('S3_ENDPOINT is not a usable URL — attachment storage is off', { endpoint });
+    return null;
+  }
   return { endpoint, region, bucket, accessKeyId, secretAccessKey };
+}
+
+// Present is not usable. An endpoint that does not parse throws
+// `TypeError: Invalid URL` from inside the S3 client, which a server action
+// turns into a rejection, which `lib/attempt.ts` reports as UNREACHABLE — a
+// network failure the deployment never had. Failing here instead keeps one
+// meaning for "configured" and hands the operator the variable's name.
+function usable(endpoint: string): boolean {
+  try {
+    const { protocol } = new URL(endpoint);
+    return protocol === 'http:' || protocol === 'https:';
+  } catch {
+    return false;
+  }
 }
 
 export function storageConfigured(): boolean {
