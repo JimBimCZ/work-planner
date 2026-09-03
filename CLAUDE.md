@@ -49,7 +49,7 @@ pnpm build              # production build
 pnpm lint               # eslint
 pnpm typecheck          # tsc --noEmit
 pnpm test               # vitest
-pnpm test:e2e           # playwright
+pnpm test:e2e           # playwright, port 3000 unless E2E_PORT says otherwise
 pnpm env:pull [target]  # pull Neon connection strings from Vercel into .env.local
 pnpm db:dev-branch      # create the Neon dev branch, point Vercel Development at it
 pnpm db:generate        # generate SQL migration from schema changes
@@ -287,6 +287,20 @@ Column reordering uses the same helper against sibling columns. There is one ord
 - `DndContext` wraps the board; each column is a `useDroppable`, each card a `useSortable`.
 - Optimistic update first: mutate local state in `onDragEnd`, then call the server action, then roll back on rejection. Dragging must never wait on the network.
 - The server action receives `{ cardId, toColumnId, beforeCardId, afterCardId }` — not an index. Indexes are stale the moment another user moves something.
+- The drop target is **drawn**, not merely computed. `onDragOver` records `over.id`, and
+  `dropTarget` — the same function `onDragEnd` calls to decide the real move — turns it into the
+  line rendered in the target column. There is deliberately no second "where would this land"
+  helper: a parallel calculation is a thing that can disagree with the drop, and this one cannot.
+  `onDragOver` fires when the droppable under the pointer *changes*, not on every frame —
+  `@dnd-kit/core@6.3.1` runs it from an effect keyed on `over.id`. `sameDropTarget` still earns
+  its place, because two different `over` ids resolve to the same target more often than not (a
+  column's own id and its last card both mean "after the last card"), and a `setTarget` here
+  re-renders every column.
+- A card being dragged leaves a **slot**, not a hole. The source card keeps its border and its box
+  height, recolours that border to transparent, paints `--slot`, and hides its content with
+  `invisible` rather than unmounting it — so the column does not reflow as the drag starts. Its
+  title is therefore present but not visible mid-drag: `toHaveText` still matches it, `toBeVisible`
+  does not.
 - Use `PointerSensor` with an activation distance of ~5px so clicking a card still opens the modal.
 - Keyboard sensor stays enabled. Cards need `aria-roledescription` and drag announcements; do not strip dnd-kit's accessibility props.
 
@@ -404,6 +418,7 @@ The brief: a board a developer stares at for eight hours a day. Its job is to an
 --ink         #E7EBF2 / #0E1319     primary text
 --muted       #8A94A6               secondary text, both modes
 --line        #262E3A / #DCE1E9     borders, dividers
+--slot        #0B0E13 / #D5DBE4     the socket a dragged card leaves behind
 
 --flow-1      #4468D8   indigo   — first column
 --flow-mid    #12A594   teal     — midpoint, and the app's single accent
