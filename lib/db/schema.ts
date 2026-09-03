@@ -236,6 +236,37 @@ export const attachments = pgTable(
   ],
 );
 
+export const activity = pgTable(
+  'activity',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    boardId: text('board_id')
+      .notNull()
+      .references(() => boards.id, { onDelete: 'cascade' }),
+    // The one user reference here that cascades rather than setting null.
+    // An entry is a record about an action, not a contribution: nothing
+    // another member wrote is lost with it, and /privacy gets to say the
+    // record of what you did is deleted with your account.
+    // docs/specs/activity-log.md holds the argument in full.
+    actorId: text('actor_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    // No foreign key, deliberately. Half of all entries describe something
+    // that no longer exists — that is what "deleted the card 'Ship it'"
+    // means. A reference would delete the row as it became interesting.
+    subjectId: text('subject_id'),
+    subject: text('subject'),
+    detail: text('detail'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  // Postgres scans an ascending index backwards, so this one index serves the
+  // feed's `order by created_at desc` and the trim's cutoff both.
+  (t) => [index('activity_board_id_created_at_idx').on(t.boardId, t.createdAt)],
+);
+
 export const comments = pgTable(
   'comments',
   {
@@ -308,4 +339,9 @@ export const attachmentsRelations = relations(attachments, ({ one }) => ({
   card: one(cards, { fields: [attachments.cardId], references: [cards.id] }),
   board: one(boards, { fields: [attachments.boardId], references: [boards.id] }),
   uploader: one(users, { fields: [attachments.uploaderId], references: [users.id] }),
+}));
+
+export const activityRelations = relations(activity, ({ one }) => ({
+  board: one(boards, { fields: [activity.boardId], references: [boards.id] }),
+  actor: one(users, { fields: [activity.actorId], references: [users.id] }),
 }));

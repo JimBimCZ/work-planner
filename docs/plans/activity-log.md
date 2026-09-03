@@ -61,7 +61,7 @@ Branch: `feat/activity-write`, from `main`.
 - Consumes: nothing.
 - Produces: `activity` table with columns `id, boardId, actorId, type, subjectId, subject, detail, createdAt`; `ACTIVITY_PER_BOARD = 500`; `ACTIVITY_SUBJECT_MAX = 120`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `e2e/activity.spec.ts`:
 
@@ -101,12 +101,12 @@ test('an entry goes with its board, and with its actor', async ({ context }) => 
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec playwright test e2e/activity.spec.ts --reporter=line > /tmp/a1.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/a1.log`
 Expected: FAIL with `relation "activity" does not exist`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `lib/activity-limits.ts`:
 
@@ -165,7 +165,7 @@ export const activityRelations = relations(activity, ({ one }) => ({
 }));
 ```
 
-- [ ] **Step 4: Generate the migration and run the test**
+- [x] **Step 4: Generate the migration and run the test**
 
 Run: `pnpm db:generate` then apply it locally with `pnpm db:migrate`.
 Run: `pnpm exec playwright test e2e/activity.spec.ts --reporter=line > /tmp/a1.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/a1.log`
@@ -173,7 +173,7 @@ Expected: EXIT=0, 1 passed.
 
 Read the generated SQL before committing it. It must contain `on delete cascade` twice and no foreign key on `subject_id`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/activity-limits.ts lib/db/schema.ts lib/db/migrations e2e/activity.spec.ts
@@ -190,7 +190,7 @@ git commit -m "feat: add the activity table, cascading on board and actor"
 - Consumes: `ACTIVITY_SUBJECT_MAX` from Task 1.
 - Produces: `ActivityType` (26 members), `ActivityEntry`, `describeActivity(entry): string`. Later tasks pass `ActivityType` values to `recordActivity` and render with `describeActivity`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/activity.test.ts`:
 
@@ -273,12 +273,12 @@ describe('describeActivity', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run lib/activity.test.ts > /tmp/a2.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/a2.log`
 Expected: FAIL — cannot resolve `./activity`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `lib/activity.ts`. Only the union and the renderer in this task; `boardActivity` arrives in Task 12.
 
@@ -395,12 +395,12 @@ export function describeActivity(entry: ActivityEntry): string {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run lib/activity.test.ts > /tmp/a2.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/a2.log`
 Expected: EXIT=0, 7 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/activity.ts lib/activity.test.ts
@@ -417,7 +417,7 @@ git commit -m "feat: add the activity vocabulary and its exhaustive renderer"
 - Consumes: `activity` (Task 1), `ACTIVITY_PER_BOARD`, `ACTIVITY_SUBJECT_MAX` (Task 1), `ActivityType` (Task 2).
 - Produces: `recordActivity(tx: Tx, entry: { boardId: string; actorId: string; type: ActivityType; subjectId?: string | null; subject?: string | null; detail?: string | null }): Promise<void>`. Every call site in Tasks 4–11 uses exactly this signature.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/actions/scope.test.ts`:
 
@@ -502,12 +502,12 @@ describe('recordActivity', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run lib/actions/scope.test.ts > /tmp/a3.log 2>&1; echo "EXIT=$?"; tail -8 /tmp/a3.log`
 Expected: FAIL — `recordActivity` is not exported.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `lib/actions/scope.ts`, add the imports (`sql` from `drizzle-orm`, `activity` from `@/lib/db/schema`, both caps, and `type ActivityType`) and:
 
@@ -551,12 +551,12 @@ export async function recordActivity(
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run lib/actions/scope.test.ts > /tmp/a3.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/a3.log`
 Expected: EXIT=0, 3 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/scope.ts lib/actions/scope.test.ts
@@ -573,7 +573,7 @@ git commit -m "feat: add recordActivity, trimming each board to its newest entri
 - Consumes: `recordActivity` (Task 3).
 - Produces: nothing new. Six entries: `card.created`, `card.renamed`, `card.described`, `card.due_set`/`card.due_cleared`, `card.moved`, `card.deleted`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `lib/actions/cards.test.ts`, give the column fake a name — change the `beforeEach` line to `columnRow = { id: 'col-1', boardId: 'b1', name: 'In Progress' };`, widen the `columnRow` declaration to `{ id: string; boardId: string; name: string } | undefined`, and add `columns: { findFirst: async () => columnRow }` usage as it already stands. Then add:
 
@@ -616,14 +616,28 @@ describe('activity', () => {
 
   // The rule: if it only changed an order, it is not news.
   test('a move within the same column records nothing', async () => {
-    await moveCard({ cardId: 'card-1', toColumnId: 'col-1', mutationId: MUTATION_ID });
+    // As shipped: moveSchema requires beforeCardId and afterCardId, and the
+    // call written here returned INVALID before reaching the transaction.
+    await moveCard({
+      cardId: 'card-1',
+      toColumnId: 'col-1',
+      beforeCardId: null,
+      afterCardId: null,
+      mutationId: MUTATION_ID,
+    });
 
     expect(activityOps()).toHaveLength(0);
   });
 
   test('a move to another column records the destination', async () => {
     columnRow = { id: 'col-2', boardId: 'b1', name: 'In Review' };
-    await moveCard({ cardId: 'card-1', toColumnId: 'col-2', mutationId: MUTATION_ID });
+    await moveCard({
+      cardId: 'card-1',
+      toColumnId: 'col-2',
+      beforeCardId: null,
+      afterCardId: null,
+      mutationId: MUTATION_ID,
+    });
 
     expect(activityOps()[0].values).toMatchObject({
       type: 'card.moved',
@@ -641,12 +655,12 @@ describe('activity', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run lib/actions/cards.test.ts > /tmp/a4.log 2>&1; echo "EXIT=$?"; tail -12 /tmp/a4.log`
 Expected: FAIL — every one of the seven, with `activityOps()` empty.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Import `recordActivity` from `./scope` in `lib/actions/cards.ts`, then inside each transaction, as the last statement after `touchBoard`:
 
@@ -729,12 +743,12 @@ if (current && current.columnId !== toColumnId) {
 
 `current` must be read **before** the `update` that changes `columnId`, or it reports the destination as the origin and every move looks like a reorder.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run lib/actions/cards.test.ts > /tmp/a4.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/a4.log`
 Expected: EXIT=0, all passing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/cards.ts lib/actions/cards.test.ts
@@ -751,7 +765,7 @@ git commit -m "feat: record card activity, and nothing at all for a reorder"
 - Consumes: `recordActivity` (Task 3).
 - Produces: `column.created`, `column.renamed`, `column.deleted`. `moveColumn` produces nothing, by design.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `lib/actions/columns.test.ts`, mirroring the helper from Task 4:
 
@@ -760,7 +774,8 @@ const activityOps = () => ops.filter((op) => op.kind === 'insert' && op.table ==
 
 describe('activity', () => {
   test('addColumn records the name', async () => {
-    await addColumn({ boardId: 'b1', name: 'Blocked', mutationId: MUTATION_ID });
+    // As shipped: addSchema requires afterColumnId.
+    await addColumn({ boardId: 'b1', name: 'Blocked', afterColumnId: null, mutationId: MUTATION_ID });
 
     expect(activityOps()[0].values).toMatchObject({ type: 'column.created', subject: 'Blocked' });
   });
@@ -793,12 +808,12 @@ describe('activity', () => {
 
 Give the column fakes names in `beforeEach` so the assertions have something to read: the moved column `'In Progress'` and the target `'Backlog'`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec vitest run lib/actions/columns.test.ts > /tmp/a5.log 2>&1; echo "EXIT=$?"; tail -10 /tmp/a5.log`
 Expected: FAIL on the first three; the `moveColumn` test passes already, which is correct — it is a guard against a future edit, not a red test.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 In `lib/actions/columns.ts`, after `touchBoard` in each transaction:
 
@@ -837,12 +852,12 @@ await recordActivity(tx, {
 
 `moveColumn` is not edited. Leave it alone deliberately.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm exec vitest run lib/actions/columns.test.ts > /tmp/a5.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/a5.log`
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/actions/columns.ts lib/actions/columns.test.ts
@@ -860,7 +875,7 @@ git commit -m "feat: record column activity, and nothing for a column reorder"
 
 The unit test in Task 3 proves a delete is issued. Only a real database proves it deletes the right rows, and the fake transaction cannot — it ignores the argument to `where()`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `e2e/activity.spec.ts`:
 
@@ -906,21 +921,21 @@ test('a board keeps its newest entries and drops the rest', async ({ context }) 
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm exec playwright test e2e/activity.spec.ts --reporter=line > /tmp/a6.log 2>&1; echo "EXIT=$?"; tail -6 /tmp/a6.log`
 Expected: it fails only if the SQL in `recordActivity` and the SQL here disagree. If it passes first time, change `ACTIVITY_PER_BOARD` to 3 temporarily, re-run, and confirm it still holds — a test that cannot fail proves nothing.
 
-- [ ] **Step 3: No implementation**
+- [x] **Step 3: No implementation**
 
 This task adds no code. If the test fails, the bug is in Task 3's fragment; fix it there.
 
-- [ ] **Step 4: Run the whole spec file**
+- [x] **Step 4: Run the whole spec file**
 
 Run: `pnpm exec playwright test e2e/activity.spec.ts --reporter=line > /tmp/a6.log 2>&1; echo "EXIT=$?"; tail -6 /tmp/a6.log`
 Expected: EXIT=0, 2 passed. Compare the count that ran against the count collected.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add e2e/activity.spec.ts
@@ -932,18 +947,18 @@ git commit -m "test: prove the trim keeps the newest entries and drops the oldes
 **Files:**
 - Modify: `CLAUDE.md`, `docs/plans/activity-log.md`
 
-- [ ] **Step 1: Update `CLAUDE.md`**
+- [x] **Step 1: Update `CLAUDE.md`**
 
 Add `activity` to the data-model block with its columns; add a rule explaining the cascade against the `comments.authorId` precedent; add `lib/activity.ts` and `lib/activity-limits.ts` to the layout tree. Leave "Open decisions" alone until section D.
 
-- [ ] **Step 2: Tick this section's boxes in this plan**
+- [x] **Step 2: Tick this section's boxes in this plan**
 
-- [ ] **Step 3: Run the gates**
+- [x] **Step 3: Run the gates**
 
 Run: `pnpm typecheck > /tmp/t.log 2>&1; echo "TYPECHECK=$?"; pnpm lint > /tmp/l.log 2>&1; echo "LINT=$?"; pnpm test > /tmp/v.log 2>&1; echo "TEST=$?"; tail -4 /tmp/v.log`
 Expected: all three EXIT=0.
 
-- [ ] **Step 4: Commit and open the PR**
+- [x] **Step 4: Commit and open the PR**
 
 ```bash
 git add CLAUDE.md docs/plans/activity-log.md

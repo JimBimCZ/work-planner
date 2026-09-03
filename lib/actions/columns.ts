@@ -11,7 +11,7 @@ import { publish } from '@/lib/events';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
 import { ranksAfter, rankBetween } from '@/lib/rank';
 
-import { boardIdForColumn, touchBoard, type Tx } from './scope';
+import { boardIdForColumn, recordActivity, touchBoard, type Tx } from './scope';
 
 const columnName = z.string().trim().min(1).max(60);
 const id = z.string().min(1);
@@ -37,7 +37,7 @@ const deleteSchema = z.object({ columnId: id, targetColumnId: id, mutationId: z.
 function siblingColumns(tx: Tx, boardId: string) {
   return tx.query.columns.findMany({
     where: (column, { eq: is }) => is(column.boardId, boardId),
-    columns: { id: true, rank: true },
+    columns: { id: true, rank: true, name: true },
     orderBy: (column, { asc }) => [asc(column.rank)],
   });
 }
@@ -57,6 +57,8 @@ export async function addColumn(input: unknown) {
     return boardAccessResult(error);
   }
 
+  const actorId = session.user.id;
+
   const created = await db.transaction(async (tx) => {
     const siblings = await siblingColumns(tx, boardId);
 
@@ -69,6 +71,13 @@ export async function addColumn(input: unknown) {
 
     const [row] = await tx.insert(columns).values({ boardId, name, rank }).returning();
     await touchBoard(tx, boardId);
+    await recordActivity(tx, {
+      boardId,
+      actorId,
+      type: 'column.created',
+      subjectId: row.id,
+      subject: name,
+    });
     return { id: row.id, rank };
   });
 
@@ -102,12 +111,28 @@ export async function renameColumn(input: unknown) {
     return boardAccessResult(error);
   }
 
+  const actorId = session.user.id;
+
   await db.transaction(async (tx) => {
+    // The old name is read before the update, because the entry names both.
+    const previous = await tx.query.columns.findFirst({
+      where: (column, { eq: is }) => is(column.id, parsed.data.columnId),
+      columns: { name: true },
+    });
+
     await tx
       .update(columns)
       .set({ name: parsed.data.name })
       .where(eq(columns.id, parsed.data.columnId));
     await touchBoard(tx, boardId);
+    await recordActivity(tx, {
+      boardId,
+      actorId,
+      type: 'column.renamed',
+      subjectId: parsed.data.columnId,
+      subject: parsed.data.name,
+      detail: previous?.name ?? null,
+    });
   });
 
   revalidatePath('/boards');
@@ -189,12 +214,16 @@ export async function deleteColumn(input: unknown) {
     return boardAccessResult(error);
   }
 
+  const actorId = session.user.id;
+
   const outcome = await db.transaction(async (tx) => {
     const siblings = await siblingColumns(tx, boardId);
     if (siblings.length <= 1) return 'LAST_COLUMN' as const;
 
     const target = siblings.find((column) => column.id === targetColumnId);
     if (!target || targetColumnId === columnId) return 'INVALID' as const;
+
+    const column = siblings.find((c) => c.id === columnId);
 
     const affected = await tx.query.cards.findMany({
       where: (card, { inArray }) => inArray(card.columnId, [columnId, targetColumnId]),
@@ -215,6 +244,17 @@ export async function deleteColumn(input: unknown) {
 
     await tx.delete(columns).where(eq(columns.id, columnId));
     await touchBoard(tx, boardId);
+    // One entry for the whole act. The cards it moves write none of their own:
+    // the reader is told the column went and where its cards landed, which is
+    // the whole of what happened.
+    await recordActivity(tx, {
+      boardId,
+      actorId,
+      type: 'column.deleted',
+      subjectId: columnId,
+      subject: column?.name ?? null,
+      detail: target.name,
+    });
     return {
       outcome: 'OK' as const,
       cards: moving.map((card, position) => ({
