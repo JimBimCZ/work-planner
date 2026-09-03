@@ -103,7 +103,7 @@ describe('the drop indicator', () => {
   test('the line is hidden from assistive technology', () => {
     const html = render({ dropIndicator: indicator('c2') });
     const start = html.indexOf('data-testid="drop-indicator"');
-    expect(html.slice(start - 120, start)).toContain('aria-hidden');
+    expect(html.slice(html.lastIndexOf('<', start), start)).toContain('aria-hidden');
   });
 
   // The hue is the column's own, so the line says which column as well as where.
