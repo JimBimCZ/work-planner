@@ -46,7 +46,11 @@ describe('ActivityDrawer', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /activity/i }));
 
-    expect(await screen.findByText('Nothing here yet')).toBeInTheDocument();
+    // The same text also lands in the sr-only live region (finding 7), so
+    // scope to the visible paragraph specifically.
+    expect(
+      await screen.findByText('Nothing here yet', { selector: 'p.mt-4' }),
+    ).toBeInTheDocument();
   });
 
   test('says what happened when the read fails', async () => {
@@ -59,7 +63,11 @@ describe('ActivityDrawer', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /activity/i }));
 
-    expect(await screen.findByText(/could not load/i)).toBeInTheDocument();
+    // The same text also lands in the sr-only live region (finding 7), so
+    // scope to the visible paragraph specifically.
+    expect(
+      await screen.findByText(/could not load/i, { selector: 'p.mt-4' }),
+    ).toBeInTheDocument();
   });
 
   test('groups activity by calendar day', async () => {
@@ -82,13 +90,27 @@ describe('ActivityDrawer', () => {
   });
 
   test('folds a few minutes of clock skew into today, not a broken heading', async () => {
+    // Built from calendar components, the same way the day-boundary test
+    // above is, rather than Date.now() + 5 minutes: that arithmetic lands on
+    // tomorrow's calendar day for the last five minutes before local
+    // midnight, which is exactly the skew this test exists to cover, but
+    // only ~0.35% of the time it ran. Dating the fixture to just past
+    // midnight tomorrow reproduces that skew on every run, at any hour.
+    const now = new Date();
     const futureLine = {
       id: 'f1',
       sentence: 'added a comment on Ship it',
       actorId: 'u3',
       actorName: 'Grace',
       actorImage: null,
-      createdAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      createdAt: new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+        0,
+        5,
+        0,
+      ).toISOString(),
     };
     vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [futureLine] } });
     render(<ActivityDrawer boardId="b1" />);
@@ -96,5 +118,51 @@ describe('ActivityDrawer', () => {
     await userEvent.click(screen.getByRole('button', { name: /activity/i }));
 
     expect(await screen.findByText('Today')).toBeInTheDocument();
+  });
+
+  test('wraps a long unbroken filename instead of overflowing the row', async () => {
+    const longName = 'a'.repeat(200);
+    const overflowLine = {
+      id: 'o1',
+      sentence: `attached ${longName} to Ship it`,
+      actorId: 'u4',
+      actorName: 'Priya',
+      actorImage: null,
+      createdAt: new Date().toISOString(),
+    };
+    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [overflowLine] } });
+    render(<ActivityDrawer boardId="b1" />);
+
+    await userEvent.click(screen.getByRole('button', { name: /activity/i }));
+
+    const sentence = await screen.findByText(new RegExp(longName));
+    expect(sentence).toHaveClass('break-words');
+  });
+
+  test("renders the actor's avatar image when one is present", async () => {
+    const imageLine = {
+      ...line,
+      id: 'i1',
+      actorImage: 'https://avatars.githubusercontent.com/u/1',
+    };
+    vi.mocked(openActivity).mockResolvedValue({ ok: true, data: { lines: [imageLine] } });
+    // Sheet content is a Radix Portal onto document.body, not a descendant of
+    // render()'s own container — query the document, the way screen does.
+    render(<ActivityDrawer boardId="b1" />);
+
+    await userEvent.click(screen.getByRole('button', { name: /activity/i }));
+    await screen.findByText(/moved Ship it to In Review/);
+
+    expect(document.querySelector('img')).toHaveAttribute('alt', '');
+  });
+
+  test('falls back to initials-on-hue when the actor has no image', async () => {
+    render(<ActivityDrawer boardId="b1" />);
+
+    await userEvent.click(screen.getByRole('button', { name: /activity/i }));
+
+    await screen.findByText(/moved Ship it to In Review/);
+    expect(document.querySelector('img')).not.toBeInTheDocument();
+    expect(screen.getByText('V')).toBeInTheDocument();
   });
 });

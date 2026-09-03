@@ -47,14 +47,15 @@ function SheetOverlay({
 }
 
 // Right-side only — the other three shadcn Sheet sides carry no caller here.
+// Not scrollable itself: a panel whose content scrolls owns that region, so
+// the title and close button — positioned absolute within this column — stay
+// put. See components/board/activity-drawer.tsx for the scrolling region.
 function SheetContent({
   className,
   children,
-  side = "right",
   showCloseButton = true,
   ...props
-}: Omit<React.ComponentProps<typeof SheetPrimitive.Content>, "side"> & {
-  side?: "right"
+}: React.ComponentProps<typeof SheetPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
   return (
@@ -62,9 +63,9 @@ function SheetContent({
       <SheetOverlay />
       <SheetPrimitive.Content
         data-slot="sheet-content"
-        data-side={side}
+        data-side="right"
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex h-full w-full flex-col gap-4 overflow-y-auto rounded-l-[var(--radius-modal)] border-l border-line bg-surface p-5 text-sm text-ink shadow-lg duration-200 outline-none min-[700px]:max-w-sm data-open:animate-in data-open:slide-in-from-right data-closed:animate-out data-closed:slide-out-to-right motion-reduce:animate-none motion-reduce:transition-none",
+          "fixed inset-y-0 right-0 z-50 flex h-full w-full flex-col gap-4 rounded-l-[var(--radius-modal)] border-l border-line bg-surface p-5 text-sm text-ink shadow-lg duration-200 outline-none min-[700px]:max-w-sm data-open:animate-in data-open:slide-in-from-right data-closed:animate-out data-closed:slide-out-to-right motion-reduce:animate-none motion-reduce:transition-none",
           className
         )}
         {...props}

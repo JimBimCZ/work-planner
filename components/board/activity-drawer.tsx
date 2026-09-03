@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
 
 import { openActivity } from '@/lib/actions/activity';
@@ -31,7 +32,10 @@ const localDay = (date: Date) =>
 
 function dayHeading(createdAt: string, today: number): string {
   const diff = today - localDay(new Date(createdAt));
-  if (diff === 0) return 'Today';
+  // <= 0, not === 0: a small clock skew can date an entry to tomorrow's
+  // calendar day, and that should still read as today, not fall through to
+  // a formatted date for something that hasn't happened by the clock yet.
+  if (diff <= 0) return 'Today';
   if (diff === 1) return 'Yesterday';
   return new Intl.DateTimeFormat(undefined, {
     day: 'numeric',
@@ -84,6 +88,15 @@ export function ActivityDrawer({ boardId }: { boardId: string }) {
     setStatus('ready');
   }
 
+  const statusMessage =
+    status === 'loading'
+      ? 'Loading activity'
+      : status === 'failed'
+        ? 'Could not load the activity. Try again.'
+        : status === 'ready' && lines.length === 0
+          ? 'Nothing here yet'
+          : '';
+
   return (
     <Sheet
       open={open}
@@ -95,48 +108,64 @@ export function ActivityDrawer({ boardId }: { boardId: string }) {
       <SheetTrigger className="rounded-[var(--radius-control)] border border-line px-3 py-1.5 text-sm font-medium">
         Activity
       </SheetTrigger>
-      <SheetContent>
+      <SheetContent aria-busy={status === 'loading'}>
         <SheetTitle>Activity</SheetTitle>
-        {status === 'loading' && <SkeletonRows />}
-        {status === 'failed' && (
-          <p className="mt-4 text-sm text-ink">Could not load the activity. Try again.</p>
-        )}
-        {status === 'ready' && lines.length === 0 && (
-          <p className="mt-4 text-sm text-muted">Nothing here yet</p>
-        )}
-        {status === 'ready' && lines.length > 0 && (
-          <ul className="mt-4 space-y-5">
-            {groupByDay(lines).map(({ heading, items }) => (
-              <li key={heading}>
-                <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">
-                  {heading}
-                </h3>
-                <ul className="mt-2 space-y-3">
-                  {items.map((entry) => (
-                    <li key={entry.id} className="flex items-start gap-3">
-                      <span
-                        aria-hidden
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-medium text-white"
-                        style={{ background: `hsl(${avatarHue(entry.actorId)} 45% 40%)` }}
-                      >
-                        {initials(entry.actorName ?? 'Someone', '')}
-                      </span>
-                      <span className="min-w-0 flex-1 text-[15px] leading-6">
-                        <strong>{entry.actorName ?? 'Someone'}</strong> {entry.sentence}
-                      </span>
-                      <time
-                        dateTime={entry.createdAt}
-                        className="shrink-0 font-mono text-xs text-muted"
-                      >
-                        {relative(entry.createdAt)}
-                      </time>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        )}
+        {/* Announces the state a sighted user reads off the panel below —
+            the skeleton, the empty state and the failure are otherwise
+            silent to a screen reader until it re-navigates into them. */}
+        <p aria-live="polite" className="sr-only">
+          {statusMessage}
+        </p>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {status === 'loading' && <SkeletonRows />}
+          {status === 'failed' && (
+            <p className="mt-4 text-sm text-ink">Could not load the activity. Try again.</p>
+          )}
+          {status === 'ready' && lines.length === 0 && (
+            <p className="mt-4 text-sm text-muted">Nothing here yet</p>
+          )}
+          {status === 'ready' && lines.length > 0 && (
+            <ul className="mt-4 space-y-5">
+              {groupByDay(lines).map(({ heading, items }) => (
+                <li key={heading}>
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-muted">
+                    {heading}
+                  </h3>
+                  <ul className="mt-2 space-y-3">
+                    {items.map((entry) => (
+                      <li key={entry.id} className="flex items-start gap-3">
+                        <span
+                          aria-hidden
+                          className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-medium text-white"
+                          style={
+                            entry.actorImage
+                              ? undefined
+                              : { background: `hsl(${avatarHue(entry.actorId)} 45% 40%)` }
+                          }
+                        >
+                          {entry.actorImage ? (
+                            <Image src={entry.actorImage} alt="" width={28} height={28} />
+                          ) : (
+                            initials(entry.actorName ?? 'Someone', '')
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1 break-words text-[15px] leading-6">
+                          <strong>{entry.actorName ?? 'Someone'}</strong> {entry.sentence}
+                        </span>
+                        <time
+                          dateTime={entry.createdAt}
+                          className="shrink-0 font-mono text-xs text-muted"
+                        >
+                          {relative(entry.createdAt)}
+                        </time>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </SheetContent>
     </Sheet>
   );
