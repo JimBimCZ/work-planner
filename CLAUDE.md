@@ -496,14 +496,22 @@ What that constrains:
   preflight covers. Preview deployments each get their own origin and are deliberately **not** listed:
   a preview that could upload would write into the production bucket. Re-run the preflight after any
   change to the policy or to the production domain.
-- **A malformed `S3_*` value reads to the user as a network failure, not a misconfiguration.**
-  `lib/storage.ts` checks only that the five variables are *present*; an `S3_ENDPOINT` that does not
-  parse throws `TypeError: Invalid URL` inside the server action, which rejects rather than returning
-  a refusal, and `lib/attempt.ts` maps any rejection to `UNREACHABLE` — rendered as "Could not reach
-  the server. Try again." Production hit exactly this on 2026-09-03 by storing the literal
-  `https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com` placeholder. The evidence was in Vercel's runtime
-  errors, which name the offending `input`; the message in the browser points at the wrong layer, so
-  read the logs before believing it.
+- **A malformed `S3_ENDPOINT` means "not configured", and says so in the log.** `config()` in
+  `lib/storage.ts` requires the endpoint to parse as an `http:`/`https:` URL, not merely to be
+  present: a value that fails logs `S3_ENDPOINT is not a usable URL` naming the offending value and
+  returns `null`, so `storageConfigured()` is false and every consumer already handles it — the
+  picker does not render, `requestUpload` answers `UNAVAILABLE`, and `client()` throws its own
+  refusal. It is logged on **every** call rather than once, because suppressing the repeat needs
+  module-level state this section forbids, and the repetition is what makes the deployment findable
+  in the runtime logs. Only the endpoint is validated: the other four have no parseable shape, and a
+  wrong-but-well-formed bucket name can only be caught by talking to the bucket.
+  Why it works this way: production stored the literal
+  `https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com` placeholder on 2026-09-03, which threw
+  `TypeError: Invalid URL` from inside the S3 client. A server action that *throws* rather than
+  refusing is a rejection, and `lib/attempt.ts` maps every rejection to `UNREACHABLE` — so a
+  configuration error reached the user as "Could not reach the server. Try again.", pointing at their
+  network. `lib/storage.test.ts`'s `configuration` block pins the whole behaviour, including that
+  MinIO's `http://minio:9000` still counts as configured.
 - **After changing a production variable, redeploy *and* reload the tab.** Vercel pins a page's
   server-action requests back to the deployment that rendered it, so an open tab keeps calling the old
   build and its old environment. The same 2026-09-03 fix appeared not to work for exactly this reason:
