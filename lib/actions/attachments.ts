@@ -23,7 +23,7 @@ import {
   presignPut,
   storageConfigured,
 } from '@/lib/storage';
-import { boardIdForCard } from './scope';
+import { boardIdForCard, cardEventScope, recordActivity } from './scope';
 
 const id = z.string().min(1);
 const mutationId = z.uuid();
@@ -181,10 +181,24 @@ export async function confirmUpload(input: unknown) {
   if (board - row.size + head.size > STORAGE_PER_BOARD) return reject('BOARD_FULL');
   if (account - row.size + head.size > STORAGE_PER_ACCOUNT) return reject('ACCOUNT_FULL');
 
-  await db
-    .update(attachments)
-    .set({ size: head.size, contentType: head.contentType, status: 'ready' })
-    .where(eq(attachments.id, row.id));
+  const actorId = session.user.id;
+  const card = await cardEventScope(row.cardId);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(attachments)
+      .set({ size: head.size, contentType: head.contentType, status: 'ready' })
+      .where(eq(attachments.id, row.id));
+
+    await recordActivity(tx, {
+      boardId: row.boardId,
+      actorId,
+      type: 'attachment.added',
+      subjectId: row.cardId,
+      subject: card?.title ?? null,
+      detail: row.filename,
+    });
+  });
 
   await publish(row.boardId, {
     type: 'attachment.added',
@@ -221,7 +235,7 @@ export async function deleteAttachment(input: unknown) {
 
   const row = await db.query.attachments.findFirst({
     where: (a, { eq: is }) => is(a.id, parsed.data.attachmentId),
-    columns: { id: true, boardId: true, cardId: true, uploaderId: true, key: true },
+    columns: { id: true, boardId: true, cardId: true, uploaderId: true, key: true, filename: true },
   });
   if (!row) return { ok: false, error: 'NOT_FOUND' } as const;
 
@@ -238,7 +252,22 @@ export async function deleteAttachment(input: unknown) {
   const mine = row.uploaderId === session.user.id;
   if (!mine && role !== 'owner') return { ok: false, error: 'FORBIDDEN' } as const;
 
-  await db.delete(attachments).where(eq(attachments.id, row.id));
+  const actorId = session.user.id;
+  const card = await cardEventScope(row.cardId);
+
+  await db.transaction(async (tx) => {
+    await tx.delete(attachments).where(eq(attachments.id, row.id));
+
+    await recordActivity(tx, {
+      boardId: row.boardId,
+      actorId,
+      type: 'attachment.removed',
+      subjectId: row.cardId,
+      subject: card?.title ?? null,
+      detail: row.filename,
+    });
+  });
+
   await forgetObjects([row.key]);
 
   await publish(row.boardId, {

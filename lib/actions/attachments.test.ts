@@ -71,7 +71,7 @@ type AttachmentRow = {
   createdAt: Date;
 };
 
-let cardRow: { boardId: string } | undefined;
+let cardRow: { boardId: string; title?: string } | undefined;
 let cardCount = 0;
 let staleRows: { id: string; key: string }[] = [];
 let attachmentRow: AttachmentRow | undefined;
@@ -521,5 +521,69 @@ describe('deleteAttachment', () => {
     });
     await deleteAttachment({ attachmentId: 'a1', mutationId: MUTATION_ID });
     expect(publishedAfter).toBe(true);
+  });
+});
+
+const activityOps = () => ops.filter((op) => op.kind === 'insert' && op.table === 'activity');
+
+describe('activity', () => {
+  const MUTATION_ID = '55555555-5555-4555-8555-555555555555';
+
+  // requestUpload creates a pending row for bytes that may never land. The
+  // feed must not announce a file that does not exist.
+  test('requesting an upload records nothing', async () => {
+    await requestUpload(valid);
+    expect(activityOps()).toHaveLength(0);
+  });
+
+  test('confirming records the card and the filename', async () => {
+    attachmentRow = {
+      id: 'a1',
+      boardId: 'b1',
+      cardId: 'c1',
+      uploaderId: 'u1',
+      key: 'boards/b1/a1',
+      filename: 'plan.pdf',
+      contentType: 'application/pdf',
+      size: 1024,
+      status: 'pending',
+      createdAt: new Date('2026-09-02T10:00:00.000Z'),
+    };
+    headObject.mockResolvedValue({ size: 1024, contentType: 'application/pdf' });
+    cardRow = { boardId: 'b1', title: 'Ship it' };
+
+    await confirmUpload({ attachmentId: 'a1', mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({
+      type: 'attachment.added',
+      subjectId: 'c1',
+      subject: 'Ship it',
+      detail: 'plan.pdf',
+    });
+  });
+
+  test('deleting records the same two facts', async () => {
+    attachmentRow = {
+      id: 'a1',
+      boardId: 'b1',
+      cardId: 'c1',
+      uploaderId: 'u1',
+      key: 'boards/b1/a1',
+      filename: 'plan.pdf',
+      contentType: 'application/pdf',
+      size: 1024,
+      status: 'ready',
+      createdAt: new Date('2026-09-02T10:00:00.000Z'),
+    };
+    cardRow = { boardId: 'b1', title: 'Ship it' };
+
+    await deleteAttachment({ attachmentId: 'a1', mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({
+      type: 'attachment.removed',
+      subjectId: 'c1',
+      subject: 'Ship it',
+      detail: 'plan.pdf',
+    });
   });
 });
