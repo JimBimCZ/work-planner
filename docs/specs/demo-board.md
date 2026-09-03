@@ -89,7 +89,8 @@ export function demoCard(cardId: string): DemoCardDetail | null
   contract Postgres enforces under `C.UTF-8` (`CLAUDE.md`, "Ordering: fractional ranks").
 - **Due dates are day offsets, not absolute dates**, resolved against `now`. A fixture that
   hardcoded a date would read `3d over` in the week it shipped and `300d over` a year later. One
-  card is overdue, one is due within three days, the rest carry no date.
+  card is three days overdue and one falls due tomorrow — `dueState` in `lib/due.ts` calls a date
+  `soon` at one day out or less, not three — and the rest carry no date.
 - `createdAt` is likewise an offset, so the card modal's relative timestamps stay plausible.
 
 Content: the five seeded column names (Ready to Work, In Progress, In Testing, In Review, Done),
@@ -224,9 +225,9 @@ Component tests (`jsdom` pragma, hand-wired `afterEach(cleanup)`, per `CLAUDE.md
 
 - `demoBoard(now)` returns columns in rank order, and card ranks ascend by code point within each
   column.
-- The overdue offset resolves to a date in the past and the due-soon offset to one within three
-  days, for a `now` the test supplies. This is the test that fails if someone replaces an offset
-  with a literal date.
+- For a `now` the test supplies, the offsets resolve to one `over` and one `soon` under
+  `dueState`. The same assertion runs against a `now` a year later, and still reads `3d over` —
+  this is the test that fails if someone replaces an offset with a literal date.
 - **The demo canvas dispatches without calling the server**: render with `demo`, drag or invoke a
   move, and assert with the actions module mocked that no export was called. This is the spec's
   central claim and the one test that must not be skipped.
