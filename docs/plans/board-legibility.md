@@ -860,8 +860,16 @@ In "Drag and drop", after the bullet about the server action receiving ids rathe
   `dropTarget` — the same function `onDragEnd` calls to decide the real move — turns it into the
   line rendered in the target column. There is deliberately no second "where would this land"
   helper: a parallel calculation is a thing that can disagree with the drop, and this one cannot.
-  Only a target that differs from the one already held is written to state, because `onDragOver`
-  fires continuously and every write re-renders every column.
+  `onDragOver` fires when the droppable under the pointer *changes*, not on every frame —
+  `@dnd-kit/core@6.3.1` runs it from an effect keyed on `over.id`. `sameDropTarget` still earns
+  its place, because two different `over` ids resolve to the same target more often than not (a
+  column's own id and its last card both mean "after the last card"), and a `setTarget` here
+  re-renders every column.
+- A card being dragged leaves a **slot**, not a hole. The source card keeps its border and its box
+  height, recolours that border to transparent, paints `--slot`, and hides its content with
+  `invisible` rather than unmounting it — so the column does not reflow as the drag starts. Its
+  title is therefore present but not visible mid-drag: `toHaveText` still matches it, `toBeVisible`
+  does not.
 ```
 
 - [ ] **Step 6: Tick this section's boxes, commit, open the PR**

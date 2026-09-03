@@ -117,12 +117,18 @@ describe('the drop indicator', () => {
   });
 
   // The hue is the column's own, so the line says which column as well as
-  // where. hsl(173 80% 36%) is --flow-mid (#12A594) converted to the same
-  // "H S% L%" shape flowColor emits — the accent's actual rendered form,
-  // not just its hex spelling.
+  // where. flowColor hardcodes saturation and lightness (lib/flow.ts), so
+  // hue is the only value that could smuggle the accent through: 173 is
+  // --flow-mid (#12A594, app/globals.css) converted with
+  // colorsys.rgb_to_hls. Asserting on the hue alone — not the full
+  // "hsl(173 80% 36%)" string, which mixes in the hex's own unrelated
+  // saturation and lightness and could never appear here — is what makes
+  // this catch a DropLine that wrongly hardcoded the accent's hue: that
+  // regression would emit "hsl(173 60% 45%)", which still starts with
+  // "hsl(173".
   test('the line takes the column hue, not the accent', () => {
     const html = render({ dropIndicator: indicator('c2'), hue: 185 });
     expect(html).toContain('hsl(185 60% 45%)');
-    expect(html).not.toContain('hsl(173 80% 36%)');
+    expect(html).not.toContain('hsl(173');
   });
 });
