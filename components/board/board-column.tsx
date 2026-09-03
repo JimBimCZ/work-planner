@@ -116,6 +116,9 @@ export function BoardColumn({
           >
             {column.name}
           </h2>
+          <span data-testid="column-count" className="font-mono text-xs text-muted">
+            {cards.length}
+          </span>
           {canWrite ? (
             <ColumnMenu
               column={column}

@@ -157,3 +157,37 @@ describe('the column body', () => {
     expect(render()).toContain('overflow-y-auto');
   });
 });
+
+describe('the card count', () => {
+  test('the header says how many cards the column holds', () => {
+    expect(render()).toContain('data-testid="column-count"');
+    const html = render();
+    const start = html.indexOf('data-testid="column-count"');
+    expect(html.slice(start, html.indexOf('</span>', start))).toContain('2');
+  });
+
+  // It counts what is on screen: a filtered column showing one card that says
+  // "2" is describing a board the reader cannot see.
+  test('a filtered column counts what is shown', () => {
+    const html = render({ cards: [cards[0]], filtering: true });
+    const start = html.indexOf('data-testid="column-count"');
+    expect(html.slice(start, html.indexOf('</span>', start))).toContain('1');
+  });
+
+  test('an empty column counts zero', () => {
+    const html = render({ cards: [] });
+    const start = html.indexOf('data-testid="column-count"');
+    expect(html.slice(start, html.indexOf('</span>', start))).toContain('0');
+  });
+
+  // wipLimit was dropped from the schema deliberately. This is a plain count:
+  // no limit, no threshold, and no warm hue, which is reserved for time and
+  // destructive actions.
+  test('the count carries no colour of its own', () => {
+    const html = render();
+    const start = html.indexOf('data-testid="column-count"');
+    const span = html.slice(start, html.indexOf('</span>', start));
+    expect(span).toContain('font-mono');
+    expect(span).not.toContain('text-time-');
+  });
+});
