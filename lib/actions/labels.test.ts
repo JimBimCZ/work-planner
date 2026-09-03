@@ -28,7 +28,7 @@ let labelRow: { id: string; boardId: string; name: string } | undefined;
 let labelCount = 0;
 let insertRejects: Error | undefined;
 let updateRejects: Error | undefined;
-let cardRow: { boardId: string } | undefined;
+let cardRow: { boardId: string; title?: string } | undefined;
 let submittedLabels: { id: string; boardId: string }[] = [];
 // Rows the cap query's `where` callback actually has to filter, so a test can
 // tell "no board has fifty" from "this board has fifty" — labelCount alone
@@ -203,7 +203,21 @@ describe('createLabel', () => {
       data: { id: 'label-new' },
     });
     expect(ops).toEqual([
+      { kind: 'transaction', table: 'begin' },
       { kind: 'insert', table: 'labels', values: { boardId: 'board-1', name: 'bug' } },
+      {
+        kind: 'insert',
+        table: 'activity',
+        values: {
+          boardId: 'board-1',
+          actorId: 'user-1',
+          type: 'label.created',
+          subjectId: 'label-new',
+          subject: 'bug',
+          detail: null,
+        },
+      },
+      { kind: 'delete', table: 'activity' },
     ]);
     expect(publish).toHaveBeenCalledWith('board-1', {
       type: 'label.created',
@@ -231,7 +245,23 @@ describe('renameLabel', () => {
     labelRow = { id: 'label-1', boardId: 'board-9', name: 'bug' };
     await renameLabel({ labelId: 'label-1', name: 'chore', mutationId: MUTATION_ID });
     expect(assertBoardAccess).toHaveBeenCalledWith('user-1', 'board-9', 'member');
-    expect(ops).toEqual([{ kind: 'update', table: 'labels', values: { name: 'chore' } }]);
+    expect(ops).toEqual([
+      { kind: 'transaction', table: 'begin' },
+      { kind: 'update', table: 'labels', values: { name: 'chore' } },
+      {
+        kind: 'insert',
+        table: 'activity',
+        values: {
+          boardId: 'board-9',
+          actorId: 'user-1',
+          type: 'label.renamed',
+          subjectId: 'label-1',
+          subject: 'chore',
+          detail: 'bug',
+        },
+      },
+      { kind: 'delete', table: 'activity' },
+    ]);
     expect(publish).toHaveBeenCalledWith('board-9', {
       type: 'label.updated',
       id: 'label-1',
@@ -269,7 +299,23 @@ describe('deleteLabel', () => {
     await expect(deleteLabel({ labelId: 'label-1', mutationId: MUTATION_ID })).resolves.toEqual({
       ok: true,
     });
-    expect(ops).toEqual([{ kind: 'delete', table: 'labels' }]);
+    expect(ops).toEqual([
+      { kind: 'transaction', table: 'begin' },
+      { kind: 'delete', table: 'labels' },
+      {
+        kind: 'insert',
+        table: 'activity',
+        values: {
+          boardId: 'board-1',
+          actorId: 'user-1',
+          type: 'label.deleted',
+          subjectId: 'label-1',
+          subject: 'bug',
+          detail: null,
+        },
+      },
+      { kind: 'delete', table: 'activity' },
+    ]);
     expect(publish).toHaveBeenCalledWith('board-1', {
       type: 'label.deleted',
       id: 'label-1',
@@ -361,7 +407,7 @@ describe('setCardLabels', () => {
 
   test('replaces the whole set in one transaction, then announces it', async () => {
     authMock.mockResolvedValue(signedIn);
-    cardRow = { boardId: 'board-1' };
+    cardRow = { boardId: 'board-1', title: 'Ship it' };
     submittedLabels = [
       { id: 'l1', boardId: 'board-1' },
       { id: 'l2', boardId: 'board-1' },
@@ -380,6 +426,19 @@ describe('setCardLabels', () => {
         ],
       },
       { kind: 'update', table: 'boards', values: { updatedAt: expect.any(Date) } },
+      {
+        kind: 'insert',
+        table: 'activity',
+        values: {
+          boardId: 'board-1',
+          actorId: 'user-1',
+          type: 'card.labelled',
+          subjectId: 'card-1',
+          subject: 'Ship it',
+          detail: null,
+        },
+      },
+      { kind: 'delete', table: 'activity' },
     ]);
     expect(publish).toHaveBeenCalledWith('board-1', {
       type: 'card.labelled',
@@ -423,5 +482,55 @@ describe('setCardLabels', () => {
     ).resolves.toEqual({ ok: false, error: 'INVALID' });
     expect(ops).toEqual([]);
     expect(assertBoardAccess).not.toHaveBeenCalled();
+  });
+});
+
+const activityOps = () => ops.filter((op) => op.kind === 'insert' && op.table === 'activity');
+
+describe('activity', () => {
+  test('creating a label records its name', async () => {
+    authMock.mockResolvedValue(signedIn);
+    await createLabel({ boardId: 'board-1', name: 'blocked', mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({ type: 'label.created', subject: 'blocked' });
+  });
+
+  test('renaming records both names', async () => {
+    authMock.mockResolvedValue(signedIn);
+    labelRow = { id: 'label-1', boardId: 'board-1', name: 'bug' };
+    await renameLabel({ labelId: 'label-1', name: 'chore', mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({
+      type: 'label.renamed',
+      subject: 'chore',
+      detail: 'bug',
+    });
+  });
+
+  test('deleting records the name it removed from every card', async () => {
+    authMock.mockResolvedValue(signedIn);
+    labelRow = { id: 'label-1', boardId: 'board-1', name: 'bug' };
+    await deleteLabel({ labelId: 'label-1', mutationId: MUTATION_ID });
+
+    expect(activityOps()[0].values).toMatchObject({ type: 'label.deleted', subject: 'bug' });
+  });
+
+  // One entry for the whole set, whatever changed inside it: the set is what
+  // the action replaces, and the card is what the reader will open.
+  test('setting a card’s labels records the card once', async () => {
+    authMock.mockResolvedValue(signedIn);
+    cardRow = { boardId: 'board-1', title: 'Ship it' };
+    submittedLabels = [
+      { id: 'l1', boardId: 'board-1' },
+      { id: 'l2', boardId: 'board-1' },
+    ];
+    await setCardLabels({ cardId: 'card-1', labelIds: ['l1', 'l2'], mutationId: MUTATION_ID });
+
+    expect(activityOps()).toHaveLength(1);
+    expect(activityOps()[0].values).toMatchObject({
+      type: 'card.labelled',
+      subjectId: 'card-1',
+      subject: 'Ship it',
+    });
   });
 });

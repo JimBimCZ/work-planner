@@ -10,7 +10,7 @@ import { cardLabels, labels } from '@/lib/db/schema';
 import { publish } from '@/lib/events';
 import { LABEL_NAME_MAX, LABELS_PER_BOARD } from '@/lib/labels';
 import { assertBoardAccess, boardAccessResult } from '@/lib/permissions';
-import { boardIdForCard, touchBoard } from './scope';
+import { cardEventScope, recordActivity, touchBoard } from './scope';
 
 const id = z.string().min(1);
 // Every call site mints the mutationId with crypto.randomUUID(). Bounding it to
@@ -77,9 +77,21 @@ export async function createLabel(input: unknown) {
     return { ok: false, error: 'LIMIT_REACHED' } as const;
   }
 
-  let created;
+  const actorId = session.user.id;
+
+  let created: { id: string };
   try {
-    [created] = await db.insert(labels).values({ boardId, name }).returning({ id: labels.id });
+    created = await db.transaction(async (tx) => {
+      const [row] = await tx.insert(labels).values({ boardId, name }).returning({ id: labels.id });
+      await recordActivity(tx, {
+        boardId,
+        actorId,
+        type: 'label.created',
+        subjectId: row.id,
+        subject: name,
+      });
+      return row;
+    });
   } catch (error) {
     if (isDuplicate(error)) return { ok: false, error: 'DUPLICATE' } as const;
     throw error;
@@ -113,8 +125,19 @@ export async function renameLabel(input: unknown) {
   }
 
   const { name } = parsed.data;
+  const actorId = session.user.id;
   try {
-    await db.update(labels).set({ name }).where(eq(labels.id, label.id));
+    await db.transaction(async (tx) => {
+      await tx.update(labels).set({ name }).where(eq(labels.id, label.id));
+      await recordActivity(tx, {
+        boardId: label.boardId,
+        actorId,
+        type: 'label.renamed',
+        subjectId: label.id,
+        subject: name,
+        detail: label.name,
+      });
+    });
   } catch (error) {
     if (isDuplicate(error)) return { ok: false, error: 'DUPLICATE' } as const;
     throw error;
@@ -147,9 +170,20 @@ export async function deleteLabel(input: unknown) {
     return boardAccessResult(error);
   }
 
+  const actorId = session.user.id;
+
   // card_labels cascades, so the assignments go with the row. That cascade is
   // asserted in e2e/schema.spec.ts rather than trusted.
-  await db.delete(labels).where(eq(labels.id, label.id));
+  await db.transaction(async (tx) => {
+    await tx.delete(labels).where(eq(labels.id, label.id));
+    await recordActivity(tx, {
+      boardId: label.boardId,
+      actorId,
+      type: 'label.deleted',
+      subjectId: label.id,
+      subject: label.name,
+    });
+  });
 
   await publish(label.boardId, {
     type: 'label.deleted',
@@ -171,14 +205,17 @@ export async function setCardLabels(input: unknown) {
   const { cardId } = parsed.data;
   const labelIds = [...new Set(parsed.data.labelIds)];
 
-  const boardId = await boardIdForCard(cardId);
-  if (!boardId) return { ok: false, error: 'NOT_FOUND' } as const;
+  const card = await cardEventScope(cardId);
+  if (!card) return { ok: false, error: 'NOT_FOUND' } as const;
+  const boardId = card.boardId;
 
   try {
     await assertBoardAccess(session.user.id, boardId, 'member');
   } catch (error) {
     return boardAccessResult(error);
   }
+
+  const actorId = session.user.id;
 
   // Every submitted id is re-read and checked against this card's own board,
   // inside the same transaction that writes them: a label deleted between the
@@ -201,6 +238,13 @@ export async function setCardLabels(input: unknown) {
       await tx.insert(cardLabels).values(labelIds.map((labelId) => ({ cardId, labelId })));
     }
     await touchBoard(tx, boardId);
+    await recordActivity(tx, {
+      boardId,
+      actorId,
+      type: 'card.labelled',
+      subjectId: cardId,
+      subject: card.title,
+    });
     return { ok: true } as const;
   });
   if (!result.ok) return result;
