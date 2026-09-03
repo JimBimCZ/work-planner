@@ -9,6 +9,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
@@ -41,8 +42,10 @@ import {
   orderedColumns,
   matchesFilter,
   parseLabelFilter,
+  sameDropTarget,
   toBoardState,
   type BoardAction,
+  type DropTarget,
   type StateCard,
   type StateColumn,
 } from '@/lib/board-state';
@@ -64,6 +67,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [target, setTarget] = useState<DropTarget | null>(null);
   const [activeColumnId, setActiveColumnId] = useState<string | null>(null);
   const columnRefs = useRef(new Map<string, HTMLElement>());
   // Ephemeral UI, so deliberately not in the reducer: lib/board-state.ts is
@@ -488,8 +492,16 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
     setDraggingId(String(active.id));
   }
 
+  // onDragOver fires continuously, and every setState here re-renders every
+  // column. Only a target that actually differs is worth a render.
+  function onDragOver({ active, over }: DragOverEvent) {
+    const next = over ? dropTarget(state, String(active.id), String(over.id)) : null;
+    setTarget((current) => (sameDropTarget(current, next) ? current : next));
+  }
+
   function onDragEnd({ active, over }: DragEndEvent) {
     setDraggingId(null);
+    setTarget(null);
     if (!over || !canWrite) return;
 
     const target = dropTarget(state, String(active.id), String(over.id));
@@ -526,8 +538,12 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={onDragStart}
+        onDragOver={onDragOver}
         onDragEnd={onDragEnd}
-        onDragCancel={() => setDraggingId(null)}
+        onDragCancel={() => {
+          setDraggingId(null);
+          setTarget(null);
+        }}
       >
         {/* Snapping belongs on the element that scrolls, so the switcher sits
             outside it rather than scrolling away with the columns. */}
@@ -554,7 +570,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 onAddCard={(title) => addCard(column.id, title)}
                 columns={columns}
                 labels={state.labels}
-                dropIndicator={null}
+                dropIndicator={target?.toColumnId === column.id ? target : null}
                 onRenameCard={renameCardTo}
                 onDeleteCard={removeCard}
                 onMoveCardTo={moveCardTo}
