@@ -19,6 +19,29 @@ const CARD_H = 200;
 // indistinguishable from every other modal's.
 const SCRIM = 'color-mix(in srgb, var(--canvas) 70%, transparent)';
 
+const SEEN_KEY = 'demo-tour';
+
+// Unprefixed, matching the only other key this app stores — `theme`, written
+// by account-menu.tsx and read by the pre-paint script in app/layout.tsx.
+// Both sides are wrapped: a private window that throws gets the tour every
+// visit, which is the harmless direction.
+const seen = () => {
+  try {
+    return localStorage.getItem(SEEN_KEY) === 'seen';
+  } catch {
+    return false;
+  }
+};
+
+const markSeen = () => {
+  try {
+    localStorage.setItem(SEEN_KEY, 'seen');
+  } catch {
+    // A browser that refuses to remember shows the tour again. Nothing else
+    // depends on this write.
+  }
+};
+
 // The one measurement helper: used both to resolve a step's live rect
 // (useTargetBox) and, via visibleSteps, to decide at open time whether a step
 // has a target at all. A zero-size rect is treated as absent in both uses.
@@ -165,7 +188,17 @@ export function DemoTour() {
   const step = steps[index];
   const last = index === steps.length - 1;
 
-  const close = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => {
+    markSeen();
+    setOpen(false);
+  }, []);
+
+  // On mount, not during render: opening in render would put the dialog in
+  // the server-rendered HTML the client then disagrees with, the same hazard
+  // useMounted exists to avoid for due dates in board-card.tsx.
+  useEffect(() => {
+    if (!seen()) start();
+  }, [start]);
 
   const box = useTargetBox(step?.selector, open);
   const placement = box ? placeCard(box) : null;
