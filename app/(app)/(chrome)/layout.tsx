@@ -12,10 +12,12 @@ export default async function ChromeLayout({ children }: { children: React.React
   return (
     <div className="flex min-h-screen flex-col">
       <TopBar
-        userId={session.user.id ?? ''}
-        name={session.user.name ?? null}
-        email={session.user.email ?? ''}
-        image={session.user.image ?? null}
+        viewer={{
+          userId: session.user.id ?? '',
+          name: session.user.name ?? null,
+          email: session.user.email ?? '',
+          image: session.user.image ?? null,
+        }}
       />
       <div className="flex-1">{children}</div>
       <SiteFooter />
