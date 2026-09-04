@@ -32,6 +32,7 @@ test('shows what the card holds', () => {
   expect(screen.getByText('infra')).toBeTruthy();
   expect(screen.getByText(/plain endpoint cannot see/)).toBeTruthy();
   expect(screen.getByText('Rin Okabe')).toBeTruthy();
+  expect(screen.getByText(/Sep 1/)).toBeTruthy();
 });
 
 // Read-only is the whole contract: there is no server behind this dialog.

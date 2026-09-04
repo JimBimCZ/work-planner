@@ -207,6 +207,15 @@ export function BoardCard({
               type="button"
               onClick={onOpen}
               onMouseDown={(event) => event.preventDefault()}
+              // The article carries dnd-kit's keyboard listeners (canDrag is
+              // true in demo mode), and no activator node is registered, so
+              // its KeyboardSensor activator does not check event.target — it
+              // preventDefaults every Enter/Space that bubbles out of this
+              // button and arms a keyboard drag instead of a click. Stop
+              // those two keys here so the sensor never sees them.
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+              }}
               className="text-left after:absolute after:inset-0"
             >
               {card.title}
