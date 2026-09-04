@@ -195,8 +195,12 @@ export function DemoTour() {
 
   // On mount, not during render: opening in render would put the dialog in
   // the server-rendered HTML the client then disagrees with, the same hazard
-  // useMounted exists to avoid for due dates in board-card.tsx.
+  // useMounted exists to avoid for due dates in board-card.tsx. useMounted
+  // cannot stand in for it here — start() measures the live DOM through
+  // visibleSteps, which no render-time value can do — so the cascading render
+  // the rule warns about is the mechanism, and it happens once per mount.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
     if (!seen()) start();
   }, [start]);
 

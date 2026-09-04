@@ -1,4 +1,6 @@
-import { expect, test } from '@playwright/test';
+import { test as raw } from '@playwright/test';
+
+import { expect, test } from './demo-fixture';
 
 const openTour = async (page: import('@playwright/test').Page) => {
   await page.getByRole('button', { name: 'What can I try?' }).click();
@@ -149,4 +151,28 @@ test('the board is interactive again after the tour closes', async ({ page }) =>
 
   await page.getByRole('button', { name: 'Move attachments to the EU bucket' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
+});
+
+// Deliberately `raw` rather than the fixture: these two are the only tests
+// that want a browser which has never seen the tour.
+raw('opens itself on a first visit, and not on the next one', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByText('A board you can poke at')).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+raw('the top bar brings it back after a dismissal', async ({ page }) => {
+  await page.goto('/');
+  // Waited for, not assumed: the auto-open is a post-hydration effect, so an
+  // Escape sent on arrival dismisses nothing and the tour opens behind it.
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'What can I try?' }).click();
+  await expect(page.getByText('1 of 5')).toBeVisible();
 });

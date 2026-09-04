@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
 
+import { expect, test } from './demo-fixture';
 import { closeSeedPool, removeSeededUser, seedSession } from './support/session';
 
 test.afterAll(async () => {
