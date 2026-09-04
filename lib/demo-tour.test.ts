@@ -19,6 +19,16 @@ describe('TOUR_STEPS', () => {
     expect(new Set(TOUR_STEPS.map((step) => step.id)).size).toBe(TOUR_STEPS.length);
   });
 
+  // useTargetBox's stale-rect guard in components/demo/demo-tour.tsx keys its
+  // measurement on the selector string, so two steps sharing one would share
+  // a measurement too.
+  it('has unique selectors', () => {
+    const selectors = TOUR_STEPS.map((step) => step.selector).filter((selector): selector is string =>
+      Boolean(selector),
+    );
+    expect(new Set(selectors).size).toBe(selectors.length);
+  });
+
   // A fixture edit that renames a card must fail here rather than degrade the
   // tour silently in front of a stranger.
   it('names only cards and columns the fixture actually has', () => {
