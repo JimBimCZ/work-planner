@@ -7,9 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { TOUR_STEPS, visibleSteps } from '@/lib/demo-tour';
 
-const rectOf = (selector: string) => document.querySelector(selector)?.getBoundingClientRect() ?? null;
-
-type Box = { top: number; left: number; width: number; height: number };
+type Box = DOMRect;
 
 const SETTLE_FRAMES = 2;
 const SETTLE_CAP_MS = 500;
@@ -21,12 +19,15 @@ const CARD_H = 200;
 // indistinguishable from every other modal's.
 const SCRIM = 'color-mix(in srgb, var(--canvas) 70%, transparent)';
 
+// The one measurement helper: used both to resolve a step's live rect
+// (useTargetBox) and, via visibleSteps, to decide at open time whether a step
+// has a target at all. A zero-size rect is treated as absent in both uses.
 const boxOf = (selector: string): Box | null => {
   const element = document.querySelector(selector);
   if (!element) return null;
   const rect = element.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) return null;
-  return { top: rect.top, left: rect.left, width: rect.width, height: rect.height };
+  return rect;
 };
 
 // Scrolls the target into view, then waits for its rect to stop moving before
@@ -156,7 +157,7 @@ export function DemoTour() {
   const [steps, setSteps] = useState(TOUR_STEPS);
 
   const start = useCallback(() => {
-    setSteps(visibleSteps(TOUR_STEPS, rectOf));
+    setSteps(visibleSteps(TOUR_STEPS, boxOf));
     setIndex(0);
     setOpen(true);
   }, []);
