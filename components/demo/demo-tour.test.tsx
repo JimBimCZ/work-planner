@@ -31,6 +31,13 @@ window.matchMedia = (query: string) =>
 // so without this only the opening step would survive and the sequence under
 // test would be one step long.
 beforeEach(() => {
+  // Seeded rather than cleared: with the flag absent the tour opens itself,
+  // and Radix aria-hides everything behind it — so every test that drives the
+  // tour by hand would lose the top bar control it clicks. The four tests that
+  // want a first visit call firstVisit(). e2e/demo-fixture.ts seeds the same
+  // key for the same reason.
+  localStorage.clear();
+  localStorage.setItem('demo-tour', 'seen');
   // cleanup() unmounts React trees; it does not remove nodes this hook
   // appended. Without the reset, the "drops a step" test still finds the
   // previous test's column and the counter never falls to 4.
@@ -54,6 +61,8 @@ beforeEach(() => {
   signin.setAttribute('data-tour', 'signin');
   document.body.append(signin);
 });
+
+const firstVisit = () => localStorage.clear();
 
 const open = async () => {
   const user = userEvent.setup();
@@ -129,4 +138,47 @@ it('announces the step body politely', async () => {
 
   const live = screen.getByRole('dialog').querySelector('[aria-live="polite"]');
   expect(live).toHaveTextContent('Everything here works.');
+});
+
+it('opens itself on a first visit', async () => {
+  firstVisit();
+  render(<DemoTour />);
+  expect(await screen.findByRole('dialog')).toBeInTheDocument();
+  expect(screen.getByText('A board you can poke at')).toBeInTheDocument();
+});
+
+it('does not open when it has been seen', () => {
+  localStorage.setItem('demo-tour', 'seen');
+  render(<DemoTour />);
+  expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+it('remembers a skip', async () => {
+  firstVisit();
+  render(<DemoTour />);
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: 'Skip' }));
+  expect(localStorage.getItem('demo-tour')).toBe('seen');
+});
+
+it('remembers reaching the end', async () => {
+  firstVisit();
+  render(<DemoTour />);
+  const user = userEvent.setup();
+  await screen.findByRole('dialog');
+  for (let i = 0; i < 4; i += 1) await user.click(screen.getByRole('button', { name: 'Next' }));
+  await user.click(screen.getByRole('button', { name: 'Done' }));
+  expect(localStorage.getItem('demo-tour')).toBe('seen');
+});
+
+it('renders when localStorage throws', async () => {
+  vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    throw new Error('denied');
+  });
+  render(<DemoTour />);
+
+  // A browser that refuses to remember cannot report the tour as seen, so it
+  // opens every visit — the harmless direction markSeen's comment names. What
+  // matters is that the throw is contained and the component still renders.
+  expect(await screen.findByRole('dialog')).toBeInTheDocument();
 });

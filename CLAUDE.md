@@ -160,7 +160,9 @@ components/
                             # step card, and the box-shadow spotlight. Finds
                             # its targets with querySelector against
                             # data-card-id / data-column-id, so it changes
-                            # nothing under components/board/
+                            # nothing under components/board/. Opens itself
+                            # once per browser on the localStorage key
+                            # `demo-tour`; e2e/demo-fixture.ts seeds it
   site-footer.tsx           # rendered by each route-group layout, not the root
                             # one; see "Footer and legal pages"
   ui/                       # shadcn primitives, including sheet.tsx — the same
@@ -908,8 +910,14 @@ nothing anywhere — no board row, no hole in `assertBoardAccess`, no anonymous 
 `docs/specs/demo-board.md` holds the reasoning, including why it is a fixture rather than a board
 row. The demo board also carries a five-step guided tour, reopenable at any time from its top
 bar's `What can I try?` control; `docs/specs/demo-tour.md` holds the reasoning, including why it
-points rather than lets the visitor perform each step. Section A ships the tour open only by
-hand — the once-per-browser auto-open on first visit is that spec's Section B.
+points rather than lets the visitor perform each step. It opens itself once per browser on a
+first visit, gated on the unprefixed `localStorage` key `demo-tour` — both the read and the write
+are wrapped, so a browser that refuses to remember gets the tour every visit, which is the
+harmless direction. **A Playwright spec that visits `/` and clicks the board must import from
+`e2e/demo-fixture.ts`**, which seeds that key before the page script runs: without it the tour is
+a modal over everything those tests click, which is how six of `e2e/demo.spec.ts`'s ten broke when
+the auto-open landed. The two tests that want a first visit import `test` from `@playwright/test`
+directly and say so.
 
 Remaining sub-projects: member management and invites is shipped in full, Sections A–D; labels the
 same, Sections A–D; attachments the same, Sections A–D; the activity log the same, Sections A–D;
