@@ -2,17 +2,21 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 const dragging = vi.hoisted(() => ({ current: false }));
+const sortableArgs = vi.hoisted(() => ({ current: null as { disabled?: boolean } | null }));
 vi.mock('@dnd-kit/sortable', () => ({
-  useSortable: () => ({
-    attributes: {},
-    listeners: {},
-    setNodeRef: () => {},
-    transform: null,
-    transition: undefined,
-    get isDragging() {
-      return dragging.current;
-    },
-  }),
+  useSortable: (args: { disabled?: boolean }) => {
+    sortableArgs.current = args;
+    return {
+      attributes: {},
+      listeners: {},
+      setNodeRef: () => {},
+      transform: null,
+      transition: undefined,
+      get isDragging() {
+        return dragging.current;
+      },
+    };
+  },
 }));
 vi.mock('@/lib/use-mounted', () => ({ useMounted: () => true }));
 
@@ -41,6 +45,7 @@ const render = (props: Partial<Parameters<typeof BoardCard>[0]> = {}) =>
       card={card}
       boardId="board-1"
       canWrite
+      canDrag
       columns={[]}
       labels={labels}
       filtering={false}
@@ -214,5 +219,30 @@ describe('the demo board', () => {
 
   test('still links on a real board', () => {
     expect(render()).toContain('href="/boards/board-1/cards/card-1"');
+  });
+});
+
+describe('dragging apart from writing', () => {
+  // The demo drags but has no ⋯ menu, no composer and no server. Before this,
+  // both behaviours rode on canWrite and could not be separated.
+  test('a demo card is draggable while it carries no write controls', () => {
+    const html = render({ canWrite: false, canDrag: true, demo: true });
+    expect(sortableArgs.current?.disabled).toBe(false);
+    expect(html).not.toContain('Card actions');
+  });
+
+  test('a viewer still cannot drag', () => {
+    render({ canWrite: false, canDrag: false });
+    expect(sortableArgs.current?.disabled).toBe(true);
+  });
+
+  test('a pending card never drags, whatever else is true', () => {
+    render({ canWrite: true, canDrag: true, card: { ...card, pending: true } });
+    expect(sortableArgs.current?.disabled).toBe(true);
+  });
+
+  test('a filtered board never drags', () => {
+    render({ canWrite: true, canDrag: true, filtering: true });
+    expect(sortableArgs.current?.disabled).toBe(true);
   });
 });

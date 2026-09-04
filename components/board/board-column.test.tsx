@@ -44,6 +44,7 @@ const render = (props: Partial<Parameters<typeof BoardColumn>[0]> = {}) =>
       hue={185}
       nextHue={165}
       canWrite
+      canDrag
       composerOpen={false}
       onOpenComposer={() => {}}
       onCloseComposer={() => {}}

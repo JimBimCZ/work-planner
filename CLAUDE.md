@@ -329,6 +329,10 @@ Column reordering uses the same helper against sibling columns. There is one ord
   nothing. The slot itself is the indicator there.
 - Use `PointerSensor` with an activation distance of ~5px so clicking a card still opens the modal.
 - Keyboard sensor stays enabled. Cards need `aria-roledescription` and drag announcements; do not strip dnd-kit's accessibility props.
+- Dragging and writing are separate permissions. `canWrite` gates the ⋯ menus, the composer and the
+  column controls; `canDrag` gates the sortable, and the demo board at `/` has the second without
+  the first. `BoardCanvas`'s `run()` returns after its dispatch in demo mode, so an optimistic move
+  is the whole move.
 
 ## Realtime
 
