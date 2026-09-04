@@ -21,6 +21,7 @@ test('lights the element the step is about', async ({ page }) => {
 
   const spotlight = page.locator('[aria-hidden][style*="box-shadow"]');
   const card = page.locator('[data-card-id="demo-card-migrate"]');
+  await expect(spotlight).toBeVisible();
 
   const lit = await spotlight.boundingBox();
   const target = await card.boundingBox();
@@ -53,10 +54,17 @@ test('scrolls a far target into view at 360px', async ({ page }) => {
   for (let i = 0; i < 3; i += 1) await page.getByRole('button', { name: 'Next' }).click();
   await expect(page.getByText('Columns are yours')).toBeVisible();
 
-  const column = await page.locator('[data-column-id="demo-col-done"]').boundingBox();
-  expect(column).not.toBeNull();
-  expect(column!.x).toBeLessThan(360);
-  expect(column!.x + column!.width).toBeGreaterThan(0);
+  const column = page.locator('[data-column-id="demo-col-done"]');
+
+  // The scroll is smooth by design, so this is eventually true rather than
+  // immediately true — sampling once races the animation.
+  await expect
+    .poll(async () => (await column.boundingBox())?.x ?? Number.POSITIVE_INFINITY)
+    .toBeLessThan(360);
+
+  const box = await column.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x + box!.width).toBeGreaterThan(0);
 });
 
 test('the board is interactive again after the tour closes', async ({ page }) => {
