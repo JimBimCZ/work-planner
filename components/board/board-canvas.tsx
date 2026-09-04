@@ -104,6 +104,9 @@ export function BoardCanvas({
 
   const columns = orderedColumns(state);
   const total = columns.length;
+  // Dragging and writing part company on the demo board: it drags, and it has
+  // no write controls and no server to tell.
+  const canDrag = canWrite || demo;
   const firstColumnId = columns[0]?.id ?? null;
   const dragging = draggingId ? (state.cards.find((card) => card.id === draggingId) ?? null) : null;
 
@@ -523,7 +526,7 @@ export function BoardCanvas({
   function onDragEnd({ active, over }: DragEndEvent) {
     setDraggingId(null);
     setTarget(null);
-    if (!over || !canWrite) return;
+    if (!over || !canDrag) return;
 
     const landing = dropTarget(state, String(active.id), String(over.id));
     if (!landing) return;
@@ -585,6 +588,7 @@ export function BoardCanvas({
                 hue={flowHue(index, total)}
                 nextHue={flowHue(Math.min(index + 1, total - 1), total)}
                 canWrite={canWrite}
+                canDrag={canDrag}
                 demo={demo}
                 composerOpen={composerIn === column.id}
                 onOpenComposer={() => setComposerIn(column.id)}
