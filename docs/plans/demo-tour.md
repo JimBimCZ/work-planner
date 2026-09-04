@@ -624,7 +624,9 @@ covers them. The existing component tests must keep passing, which is what Step 
 At the top of `components/demo/demo-tour.tsx`, after the imports:
 
 ```tsx
-import { useEffect, useState } from 'react';   // added to the existing import
+// The whole import line becomes this — Task 3 left it at useCallback, useRef,
+// useState. A second `from 'react'` statement is a lint error.
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type Box = { top: number; left: number; width: number; height: number };
 
@@ -769,8 +771,16 @@ And give the anchored step card its position, replacing the existing `DialogCont
             overlayClassName="bg-transparent supports-backdrop-filter:backdrop-blur-none"
             className={`max-w-xs gap-3 ${placement ? 'translate-x-0 translate-y-0' : ''}`}
             style={placement ?? undefined}
+            // Unchanged from Task 3. Keep it: nothing in the test suite covers
+            // where focus lands, so dropping it here regresses silently.
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              nextRef.current?.focus();
+            }}
           >
 ```
+
+Only `className` and `style` are new on this tag; every other attribute is Task 3's, unchanged.
 
 The opening step has no `selector`, so `placement` is null and the card keeps
 `components/ui/dialog.tsx`'s centred default — which is what "centred, with no spotlight" means.
