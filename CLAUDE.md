@@ -135,6 +135,8 @@ app/
     layout.tsx              # / for a signed-out visitor: the board with no
                             # session, no footer, privacy in the top bar
     page.tsx                # redirects to /boards when signed in
+                            # its card opens from local state, not the
+                            # intercept: a demo card has no URL to share
   (legal)/
     privacy/page.tsx        # Privacy Policy
     terms/page.tsx          # optional, same layout
@@ -148,6 +150,12 @@ components/
   board/                    # Board, Column, Card, CardModal, dnd wiring
     activity-drawer.tsx     # the feed, read when it opens; renders nothing
                             # itself — the sentences arrive rendered
+  demo/                     # the / board's own components, apart from board/
+    demo-board.tsx          # renders BoardCanvas demo, holds the open card id
+                            # in useState, and mounts DemoCard over it
+    demo-card.tsx           # read-only card dialog with no server behind it;
+                            # deliberately not board/card-body.tsx — see the
+                            # comment at its top for what that costs
   site-footer.tsx           # rendered by each route-group layout, not the root
                             # one; see "Footer and legal pages"
   ui/                       # shadcn primitives, including sheet.tsx — the same
@@ -184,7 +192,7 @@ proxy.ts                    # Next 16's renamed middleware: cookie-presence
                             # redirect on /boards/*. Imports nothing from lib/
 ```
 
-The card modal is an intercepting parallel route, so cards have shareable URLs and browser-back closes the modal. Both halves are required: the intercept renders the modal over the board for in-app navigation, and the canonical `/boards/[boardId]/cards/[cardId]` page is what a pasted link opens on a cold load. Do not replace either with local modal state.
+The card modal is an intercepting parallel route, so cards have shareable URLs and browser-back closes the modal. Both halves are required: the intercept renders the modal over the board for in-app navigation, and the canonical `/boards/[boardId]/cards/[cardId]` page is what a pasted link opens on a cold load. Do not replace either with local modal state. The demo board at `/` is the one deliberate exception — `components/demo/demo-board.tsx` opens `DemoCard` from `useState`, because a demo card has no URL to share and no server to render a canonical page from.
 
 The `(.)` marker counts route segments, and neither a parallel slot (`@card`) nor a route group (`(board)`) is a segment — so the canonical page has to sit at the same segment depth as the intercepting route for `(.)` to be the documented case, which is why both live directly under `boards/[boardId]/`.
 
@@ -329,6 +337,17 @@ Column reordering uses the same helper against sibling columns. There is one ord
   nothing. The slot itself is the indicator there.
 - Use `PointerSensor` with an activation distance of ~5px so clicking a card still opens the modal.
 - Keyboard sensor stays enabled. Cards need `aria-roledescription` and drag announcements; do not strip dnd-kit's accessibility props.
+- **An interactive child of a draggable card cannot be activated by keyboard, on its own.** The
+  `<article>` carries `{...listeners}`, and nothing in this repo calls `setActivatorNodeRef` — so
+  `KeyboardSensor`'s activator finds `activatorNode.current` null, skips its `event.target` check,
+  and `preventDefault`s every Enter/Space that bubbles out of a child before that child's own
+  default action runs. This constrains the real board's card `<Link>` exactly as much as the demo's
+  title `<button>` — an ancestor `preventDefault` on Enter suppresses activation identically for
+  both. Only the demo button carries the fix: the real board's `<Link>` does not, so a member who
+  tabs to a card and presses Enter very likely arms a keyboard drag instead of opening it. That is an
+  open accessibility gap, not a decision anyone made — read the silence here as unfixed, not safe.
+  Any interactive element nested inside a draggable card must stop Enter and Space propagating in its
+  own handler so the sensor never sees them.
 - Dragging and writing are separate permissions. `canWrite` gates the ⋯ menus, the composer and the
   column controls; `canDrag` gates the sortable, and the demo board at `/` has the second without
   the first. `BoardCanvas`'s `run()` returns after its dispatch in demo mode, so an optimistic move

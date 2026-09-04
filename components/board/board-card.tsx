@@ -122,6 +122,7 @@ export function BoardCard({
   onRename,
   onDelete,
   onMoveTo,
+  onOpen,
 }: {
   card: StateCard;
   ringHue?: number;
@@ -139,6 +140,7 @@ export function BoardCard({
   onRename: (title: string) => void;
   onDelete: () => void;
   onMoveTo: (columnId: string) => void;
+  onOpen?: () => void;
 }) {
   // A card with a temp id has no server id to move, so it is not draggable
   // until it settles; a viewer is never draggable at all.
@@ -192,12 +194,32 @@ export function BoardCard({
           data-testid="card-title"
           className={`text-sm font-medium leading-5 text-ink ${canWrite ? 'pr-6' : ''}`}
         >
-          {card.pending || demo ? (
+          {card.pending ? (
             // A temp id is not a card the server knows about yet — the same
             // reason useSortable disables dragging above. Not a link until it
-            // settles. A demo card is never a link at all: there is no card
-            // route under /, so following one lands on /signin.
+            // settles.
             card.title
+          ) : demo ? (
+            // The demo has no card route to link to, so opening one is state
+            // rather than navigation. Still the whole card face's hit area,
+            // and still not an anchor: there is nothing to navigate to.
+            <button
+              type="button"
+              onClick={onOpen}
+              onMouseDown={(event) => event.preventDefault()}
+              // The article carries dnd-kit's keyboard listeners (canDrag is
+              // true in demo mode), and no activator node is registered, so
+              // its KeyboardSensor activator does not check event.target — it
+              // preventDefaults every Enter/Space that bubbles out of this
+              // button and arms a keyboard drag instead of a click. Stop
+              // those two keys here so the sensor never sees them.
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
+              }}
+              className="text-left after:absolute after:inset-0"
+            >
+              {card.title}
+            </button>
           ) : (
             <Link
               href={`/boards/${boardId}/cards/${card.id}`}

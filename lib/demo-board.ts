@@ -32,6 +32,8 @@ const LABELS = [
   { id: 'demo-label-infra', name: 'infra' },
 ];
 
+type CommentSeed = { id: string; authorId: string; author: string; daysAgo: number; body: string };
+
 type CardSeed = {
   id: string;
   title: string;
@@ -40,6 +42,7 @@ type CardSeed = {
   description?: string;
   labelIds?: string[];
   attachments?: number;
+  comments?: CommentSeed[];
 };
 
 type ColumnSeed = { id: string; name: string; cards: CardSeed[] };
@@ -84,6 +87,22 @@ const COLUMNS: ColumnSeed[] = [
         description:
           'The bucket has to be created against the EU-jurisdiction endpoint. A bucket made there is not visible from the plain host at all, which is what makes the privacy policy true rather than aspirational.',
         labelIds: ['demo-label-infra'],
+        comments: [
+          {
+            id: 'demo-comment-migrate-1',
+            authorId: 'demo-user-rin',
+            author: 'Rin Okabe',
+            daysAgo: 4,
+            body: 'The plain endpoint cannot see the bucket at all, so this is not a setting that can drift.',
+          },
+          {
+            id: 'demo-comment-migrate-2',
+            authorId: 'demo-user-mila',
+            author: 'Mila Brandt',
+            daysAgo: 2,
+            body: 'Verified from outside with an unauthenticated preflight. Still want the authenticated check before we call it done.',
+          },
+        ],
       },
       {
         id: 'demo-card-presence',
@@ -106,6 +125,15 @@ const COLUMNS: ColumnSeed[] = [
           'Below 700px the board shows one column at a time, so a cross-column drag has to arm the column it lands in rather than draw a line the reader cannot see.',
         labelIds: ['demo-label-bug', 'demo-label-design'],
         attachments: 1,
+        comments: [
+          {
+            id: 'demo-comment-drag-1',
+            authorId: 'demo-user-mila',
+            author: 'Mila Brandt',
+            daysAgo: 1,
+            body: 'Arming the column reads well on a phone. The line alone did not.',
+          },
+        ],
       },
       {
         id: 'demo-card-invite',
@@ -187,4 +215,44 @@ export function demoBoard(now: Date): BoardWithCards {
       })),
     })),
   };
+}
+
+export type DemoCardDetail = {
+  id: string;
+  title: string;
+  description: string | null;
+  dueDate: Date | null;
+  labels: { id: string; name: string }[];
+  comments: { id: string; body: string; createdAt: Date; author: { id: string; name: string } }[];
+};
+
+// Null for anything that is not on the demo board, including a well-formed
+// uuid: the demo has no rows and nothing to look one up in.
+export function demoCard(cardId: string, now: Date): DemoCardDetail | null {
+  for (const column of COLUMNS) {
+    const card = column.cards.find((seed) => seed.id === cardId);
+    if (!card) continue;
+
+    const assigned = new Set(card.labelIds ?? []);
+    return {
+      id: card.id,
+      title: card.title,
+      description: card.description ?? null,
+      dueDate: card.dueInDays === undefined ? null : dueOn(now, card.dueInDays),
+      // Filtered from the board's own set rather than mapped from the card's,
+      // so the order matches the picker and the card face — the rule
+      // LabelLine in board-card.tsx already follows.
+      labels: LABELS.filter((label) => assigned.has(label.id)),
+      comments: (card.comments ?? [])
+        .map((comment) => ({
+          id: comment.id,
+          body: comment.body,
+          createdAt: ago(now, comment.daysAgo),
+          author: { id: comment.authorId, name: comment.author },
+        }))
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+    };
+  }
+
+  return null;
 }

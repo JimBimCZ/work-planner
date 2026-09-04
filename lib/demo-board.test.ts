@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { DEMO_BOARD_NAME, demoBoard } from '@/lib/demo-board';
+import { DEMO_BOARD_NAME, demoBoard, demoCard } from '@/lib/demo-board';
 import { DESCRIPTION_PREVIEW_MAX } from '@/lib/cards-limits';
 import { dueLabel, dueState } from '@/lib/due';
 
@@ -81,5 +81,38 @@ describe('demoBoard', () => {
   test('carries an attachment count on exactly one card', () => {
     const withFiles = allCards(NOW).filter((card) => card.attachments.length > 0);
     expect(withFiles).toHaveLength(1);
+  });
+});
+
+describe('demoCard', () => {
+  test('returns the whole description, not the preview', () => {
+    const card = demoCard('demo-card-migrate', NOW);
+    expect(card?.title).toBe('Move attachments to the EU bucket');
+    expect(card?.description?.length ?? 0).toBeGreaterThan(DESCRIPTION_PREVIEW_MAX);
+  });
+
+  test('resolves labels to names, in the board order', () => {
+    expect(demoCard('demo-card-drag', NOW)?.labels.map((label) => label.name)).toEqual([
+      'bug',
+      'design',
+    ]);
+  });
+
+  test('carries comments, oldest first, dated against now', () => {
+    const comments = demoCard('demo-card-migrate', NOW)?.comments ?? [];
+    expect(comments.length).toBeGreaterThan(0);
+    const times = comments.map((comment) => comment.createdAt.getTime());
+    expect([...times].sort((a, b) => a - b)).toEqual(times);
+    for (const time of times) expect(time).toBeLessThan(NOW.getTime());
+  });
+
+  test('agrees with the board about the due date', () => {
+    const onBoard = allCards(NOW).find((card) => card.id === 'demo-card-migrate');
+    expect(demoCard('demo-card-migrate', NOW)?.dueDate).toEqual(onBoard?.dueDate);
+  });
+
+  test('answers null for a card that is not on the demo board', () => {
+    expect(demoCard('demo-card-nope', NOW)).toBeNull();
+    expect(demoCard('11111111-2222-3333-4444-555555555555', NOW)).toBeNull();
   });
 });

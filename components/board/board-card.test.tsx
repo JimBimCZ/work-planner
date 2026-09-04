@@ -210,7 +210,10 @@ describe('the demo board', () => {
   // The intercepting route lives under /boards/[boardId]; at / it does not
   // exist. A link there sends a signed-out visitor to /signin from a
   // middle-click, a long-press, or the status bar they read before clicking.
-  test('renders the title as plain text, not a link', () => {
+  // Without onOpen the title branch still renders as the demo <button> (see
+  // the test below) — this one pins that a demo card is never an anchor,
+  // with or without onOpen.
+  test('never renders the title as a link', () => {
     const html = render({ demo: true, canWrite: false });
     expect(html).toContain('Fix the rank tie-break');
     expect(html).not.toContain('<a ');
@@ -219,6 +222,13 @@ describe('the demo board', () => {
 
   test('still links on a real board', () => {
     expect(render()).toContain('href="/boards/board-1/cards/card-1"');
+  });
+
+  test('a demo card title is a button that asks to be opened', () => {
+    const html = render({ demo: true, canWrite: false, onOpen: () => {} });
+    expect(html).toContain('<button');
+    expect(html).toContain('Fix the rank tie-break');
+    expect(html).not.toContain('href');
   });
 });
 

@@ -66,12 +66,14 @@ export function BoardCanvas({
   board,
   canWrite,
   demo = false,
+  onOpenCard,
 }: {
   board: BoardWithCards;
   canWrite: boolean;
   // Rendered at / from lib/demo-board.ts rather than from Postgres. Section B
   // gives this flag its second job: a drag that never calls the server.
   demo?: boolean;
+  onOpenCard?: (cardId: string) => void;
 }) {
   const [state, dispatch] = useReducer(boardReducer, board, toBoardState);
   const [composerIn, setComposerIn] = useState<string | null>(null);
@@ -610,6 +612,7 @@ export function BoardCanvas({
                 onRenameCard={renameCardTo}
                 onDeleteCard={removeCard}
                 onMoveCardTo={moveCardTo}
+                onOpenCard={onOpenCard ? (card) => onOpenCard(card.id) : undefined}
                 isFirst={index === 0}
                 isLast={index === total - 1}
                 onRenameColumn={renameColumnTo}
