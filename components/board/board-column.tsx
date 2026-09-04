@@ -55,6 +55,7 @@ export function BoardColumn({
   onRenameCard,
   onDeleteCard,
   onMoveCardTo,
+  onOpenCard,
   isFirst,
   isLast,
   onRenameColumn,
@@ -83,6 +84,7 @@ export function BoardColumn({
   onRenameCard: (card: StateCard, title: string) => void;
   onDeleteCard: (card: StateCard) => void;
   onMoveCardTo: (card: StateCard, toColumnId: string) => void;
+  onOpenCard?: (card: StateCard) => void;
   isFirst: boolean;
   isLast: boolean;
   onRenameColumn: (column: StateColumn, name: string) => void;
@@ -203,6 +205,7 @@ export function BoardColumn({
                         onRename={(title) => onRenameCard(card, title)}
                         onDelete={() => onDeleteCard(card)}
                         onMoveTo={(toColumnId) => onMoveCardTo(card, toColumnId)}
+                        onOpen={onOpenCard ? () => onOpenCard(card) : undefined}
                       />
                     </li>
                   </Fragment>

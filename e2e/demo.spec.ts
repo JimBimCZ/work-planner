@@ -98,6 +98,22 @@ test('a reload puts it back', async ({ page }) => {
   ).not.toContainText(['Search cards across a board']);
 });
 
+test('a demo card opens and closes', async ({ page }) => {
+  await page.goto('/');
+
+  await page.getByRole('button', { name: 'Move attachments to the EU bucket' }).click();
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText(/EU-jurisdiction endpoint/)).toBeVisible();
+  await expect(dialog.getByText('Rin Okabe')).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  // Closing is state, not history: the board is still the board.
+  await expect(page).toHaveURL(/\/$/);
+});
+
 test('dragging the demo issues no request of any kind', async ({ page }) => {
   await page.goto('/');
 

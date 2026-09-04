@@ -222,6 +222,13 @@ describe('the demo board', () => {
   });
 });
 
+test('a demo card title is a button that asks to be opened', () => {
+  const html = render({ demo: true, onOpen: () => {} });
+  expect(html).toContain('<button');
+  expect(html).toContain('Fix the rank tie-break');
+  expect(html).not.toContain('href');
+});
+
 describe('dragging apart from writing', () => {
   // The demo drags but has no ⋯ menu, no composer and no server. Before this,
   // both behaviours rode on canWrite and could not be separated.
