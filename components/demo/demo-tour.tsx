@@ -185,7 +185,15 @@ export function DemoTour() {
         {step ? (
           <DialogContent
             showCloseButton={false}
-            overlayClassName="bg-transparent supports-backdrop-filter:backdrop-blur-none"
+            // Transparent only while there is a box to cut a hole in — with no
+            // box (the opening step, or a step still settling after a change)
+            // dialog.tsx's own bg-canvas/70 paints and dims the board evenly,
+            // rather than leaving it fully lit.
+            overlayClassName={
+              box
+                ? 'bg-transparent supports-backdrop-filter:backdrop-blur-none'
+                : 'supports-backdrop-filter:backdrop-blur-none'
+            }
             // sm:max-w-xs pins the card at 320px from 640px up too: dialog.tsx
             // carries its own sm:max-w-sm (384px), and twMerge keeps whichever
             // max-w-* key comes later — without this one, placeCard's CARD_W
