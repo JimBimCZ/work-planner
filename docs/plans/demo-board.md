@@ -1573,7 +1573,7 @@ Branch: `feat/demo-board-card`, from `main` once Section B has landed.
   The spec writes this as `demoCard(cardId)`; it takes `now` for the same reason `demoBoard` does —
   the comment timestamps are offsets, not dates. Task C2 consumes it.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `lib/demo-board.test.ts`:
 
@@ -1614,7 +1614,7 @@ describe('demoCard', () => {
 
 Add `demoCard` to the file's import from `@/lib/demo-board`.
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/demo-board.test.ts > /tmp/c1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c1.log
@@ -1622,7 +1622,7 @@ pnpm exec vitest run lib/demo-board.test.ts > /tmp/c1.log 2>&1; echo "EXIT=$?"; 
 
 Expected: FAIL — `demoCard` is not exported.
 
-- [ ] **Step 3: Add the comments and the reader**
+- [x] **Step 3: Add the comments and the reader**
 
 In `lib/demo-board.ts`, add a comment seed to `CardSeed`:
 
@@ -1710,7 +1710,7 @@ export function demoCard(cardId: string, now: Date): DemoCardDetail | null {
 }
 ```
 
-- [ ] **Step 4: Run it and watch it pass**
+- [x] **Step 4: Run it and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/demo-board.test.ts > /tmp/c1.log 2>&1; echo "EXIT=$?"; tail -12 /tmp/c1.log
@@ -1718,7 +1718,7 @@ pnpm exec vitest run lib/demo-board.test.ts > /tmp/c1.log 2>&1; echo "EXIT=$?"; 
 
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/demo-board.ts lib/demo-board.test.ts
@@ -1736,7 +1736,7 @@ git commit -m "feat: what a demo card holds when you open it"
   `dueState` from `lib/due.ts`; `formatRelative` from `lib/relative-time.ts`.
 - Produces: `DemoCard({ card, onClose }: { card: DemoCardDetail; onClose: () => void })`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `components/demo/demo-card.test.tsx`:
 
@@ -1802,7 +1802,7 @@ test('renders a card with no description or comments', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run components/demo/demo-card.test.tsx > /tmp/c2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c2.log
@@ -1810,7 +1810,7 @@ pnpm exec vitest run components/demo/demo-card.test.tsx > /tmp/c2.log 2>&1; echo
 
 Expected: FAIL — cannot resolve `./demo-card`.
 
-- [ ] **Step 3: Write the component**
+- [x] **Step 3: Write the component**
 
 Create `components/demo/demo-card.tsx`:
 
@@ -1904,7 +1904,7 @@ export function DemoCard({ card, onClose }: { card: DemoCardDetail; onClose: () 
 at `lib/avatar.ts:16` only reaches the email when the name is empty — every demo comment has a
 name, so the empty string is never read. Neither module changes.
 
-- [ ] **Step 4: Run it and watch it pass**
+- [x] **Step 4: Run it and watch it pass**
 
 ```bash
 pnpm exec vitest run components/demo > /tmp/c2.log 2>&1; echo "EXIT=$?"; tail -12 /tmp/c2.log
@@ -1912,7 +1912,7 @@ pnpm exec vitest run components/demo > /tmp/c2.log 2>&1; echo "EXIT=$?"; tail -1
 
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/demo/demo-card.tsx components/demo/demo-card.test.tsx
@@ -1930,7 +1930,7 @@ git commit -m "feat: open a demo card and read it"
 - Produces: `BoardCard` and `BoardColumn` take `onOpen?: () => void`; `BoardCanvas` takes
   `onOpenCard?: (cardId: string) => void`. `DemoBoard` holds the open card in state.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `components/board/board-card.test.tsx`:
 
@@ -1943,7 +1943,7 @@ test('a demo card title is a button that asks to be opened', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/board-card.test.tsx > /tmp/c3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/c3.log
@@ -1951,7 +1951,7 @@ pnpm exec vitest run components/board/board-card.test.tsx > /tmp/c3.log 2>&1; ec
 
 Expected: FAIL — the demo title is still plain text from Task A4.
 
-- [ ] **Step 3: Promote the title to a button**
+- [x] **Step 3: Promote the title to a button**
 
 In `components/board/board-card.tsx`, add `onOpen` to the props (`onOpen?: () => void;`) and
 replace the three-way title branch:
@@ -1978,7 +1978,7 @@ replace the three-way title branch:
             <Link
 ```
 
-- [ ] **Step 4: Thread it through**
+- [x] **Step 4: Thread it through**
 
 `components/board/board-column.tsx`: add `onOpenCard?: (card: StateCard) => void` to the props and
 pass `onOpen={onOpenCard ? () => onOpenCard(card) : undefined}` to each `BoardCard`.
@@ -2013,7 +2013,7 @@ export function DemoBoard({ board }: { board: BoardWithCards }) {
 }
 ```
 
-- [ ] **Step 5: Extend the end-to-end suite**
+- [x] **Step 5: Extend the end-to-end suite**
 
 Append to `e2e/demo.spec.ts`:
 
@@ -2038,7 +2038,7 @@ test('a demo card opens and closes', async ({ page }) => {
 The earlier `no card on the demo board is a link` test still holds — a button is not an anchor —
 and is the guard that keeps this from regressing into a route.
 
-- [ ] **Step 6: Run everything**
+- [x] **Step 6: Run everything**
 
 ```bash
 pnpm exec vitest run > /tmp/c3-unit.log 2>&1; echo "UNIT=$?"; tail -6 /tmp/c3-unit.log
@@ -2050,7 +2050,7 @@ pnpm build > /tmp/c3-build.log 2>&1; echo "BUILD=$?"
 
 Expected: all EXIT=0, with the e2e collected count matching the run count.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add components/board components/demo e2e/demo.spec.ts
@@ -2059,7 +2059,7 @@ git commit -m "feat: open a card on the demo board"
 
 ### Task C4: Documentation and the pull request
 
-- [ ] **Step 1: Update `CLAUDE.md`**
+- [x] **Step 1: Update `CLAUDE.md`**
 
 Under **Layout**, beside the `(demo)` entry added in Task A6, note that the demo's card is local
 state rather than the intercepting route, and why:
@@ -2069,7 +2069,7 @@ state rather than the intercepting route, and why:
                             # intercept: a demo card has no URL to share
 ```
 
-- [ ] **Step 2: Tick every Section C box, and commit**
+- [x] **Step 2: Tick every Section C box, and commit**
 
 ```bash
 git add CLAUDE.md docs/plans/demo-board.md
@@ -2077,7 +2077,7 @@ git commit -m "docs: record the demo card"
 git push -u origin feat/demo-board-card
 ```
 
-- [ ] **Step 3: Open the PR, then stop**
+- [x] **Step 3: Open the PR, then stop**
 
 `gh pr create --base main --title "feat: demo board Section C — the card"`, with observed exit
 codes and screenshots of an open demo card in both themes.

@@ -135,6 +135,8 @@ app/
     layout.tsx              # / for a signed-out visitor: the board with no
                             # session, no footer, privacy in the top bar
     page.tsx                # redirects to /boards when signed in
+                            # its card opens from local state, not the
+                            # intercept: a demo card has no URL to share
   (legal)/
     privacy/page.tsx        # Privacy Policy
     terms/page.tsx          # optional, same layout
