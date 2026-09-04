@@ -194,8 +194,7 @@ lib/
                             # content lives — there is no board row. Imports
                             # nothing that reaches the database; `BoardWithCards`
                             # arrives as `import type`, which is erased
-  demo-tour.ts              # the tour's five steps; imports nothing, see
-                            # "Data model"
+  demo-tour.ts              # the tour's five steps; imports nothing
 docs/
   specs/                    # brainstorm output, one per feature
   plans/                    # implementation plans with checkboxes

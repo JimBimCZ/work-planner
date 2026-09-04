@@ -16,9 +16,10 @@ cards around on.
 
 **No board content a visitor produces is written anywhere.** Not to a database, not to a
 session, not to `localStorage`. A drag mutates the client's reducer and stops there; a reload
-restores the board exactly as it shipped. The one thing that *is* stored is a flag recording
+restores the board exactly as it shipped. The one thing that *will be* stored is a flag recording
 that the guided tour has been seen (`docs/specs/demo-tour.md`) — not board content, not sent
-anywhere, and not readable by the server.
+anywhere, and not readable by the server. That spec's Section A ships the tour opened by hand and
+stores nothing; the flag, and this paragraph's claim, arrive with Section B's auto-open.
 
 ## Non-goals
 

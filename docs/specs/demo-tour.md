@@ -125,9 +125,14 @@ correct switcher state without writing to board state.
 ### 4. The tour surface
 
 One Radix dialog from the existing `components/ui/dialog.tsx`. It is chosen over a bespoke overlay
-for what it already carries: focus trap, `aria-modal`, Escape, and focus returned to the trigger
-on close. Its modal overlay also blocks the board underneath, which is exactly what a point-only
-tour wants.
+for what it already carries: focus trap, `aria-modal` and Escape. Its modal overlay also blocks the
+board underneath, which is exactly what a point-only tour wants.
+
+**Focus is not returned to the trigger on close.** The tour opens from a plain button, not a
+`DialogTrigger`, so Radix has nothing to return focus to; after Escape or Skip,
+`document.activeElement` is `<body>`. `components/demo/demo-card.tsx` behaves the same way for the
+same reason — this is the primitive's behaviour, not something this branch introduces, and it is
+recorded here rather than claimed away.
 
 Two pieces inside it:
 
