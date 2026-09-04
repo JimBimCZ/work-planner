@@ -1150,7 +1150,7 @@ git fetch origin && git merge-base --is-ancestor origin/main HEAD && echo "base 
   `canDrag={canWrite || demo}` and passes it down. `canWrite` keeps its existing meaning — the ⋯
   menu, the composer, the column controls — and stops gating the sortable.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `components/board/board-card.test.tsx`, the `@dnd-kit/sortable` mock discards its argument.
 Capture it. Replace the existing mock block's `useSortable` with a spy, adding this beside the
@@ -1214,7 +1214,7 @@ Add `canDrag` to the shared `render` helper's defaults so the existing tests kee
       canDrag
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/board-card.test.tsx > /tmp/b1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/b1.log
@@ -1222,7 +1222,7 @@ pnpm exec vitest run components/board/board-card.test.tsx > /tmp/b1.log 2>&1; ec
 
 Expected: FAIL — `canDrag` is not a prop, and `disabled` is still computed from `canWrite`.
 
-- [ ] **Step 3: Split the two meanings**
+- [x] **Step 3: Split the two meanings**
 
 In `components/board/board-card.tsx`, add `canDrag` to the props and the type (`canDrag: boolean;`,
 documented as *"Dragging and writing are not the same permission: the demo board drags and writes
@@ -1235,7 +1235,7 @@ nothing."*), then change the sortable's guard:
 Leave every other `canWrite` in the file exactly as it is — the ⋯ menu and the title's padding
 still key off it.
 
-- [ ] **Step 4: Thread it through**
+- [x] **Step 4: Thread it through**
 
 `components/board/board-column.tsx`: add `canDrag` to the destructuring and the type, and pass
 `canDrag={canDrag}` to `BoardCard` beside `canWrite`.
@@ -1256,7 +1256,7 @@ still key off it.
 The canvas's own `onDragEnd` guard at `components/board/board-canvas.tsx:516` reads `!canWrite` and
 must read `!canDrag`, or a demo drop is computed and then discarded.
 
-- [ ] **Step 5: Run the board suite**
+- [x] **Step 5: Run the board suite**
 
 ```bash
 pnpm exec vitest run components/board > /tmp/b1.log 2>&1; echo "EXIT=$?"; tail -12 /tmp/b1.log
@@ -1264,7 +1264,7 @@ pnpm exec vitest run components/board > /tmp/b1.log 2>&1; echo "EXIT=$?"; tail -
 
 Expected: EXIT=0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/board/board-card.tsx components/board/board-card.test.tsx components/board/board-column.tsx components/board/board-canvas.tsx
@@ -1281,7 +1281,7 @@ git commit -m "feat: separate dragging a card from being allowed to write one"
 - Consumes: `demo` and `canDrag` from Tasks A4 and B1.
 - Produces: nothing new. This is the behaviour the whole spec exists for.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `components/board/board-canvas.test.tsx`:
 
@@ -1388,7 +1388,7 @@ test('the card leaves the column it came from', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/board-canvas.test.tsx > /tmp/b2.log 2>&1; echo "EXIT=$?"; tail -25 /tmp/b2.log
@@ -1397,7 +1397,7 @@ pnpm exec vitest run components/board/board-canvas.test.tsx > /tmp/b2.log 2>&1; 
 Expected: FAIL — `moveCard` was called. If instead the drop does nothing, the `!canDrag` guard from
 Task B1 Step 4 was not applied.
 
-- [ ] **Step 3: Short-circuit the mutation funnel**
+- [x] **Step 3: Short-circuit the mutation funnel**
 
 In `components/board/board-canvas.tsx`, at the top of `run` (`board-canvas.tsx:364`):
 
@@ -1423,7 +1423,7 @@ In `components/board/board-canvas.tsx`, at the top of `run` (`board-canvas.tsx:3
 Nothing else changes: `addCard` and `addColumnAfter` are reached only through controls `canWrite`
 already hides.
 
-- [ ] **Step 4: Run it and watch it pass**
+- [x] **Step 4: Run it and watch it pass**
 
 ```bash
 pnpm exec vitest run components/board > /tmp/b2.log 2>&1; echo "EXIT=$?"; tail -12 /tmp/b2.log
@@ -1431,7 +1431,7 @@ pnpm exec vitest run components/board > /tmp/b2.log 2>&1; echo "EXIT=$?"; tail -
 
 Expected: EXIT=0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/board/board-canvas.tsx components/board/board-canvas.test.tsx
@@ -1443,7 +1443,7 @@ git commit -m "feat: a demo drag stops at the reducer"
 **Files:**
 - Modify: `e2e/demo.spec.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `e2e/demo.spec.ts`:
 
@@ -1505,7 +1505,7 @@ test('dragging the demo issues no request of any kind', async ({ page }) => {
 
 Add `type Page` to the file's Playwright import: `import { expect, test, type Page } from '@playwright/test';`
 
-- [ ] **Step 2: Run it and watch it fail, then pass**
+- [x] **Step 2: Run it and watch it fail, then pass**
 
 ```bash
 pnpm exec playwright test e2e/demo.spec.ts --reporter=line > /tmp/b3.log 2>&1; echo "EXIT=$?"; tail -15 /tmp/b3.log
@@ -1514,7 +1514,7 @@ pnpm exec playwright test e2e/demo.spec.ts --reporter=line > /tmp/b3.log 2>&1; e
 Expected after Tasks B1 and B2: EXIT=0, with the collected count matching the run count. If the
 drag test fails at the `translate3d` assertion, `canDrag` is not reaching the card.
 
-- [ ] **Step 3: Full local gate**
+- [x] **Step 3: Full local gate**
 
 ```bash
 pnpm typecheck > /tmp/b3-tc.log 2>&1; echo "TYPECHECK=$?"
@@ -1525,7 +1525,7 @@ pnpm build > /tmp/b3-build.log 2>&1; echo "BUILD=$?"
 
 Expected: all EXIT=0.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add e2e/demo.spec.ts
@@ -1534,7 +1534,7 @@ git commit -m "test: prove the demo drag reaches nothing but the reducer"
 
 ### Task B4: Documentation and the pull request
 
-- [ ] **Step 1: Update `CLAUDE.md`**
+- [x] **Step 1: Update `CLAUDE.md`**
 
 Under **Drag and drop**, add:
 
@@ -1543,7 +1543,7 @@ Under **Drag and drop**, add:
 > the first. `BoardCanvas`'s `run()` returns after its dispatch in demo mode, so an optimistic move
 > is the whole move.
 
-- [ ] **Step 2: Tick every Section B box in this plan, and commit**
+- [x] **Step 2: Tick every Section B box in this plan, and commit**
 
 ```bash
 git add CLAUDE.md docs/plans/demo-board.md
@@ -1551,7 +1551,7 @@ git commit -m "docs: record the demo drag"
 git push -u origin feat/demo-board-drag
 ```
 
-- [ ] **Step 3: Open the PR, then stop**
+- [x] **Step 3: Open the PR, then stop**
 
 `gh pr create --base main --title "feat: demo board Section B — the drag that goes nowhere"`, with
 observed exit codes and a screenshot of a drag in progress. Hand back; do not start Section C in
