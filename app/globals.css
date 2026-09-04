@@ -79,6 +79,39 @@
     outline: 2px solid var(--flow-mid);
     outline-offset: 2px;
   }
+
+  /* Anything that responds to a click says so under the pointer. Only <a href>
+     gets that from the browser; a <button>, a control-bearing <label> and the
+     roles Radix puts on plain elements all default to the arrow. One rule here
+     rather than a utility per call site, since there is no Button primitive to
+     hang it on. */
+  button,
+  summary,
+  select,
+  [role='button'],
+  [role='tab'],
+  [role='menuitem'],
+  [role='menuitemcheckbox'],
+  [role='menuitemradio'],
+  [role='option'],
+  input[type='checkbox'],
+  input[type='radio'],
+  input[type='file'],
+  label:has(> input[type='checkbox']),
+  label:has(> input[type='radio']),
+  label:has(> input[type='file']) {
+    cursor: pointer;
+  }
+
+  /* A disabled control is not clickable, so it must not claim to be. */
+  button:disabled,
+  select:disabled,
+  input:disabled,
+  label:has(> input:disabled),
+  [aria-disabled='true'],
+  [data-disabled] {
+    cursor: default;
+  }
 }
 
 /* A card arriving in a column — created here or dropped in — fades up rather

@@ -287,7 +287,7 @@ export function CardAttachments({
             // on the label instead of the ring/ring-offset shorthand, which
             // pulls in Tailwind's white default ring-offset color and draws a
             // halo on the dark surface.
-            className="cursor-pointer rounded-[var(--radius-control)] border border-line px-3 py-1.5 text-sm font-medium text-ink hover:border-flow-mid focus-within:outline focus-within:outline-2 focus-within:outline-flow-mid focus-within:outline-offset-2"
+            className="rounded-[var(--radius-control)] border border-line px-3 py-1.5 text-sm font-medium text-ink hover:border-flow-mid focus-within:outline focus-within:outline-2 focus-within:outline-flow-mid focus-within:outline-offset-2"
           >
             Add file
             <input
