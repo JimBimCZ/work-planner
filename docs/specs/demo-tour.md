@@ -210,8 +210,10 @@ follows the same pattern rather than adding a third layout.
 - Each step supplies a `DialogTitle`, which Radix requires and the demo card already establishes.
 - The step body sits in an `aria-live="polite"` region: content changing inside an already-open
   dialog is otherwise announced by nothing.
-- Focus order is Back, Next, Skip, with Next focused on open so Enter walks the sequence. No
-  arrow-key bindings — the buttons are enough and Escape already means Skip.
+- Focus order is Back, Skip, Next — DOM order and visual order agree, with the primary control
+  rightmost as everywhere else in the app. Next takes focus when the dialog opens, so Enter walks
+  the sequence rather than leaving it. No arrow-key bindings: the buttons are enough and Escape
+  already means Skip.
 - Focus rings are the app's existing 2px accent at 2px offset. Every control is a real `<button>`,
   so `app/globals.css`'s cursor rule applies with nothing added.
 - `prefers-reduced-motion` makes the scroll instant. Nothing else in the tour moves.
