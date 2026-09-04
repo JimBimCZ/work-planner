@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 import { closeSeedPool, removeSeededUser, seedSession } from './support/session';
 
@@ -56,4 +56,58 @@ test('sends a signed-in visitor to their own boards', async ({ page, context }) 
   } finally {
     await removeSeededUser(userId);
   }
+});
+
+// dnd-kit's PointerSensor has a 5px activation distance and only starts the
+// drag once it has seen the pointer move, so Playwright's dragTo is silently
+// ignored. This is the sequence board-dnd.spec.ts proved works — without
+// written(), because the demo issues no request to wait for.
+async function dragCard(page: Page, title: string, columnId: string) {
+  const card = page.locator('[data-card-id]').filter({ hasText: title });
+  await card.hover();
+  await page.mouse.down();
+  await page.mouse.move(0, 0);
+  await expect(card).toHaveAttribute('style', /translate3d/);
+  await page.locator(`[data-column-id="${columnId}"]`).hover();
+  await page.mouse.up();
+}
+
+test('a card dragged on the demo lands where it was dropped', async ({ page }) => {
+  await page.goto('/');
+
+  await dragCard(page, 'Search cards across a board', 'demo-col-progress');
+
+  await expect(
+    page.locator('[data-column-id="demo-col-progress"]').getByTestId('card-title'),
+  ).toContainText(['Search cards across a board']);
+});
+
+// The whole feature in one assertion: the drag was real, and it was never
+// written anywhere.
+test('a reload puts it back', async ({ page }) => {
+  await page.goto('/');
+
+  await dragCard(page, 'Search cards across a board', 'demo-col-progress');
+  await page.reload();
+
+  await expect(
+    page.locator('[data-column-id="demo-col-ready"]').getByTestId('card-title'),
+  ).toContainText(['Search cards across a board']);
+  await expect(
+    page.locator('[data-column-id="demo-col-progress"]').getByTestId('card-title'),
+  ).not.toContainText(['Search cards across a board']);
+});
+
+test('dragging the demo issues no request of any kind', async ({ page }) => {
+  await page.goto('/');
+
+  const posts: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST') posts.push(request.url());
+  });
+
+  await dragCard(page, 'Search cards across a board', 'demo-col-progress');
+  await page.waitForTimeout(500);
+
+  expect(posts).toEqual([]);
 });
