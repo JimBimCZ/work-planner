@@ -91,13 +91,27 @@ function useTargetBox(selector: string | undefined, open: boolean): Box | null {
   return measured?.selector === selector ? measured.box : null;
 }
 
-// Beside the target, flipped to its left when the right would leave the
-// viewport, and clamped so the card is never partly off the bottom.
+// Beside the target where there is room, flipped to its left when the right
+// would leave the viewport. When neither side fits — a full-width column on a
+// phone is wider than the viewport minus the card — it goes below the target
+// instead, or above when there is no room below, so the card never covers the
+// thing it is pointing at.
 function placeCard(box: Box): { top: number; left: number } {
   const right = box.left + box.width + GAP;
   const fitsRight = right + CARD_W <= window.innerWidth - GAP;
+  const fitsLeft = box.left - GAP - CARD_W >= GAP;
+
+  if (!fitsRight && !fitsLeft) {
+    const below = box.top + box.height + GAP;
+    const above = box.top - GAP - CARD_H;
+    return {
+      top: below + CARD_H <= window.innerHeight - GAP ? below : Math.max(GAP, above),
+      left: Math.max(GAP, Math.min(box.left, window.innerWidth - CARD_W - GAP)),
+    };
+  }
+
   return {
-    left: fitsRight ? right : Math.max(GAP, box.left - GAP - CARD_W),
+    left: fitsRight ? right : box.left - GAP - CARD_W,
     top: Math.min(Math.max(GAP, box.top), Math.max(GAP, window.innerHeight - CARD_H)),
   };
 }

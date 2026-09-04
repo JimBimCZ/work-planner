@@ -67,6 +67,27 @@ test('scrolls a far target into view at 360px', async ({ page }) => {
   expect(box!.x + box!.width).toBeGreaterThan(0);
 });
 
+test('the step card never covers the element it points at', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 720 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'What can I try?' }).click();
+  await page.getByRole('button', { name: 'Next' }).click();
+
+  const spotlight = page.locator('[aria-hidden][style*="box-shadow"]');
+  await expect(spotlight).toBeVisible();
+  const lit = await spotlight.boundingBox();
+  const card = await page.getByRole('dialog').boundingBox();
+
+  expect(lit).not.toBeNull();
+  expect(card).not.toBeNull();
+  const overlaps =
+    lit!.x < card!.x + card!.width &&
+    card!.x < lit!.x + lit!.width &&
+    lit!.y < card!.y + card!.height &&
+    card!.y < lit!.y + lit!.height;
+  expect(overlaps).toBe(false);
+});
+
 test('the board is interactive again after the tour closes', async ({ page }) => {
   await page.goto('/');
   await openTour(page);
