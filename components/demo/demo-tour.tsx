@@ -9,7 +9,12 @@ import { TOUR_STEPS, visibleSteps } from '@/lib/demo-tour';
 
 type Box = DOMRect;
 
-const SETTLE_FRAMES = 2;
+// Where the step's target will sit once it has been scrolled into view, plus
+// how far it still has to travel to get there. The spotlight and the step card
+// are laid out from `box` and carry `dx`/`dy` as a transform, so they ride the
+// scroll rather than waiting for it to finish.
+type Anchor = { box: Box; dx: number; dy: number };
+
 const SETTLE_CAP_MS = 500;
 const PAD = 4;
 const GAP = 12;
@@ -20,6 +25,10 @@ const CARD_H = 200;
 const SCRIM = 'color-mix(in srgb, var(--canvas) 70%, transparent)';
 
 const SEEN_KEY = 'demo-tour';
+
+const SCROLL: ScrollIntoViewOptions = { block: 'nearest', inline: 'center' };
+
+const translate = (dx: number, dy: number) => `translate(${dx}px, ${dy}px)`;
 
 // Unprefixed, matching the only other key this app stores — `theme`, written
 // by account-menu.tsx and read by the pre-paint script in app/layout.tsx.
@@ -42,9 +51,9 @@ const markSeen = () => {
   }
 };
 
-// The one measurement helper: used both to resolve a step's live rect
-// (useTargetBox) and, via visibleSteps, to decide at open time whether a step
-// has a target at all. A zero-size rect is treated as absent in both uses.
+// The one measurement helper: used to resolve a step's live rect and, via
+// visibleSteps, to decide at open time whether a step has a target at all. A
+// zero-size rect is treated as absent in both uses.
 const boxOf = (selector: string): Box | null => {
   const element = document.querySelector(selector);
   if (!element) return null;
@@ -53,56 +62,108 @@ const boxOf = (selector: string): Box | null => {
   return rect;
 };
 
-// Scrolls the target into view, then waits for its rect to stop moving before
-// reporting it. Not a fixed timeout, and deliberately not `scrollend`: rect
-// stability needs no compatibility lookup, and this runs on whatever browser a
-// stranger arrives with.
+// The rect the target will have once it is in view, measured by scrolling
+// there instantly and putting every ancestor's scroll back. No paint happens
+// in between — it is one synchronous task — so nothing of it is visible.
+//
+// It is measured up front because placeCard has to choose a side once, from
+// the final geometry. Recomputing placement per frame during the scroll flips
+// the card across the target mid-flight: measured at 1200px, step 3's target
+// starts with room only on its left and ends with room on its right.
+const destination = (element: Element, selector: string): Box | null => {
+  const saved: [Element, number, number][] = [];
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    saved.push([node, node.scrollLeft, node.scrollTop]);
+  }
+
+  element.scrollIntoView(SCROLL);
+  const box = boxOf(selector);
+
+  for (const [node, left, top] of saved) {
+    node.scrollLeft = left;
+    node.scrollTop = top;
+  }
+
+  return box;
+};
+
+// Resolves the step's destination, then keeps the spotlight and the card
+// locked to the target for every frame of the smooth scroll — by writing their
+// transforms directly rather than through state, because a setState from a
+// requestAnimationFrame callback can land after the frame it was measured in
+// and the spotlight would trail the card it is lighting.
 //
 // The scroll is not a small-screen special case. board-canvas.tsx:586 keeps
 // every column mounted below 700px, and five 312px columns are wider than a
 // 1440px viewport anyway — so a target can be off-screen at any width, and a
 // spotlight drawn without scrolling would light a rectangle nobody can see.
-function useTargetBox(selector: string | undefined, open: boolean): Box | null {
-  // Keyed by the selector it was measured for, so a step change cannot show
-  // the previous step's rect while the new one is still settling — and so the
-  // effect never clears it synchronously, which react-hooks forbids.
-  const [measured, setMeasured] = useState<{ selector: string; box: Box | null } | null>(null);
+function useAnchor(selector: string | undefined, open: boolean) {
+  const [anchor, setAnchor] = useState<Anchor | null>(null);
+  const spotlightRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open || !selector) return;
-
-    const element = document.querySelector(selector);
-    if (!element) return;
-
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    element.scrollIntoView({
-      block: 'nearest',
-      inline: 'center',
-      behavior: reduced ? 'auto' : 'smooth',
-    });
-
-    let frame = 0;
-    let stable = 0;
-    let previous: Box | null = null;
-    const started = performance.now();
-
-    const tick = () => {
-      const next = boxOf(selector);
-      const settled =
-        next && previous && next.top === previous.top && next.left === previous.left;
-      stable = settled ? stable + 1 : 0;
-      previous = next;
-
-      if (stable >= SETTLE_FRAMES || performance.now() - started > SETTLE_CAP_MS) {
-        setMeasured({ selector, box: next });
-        return;
+    // Both writes below are the point of the effect rather than a cascade it
+    // could avoid: the anchor is a measurement of the live DOM, which no
+    // render-time value can produce.
+    const write = (dx: number, dy: number) => {
+      for (const ref of [spotlightRef, cardRef]) {
+        if (ref.current) ref.current.style.transform = translate(dx, dy);
       }
-      frame = requestAnimationFrame(tick);
     };
 
-    frame = requestAnimationFrame(tick);
+    const element = open && selector ? document.querySelector(selector) : null;
+    const target = element && selector ? destination(element, selector) : null;
 
-    const remeasure = () => setMeasured({ selector, box: boxOf(selector) });
+    if (!element || !selector || !target) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
+      setAnchor(null);
+      return;
+    }
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const from = element.getBoundingClientRect();
+    const dx = reduced ? 0 : from.left - target.left;
+    const dy = reduced ? 0 : from.top - target.top;
+
+    setAnchor({ box: target, dx, dy });
+    write(dx, dy);
+
+    element.scrollIntoView({ ...SCROLL, behavior: reduced ? 'auto' : 'smooth' });
+
+    let frame = 0;
+    const started = performance.now();
+
+    const follow = () => {
+      const live = boxOf(selector);
+      const offsetX = live ? live.left - target.left : 0;
+      const offsetY = live ? live.top - target.top : 0;
+
+      if (offsetX === 0 && offsetY === 0) {
+        write(0, 0);
+        return;
+      }
+
+      if (performance.now() - started > SETTLE_CAP_MS) {
+        // The scroll never arrived — clamped, or interrupted. Take the rect
+        // where it actually stopped rather than lighting the one it aimed at.
+        write(0, 0);
+        if (live) setAnchor({ box: live, dx: 0, dy: 0 });
+        return;
+      }
+
+      write(offsetX, offsetY);
+      frame = requestAnimationFrame(follow);
+    };
+
+    frame = requestAnimationFrame(follow);
+
+    const remeasure = () => {
+      const live = boxOf(selector);
+      if (!live) return;
+      write(0, 0);
+      setAnchor({ box: live, dx: 0, dy: 0 });
+    };
     window.addEventListener('resize', remeasure);
 
     return () => {
@@ -111,8 +172,7 @@ function useTargetBox(selector: string | undefined, open: boolean): Box | null {
     };
   }, [selector, open]);
 
-  if (!open || !selector) return null;
-  return measured?.selector === selector ? measured.box : null;
+  return { anchor, spotlightRef, cardRef };
 }
 
 // Beside the target where there is room, flipped to its left when the right
@@ -150,19 +210,27 @@ function placeCard(box: Box): { top: number; left: number } {
 // under the portal's z-50, so the dialog's transparent overlay and the step
 // card both paint above it.
 //
-// It does not animate between steps. Moving it would mean transitioning
-// top/left/width/height, and CLAUDE.md's motion rule is transform only. The
-// smooth scroll is the movement, and it is what reduced motion turns off.
-function Spotlight({ box }: { box: Box }) {
+// It is laid out at the target's destination and moved only by `transform`,
+// which is CLAUDE.md's motion rule — the box-shadow and the rect stay put
+// while the scroll plays out underneath.
+function Spotlight({
+  anchor,
+  ref,
+}: {
+  anchor: Anchor;
+  ref: React.RefObject<HTMLDivElement | null>;
+}) {
   return (
     <div
+      ref={ref}
       aria-hidden
       className="pointer-events-none fixed z-40 rounded-[var(--radius-card)]"
       style={{
-        top: box.top - PAD,
-        left: box.left - PAD,
-        width: box.width + PAD * 2,
-        height: box.height + PAD * 2,
+        top: anchor.box.top - PAD,
+        left: anchor.box.left - PAD,
+        width: anchor.box.width + PAD * 2,
+        height: anchor.box.height + PAD * 2,
+        transform: translate(anchor.dx, anchor.dy),
         boxShadow: `0 0 0 9999px ${SCRIM}`,
       }}
     />
@@ -204,8 +272,8 @@ export function DemoTour() {
     if (!seen()) start();
   }, [start]);
 
-  const box = useTargetBox(step?.selector, open);
-  const placement = box ? placeCard(box) : null;
+  const { anchor, spotlightRef, cardRef } = useAnchor(step?.selector, open);
+  const placement = anchor ? placeCard(anchor.box) : null;
 
   return (
     <>
@@ -217,18 +285,19 @@ export function DemoTour() {
         What can I try?
       </button>
 
-      {open && box ? <Spotlight box={box} /> : null}
+      {open && anchor ? <Spotlight anchor={anchor} ref={spotlightRef} /> : null}
 
       <Dialog open={open} onOpenChange={(next) => (next ? start() : close())}>
         {step ? (
           <DialogContent
+            ref={cardRef}
             showCloseButton={false}
             // Transparent only while there is a box to cut a hole in — with no
-            // box (the opening step, or a step still settling after a change)
-            // dialog.tsx's own bg-canvas/70 paints and dims the board evenly,
-            // rather than leaving it fully lit.
+            // box (the opening step, which lights nothing) dialog.tsx's own
+            // bg-canvas/70 paints and dims the board evenly, rather than
+            // leaving it fully lit.
             overlayClassName={
-              box
+              anchor
                 ? 'bg-transparent supports-backdrop-filter:backdrop-blur-none'
                 : 'supports-backdrop-filter:backdrop-blur-none'
             }
@@ -237,12 +306,22 @@ export function DemoTour() {
             // max-w-* key comes later — without this one, placeCard's CARD_W
             // math reserves 64px less than the card actually renders at, and
             // the card overlaps the element it is meant to leave clear.
+            // translate-x-0 translate-y-0 cancel dialog.tsx's centring, and
+            // they are not interchangeable with the inline transform below:
+            // Tailwind v4 compiles -translate-x-1/2 to the standalone
+            // `translate` property, which an inline `transform` does not
+            // override — dropping them leaves the card half its own size up
+            // and to the left of where placeCard put it.
             // transition-none only while anchored: dialog.tsx's duration-100
             // transitions `all` by default, which would animate the inline
-            // top/left below and move the card through layout rather than
-            // jumping, the same reason the spotlight does not animate.
+            // top/left below — moving the card through layout on every step,
+            // and lagging the transform that carries it along the scroll.
             className={`max-w-xs sm:max-w-xs gap-3 ${placement ? 'translate-x-0 translate-y-0 transition-none' : ''}`}
-            style={placement ?? undefined}
+            style={
+              placement && anchor
+                ? { ...placement, transform: translate(anchor.dx, anchor.dy) }
+                : undefined
+            }
             // Unchanged from Task 3. Keep it: nothing in the test suite covers
             // where focus lands, so dropping it here regresses silently.
             onOpenAutoFocus={(event) => {

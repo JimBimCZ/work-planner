@@ -99,13 +99,29 @@ In order, on every step change:
 1. Resolve the selector. No element, or a zero-size rect, and the step is dropped from the
    sequence **at open time**, so the `2 of 4` counter counts the steps that survived rather than
    the steps that were written.
-2. `scrollIntoView({ block: 'nearest', inline: 'center' })` — smooth, or instant under
-   `prefers-reduced-motion`.
-3. Wait for the scroll to settle by polling the rect with `requestAnimationFrame` until it is
-   unchanged for two consecutive frames, capped at ~500ms. Not a fixed timeout, and deliberately
-   not the `scrollend` event: rect-stability needs no compatibility lookup, and this runs on
-   whatever browser a stranger arrives with.
-4. Position the spotlight and the step card from the settled rect.
+2. Measure the rect the target **will** have once it is in view, by scrolling there instantly and
+   putting every ancestor's `scrollLeft`/`scrollTop` back. It is one synchronous task, so no paint
+   happens in between and none of it is visible.
+3. Position the spotlight and the step card from that destination rect, in the same commit the
+   step's text changes. Nothing waits.
+4. `scrollIntoView({ block: 'nearest', inline: 'center' })` — smooth, or instant under
+   `prefers-reduced-motion` — and, for every frame of it, carry both by the offset the target has
+   left to travel, written as a `transform`. Capped at ~500ms, after which the rect where the
+   scroll actually stopped is taken instead. The offset is written straight to the two nodes
+   rather than through state: a `setState` from a `requestAnimationFrame` callback can land after
+   the frame it was measured in, and the spotlight would trail the card it is lighting.
+
+**Measuring the destination up front is what makes the step card stop flying about.** The earlier
+build measured *after* the scroll settled, and until it did there was no rect to place anything
+from: the spotlight unmounted, the overlay fell back to dimming the whole board, and the card —
+losing its inline `top`/`left` — transitioned back to the middle of the viewport and then snapped
+out again. Measured on the 2→3 step at 1200px, that lasted 290ms of every Next, which reads as a
+page reload rather than as a step. `e2e/demo-tour.spec.ts` samples the transition per frame, since
+the end state was never the thing that was wrong.
+
+The destination also has to be known before the card is placed, not after: `placeCard` chooses a
+side once, and recomputing it per frame flips the card across the target mid-scroll — measured at
+1200px, step 3's target starts with room only on its left and ends with room on its right.
 
 Re-measure on `window.resize`. Nothing else can move the board while the tour is open, because the
 modal overlay is swallowing pointer events.
@@ -156,11 +172,17 @@ Two pieces inside it:
 The opening step has no target deliberately: anchoring "this board is real" to a particular card
 would make the visitor hunt before they know what they are looking at.
 
-**The spotlight does not animate between steps.** It jumps to the new rect. Transitioning it would
-mean animating `top`/`left`/`width`/`height`, and `CLAUDE.md`'s motion rule is transform only,
-never layout properties. The sense of movement comes from the smooth scroll, which is the one
-animated part and the one thing `prefers-reduced-motion` turns off. The dialog's own fade is
-unchanged.
+**Neither the spotlight nor the card animates its own geometry.** Both are laid out once per step,
+at the destination, and the only thing that moves them is a `transform` carrying the scroll's
+remaining offset — `CLAUDE.md`'s motion rule is transform only, never layout properties, and this
+keeps it while still letting them ride the scroll instead of waiting it out. The smooth scroll is
+the one animated part and the one thing `prefers-reduced-motion` turns off, where the offset is
+zero from the first frame. The dialog's own fade is unchanged.
+
+The card's `translate-x-0 translate-y-0` classes are not interchangeable with that inline
+`transform`: Tailwind v4 compiles `dialog.tsx`'s `-translate-x-1/2` to the standalone `translate`
+property, which an inline `transform` does not override, so dropping them leaves the card half its
+own size up and to the left of where `placeCard` put it.
 
 ### 5. When it opens, and what remembers
 
