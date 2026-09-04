@@ -73,7 +73,7 @@ Branch: `feat/demo-tour-section-a`. One PR.
   `TOUR_STEPS: TourStep[]`, and
   `visibleSteps(steps: TourStep[], resolve: (selector: string) => DOMRect | null): TourStep[]`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/demo-tour.test.ts` (node environment — no pragma, this file touches no DOM):
 
@@ -141,7 +141,7 @@ describe('visibleSteps', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/demo-tour.test.ts > /tmp/t1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t1.log
@@ -149,7 +149,7 @@ pnpm exec vitest run lib/demo-tour.test.ts > /tmp/t1.log 2>&1; echo "EXIT=$?"; t
 
 Expected: non-zero exit, `Failed to resolve import "@/lib/demo-tour"`.
 
-- [ ] **Step 3: Write `lib/demo-tour.ts`**
+- [x] **Step 3: Write `lib/demo-tour.ts`**
 
 ```ts
 // The tour's script, and the only place it lives. Imports nothing, in the
@@ -217,7 +217,7 @@ export function visibleSteps(
 }
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/demo-tour.test.ts > /tmp/t1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t1.log
@@ -225,7 +225,7 @@ pnpm exec vitest run lib/demo-tour.test.ts > /tmp/t1.log 2>&1; echo "EXIT=$?"; t
 
 Expected: `EXIT=0`, 6 tests passing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/demo-tour.ts lib/demo-tour.test.ts
@@ -247,7 +247,7 @@ codebase with two ways to build the same thing.
 **Interfaces:**
 - Produces: `DialogContent` gains `overlayClassName?: string`, merged onto the overlay with `cn`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `components/ui/dialog.test.tsx`:
 
@@ -292,7 +292,7 @@ it('still paints the default scrim when the prop is absent', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run components/ui/dialog.test.tsx > /tmp/t2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t2.log
@@ -301,7 +301,7 @@ pnpm exec vitest run components/ui/dialog.test.tsx > /tmp/t2.log 2>&1; echo "EXI
 Expected: non-zero exit — `overlayClassName` is not a prop, so the overlay keeps `bg-canvas/70`
 and the first test fails on `toHaveClass('bg-transparent')`.
 
-- [ ] **Step 3: Add the prop**
+- [x] **Step 3: Add the prop**
 
 In `components/ui/dialog.tsx`, change `DialogContent`'s signature and its overlay:
 
@@ -325,7 +325,7 @@ function DialogContent({
 
 Everything else in the function is unchanged.
 
-- [ ] **Step 4: Run it and watch it pass**
+- [x] **Step 4: Run it and watch it pass**
 
 ```bash
 pnpm exec vitest run components/ui/dialog.test.tsx > /tmp/t2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t2.log
@@ -333,7 +333,7 @@ pnpm exec vitest run components/ui/dialog.test.tsx > /tmp/t2.log 2>&1; echo "EXI
 
 Expected: `EXIT=0`, 2 tests passing.
 
-- [ ] **Step 5: Prove nothing else regressed**
+- [x] **Step 5: Prove nothing else regressed**
 
 ```bash
 pnpm exec vitest run > /tmp/t2b.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/t2b.log
@@ -342,7 +342,7 @@ pnpm exec vitest run > /tmp/t2b.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/t2b.log
 Expected: `EXIT=0`. Every other dialog in the app passes no `overlayClassName` and keeps
 `bg-canvas/70`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/ui/dialog.tsx components/ui/dialog.test.tsx
@@ -365,7 +365,7 @@ flag-free close behaviour. Positioning and scroll arrive in Task 4 — jsdom rep
 - Produces: `export function DemoTour(): JSX.Element` — renders the control and the dialog. Takes
   no props; Section B adds no props either.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `components/demo/demo-tour.test.tsx`:
 
@@ -489,7 +489,7 @@ it('announces the step body politely', async () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec vitest run components/demo/demo-tour.test.tsx > /tmp/t3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t3.log
@@ -497,7 +497,7 @@ pnpm exec vitest run components/demo/demo-tour.test.tsx > /tmp/t3.log 2>&1; echo
 
 Expected: non-zero exit, `Failed to resolve import "@/components/demo/demo-tour"`.
 
-- [ ] **Step 3: Write the component**
+- [x] **Step 3: Write the component**
 
 Create `components/demo/demo-tour.tsx`:
 
@@ -599,7 +599,7 @@ export function DemoTour() {
 }
 ```
 
-- [ ] **Step 4: Run it and watch it pass**
+- [x] **Step 4: Run it and watch it pass**
 
 ```bash
 pnpm exec vitest run components/demo/demo-tour.test.tsx > /tmp/t3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t3.log
@@ -607,7 +607,7 @@ pnpm exec vitest run components/demo/demo-tour.test.tsx > /tmp/t3.log 2>&1; echo
 
 Expected: `EXIT=0`, 7 tests passing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/demo/demo-tour.tsx components/demo/demo-tour.test.tsx
@@ -627,7 +627,7 @@ This task has no unit test, and that is a decision rather than an omission: jsdo
 the geometry, the scroll and the settle loop can only be proven in a real browser. Task 5's e2e
 covers them. The existing component tests must keep passing, which is what Step 3 checks.
 
-- [ ] **Step 1: Add the measurement hook**
+- [x] **Step 1: Add the measurement hook**
 
 At the top of `components/demo/demo-tour.tsx`, after the imports:
 
@@ -756,7 +756,7 @@ function Spotlight({ box }: { box: Box }) {
 }
 ```
 
-- [ ] **Step 2: Use it in `DemoTour`**
+- [x] **Step 2: Use it in `DemoTour`**
 
 Inside the component, after `const last = …`:
 
@@ -793,7 +793,7 @@ Only `className` and `style` are new on this tag; every other attribute is Task 
 The opening step has no `selector`, so `placement` is null and the card keeps
 `components/ui/dialog.tsx`'s centred default — which is what "centred, with no spotlight" means.
 
-- [ ] **Step 3: Run the component tests and the whole unit suite**
+- [x] **Step 3: Run the component tests and the whole unit suite**
 
 ```bash
 pnpm exec vitest run > /tmp/t4.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/t4.log
@@ -802,7 +802,7 @@ pnpm exec vitest run > /tmp/t4.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/t4.log
 Expected: `EXIT=0`. Task 3's seven tests still pass — they stub `getBoundingClientRect` and
 `scrollIntoView`, which is what keeps the settle loop from spinning in jsdom.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add components/demo/demo-tour.tsx
@@ -820,7 +820,7 @@ git commit -m "feat: light the element each tour step is about"
 - Produces: `data-tour="signin"` on the demo top bar's Sign in link — the selector
   `TOUR_STEPS`'s last step already names.
 
-- [ ] **Step 1: Write the failing e2e**
+- [x] **Step 1: Write the failing e2e**
 
 Create `e2e/demo-tour.spec.ts`:
 
@@ -896,7 +896,7 @@ test('the board is interactive again after the tour closes', async ({ page }) =>
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 E2E_PORT=3101 pnpm exec playwright test e2e/demo-tour.spec.ts --reporter=line > /tmp/t5.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t5.log
@@ -904,7 +904,7 @@ E2E_PORT=3101 pnpm exec playwright test e2e/demo-tour.spec.ts --reporter=line > 
 
 Expected: non-zero exit — there is no `What can I try?` control yet.
 
-- [ ] **Step 3: Wire it into the layout**
+- [x] **Step 3: Wire it into the layout**
 
 In `app/(demo)/layout.tsx`, add the import:
 
@@ -932,7 +932,7 @@ spans and before the Privacy link, and give the Sign in link the tour's selector
                 </Link>
 ```
 
-- [ ] **Step 4: Run the new e2e and watch it pass**
+- [x] **Step 4: Run the new e2e and watch it pass**
 
 ```bash
 E2E_PORT=3101 pnpm exec playwright test e2e/demo-tour.spec.ts --reporter=line > /tmp/t5.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t5.log
@@ -940,7 +940,7 @@ E2E_PORT=3101 pnpm exec playwright test e2e/demo-tour.spec.ts --reporter=line > 
 
 Expected: `EXIT=0`, 5 passed. Compare the number that ran against the number collected.
 
-- [ ] **Step 5: Prove the existing demo suite is untouched**
+- [x] **Step 5: Prove the existing demo suite is untouched**
 
 ```bash
 E2E_PORT=3101 pnpm exec playwright test e2e/demo.spec.ts --reporter=line > /tmp/t5b.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/t5b.log
@@ -948,13 +948,13 @@ E2E_PORT=3101 pnpm exec playwright test e2e/demo.spec.ts --reporter=line > /tmp/
 
 Expected: `EXIT=0`, 10 passed. Section A adds no auto-open, so nothing here needed changing.
 
-- [ ] **Step 6: Look at it, in both themes and both widths**
+- [x] **Step 6: Look at it, in both themes and both widths**
 
 Start the dev server, open `/`, and walk the tour at 1440px and at 360px, in light and dark.
 Emulate `prefers-reduced-motion: reduce` and confirm the scroll is instant and nothing else moves.
 Keep the four screenshots for the PR body. Shut the server down afterwards.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add "app/(demo)/layout.tsx" e2e/demo-tour.spec.ts
@@ -968,7 +968,7 @@ git commit -m "feat: offer the tour from the demo top bar"
 - Modify: `docs/specs/demo-tour.md` (deliverable 5's owner)
 - Modify: `CLAUDE.md` (Layout, Open decisions)
 
-- [ ] **Step 1: Amend `docs/specs/demo-board.md:18`**
+- [x] **Step 1: Amend `docs/specs/demo-board.md:18`**
 
 The paragraph currently reads "**Nothing a visitor does is written anywhere.** Not to a database,
 not to a session, not to `localStorage`." Section B makes the last clause false. Replace it with a
@@ -980,7 +980,7 @@ sentence that separates the two claims:
 > that the guided tour has been seen (`docs/specs/demo-tour.md`) — not board content, not sent
 > anywhere, and not readable by the server.
 
-- [ ] **Step 2: Amend `docs/specs/demo-board.md:36`**
+- [x] **Step 2: Amend `docs/specs/demo-board.md:36`**
 
 The "No marketing page" non-goal becomes:
 
@@ -988,7 +988,7 @@ The "No marketing page" non-goal becomes:
 >   sitemap. The board is the pitch — which is why the guided tour in
 >   `docs/specs/demo-tour.md` points at the board rather than describing the product.
 
-- [ ] **Step 3: Correct `docs/specs/demo-tour.md`'s deliverable 5**
+- [x] **Step 3: Correct `docs/specs/demo-tour.md`'s deliverable 5**
 
 Its first line names `components/demo/demo-board.tsx` as the component that opens the tour. Change
 it to `components/demo/demo-tour.tsx`, and add the reason from this plan's "Deviation" section:
@@ -996,7 +996,7 @@ the dialog portals and the spotlight measures the DOM, so nothing requires the t
 the board's React tree, and living in the layout means no context bridge and no change to
 `demo-board.tsx`.
 
-- [ ] **Step 4: Update `CLAUDE.md`**
+- [x] **Step 4: Update `CLAUDE.md`**
 
 In "Layout", under `components/demo/`:
 
@@ -1020,14 +1020,14 @@ five-step guided tour that opens once per browser and is reopenable from its top
 `docs/specs/demo-tour.md` holds the reasoning, including why it points rather than lets the
 visitor perform each step.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/specs/demo-board.md docs/specs/demo-tour.md CLAUDE.md
 git commit -m "docs: record the demo tour and what it changes"
 ```
 
-- [ ] **Step 6: Ship Section A**
+- [x] **Step 6: Ship Section A**
 
 ```bash
 pnpm typecheck && pnpm lint && pnpm test
@@ -1053,7 +1053,7 @@ before starting: `git merge-base --is-ancestor origin/main HEAD`.
 **Interfaces:**
 - Produces: the `localStorage` key `demo-tour`, value `'seen'`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `components/demo/demo-tour.test.tsx`, and add `localStorage.clear()` to the existing
 `beforeEach`:
@@ -1099,7 +1099,7 @@ it('renders when localStorage throws', async () => {
 The `it('reopens at the first step')` test from Task 3 now needs `localStorage.setItem('demo-tour',
 'seen')` before `render`, or the auto-open races its explicit click. Change it in the same step.
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 ```bash
 pnpm exec vitest run components/demo/demo-tour.test.tsx > /tmp/t7.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t7.log
@@ -1107,7 +1107,7 @@ pnpm exec vitest run components/demo/demo-tour.test.tsx > /tmp/t7.log 2>&1; echo
 
 Expected: non-zero exit — nothing opens on mount and nothing writes the key.
 
-- [ ] **Step 3: Add the gate**
+- [x] **Step 3: Add the gate**
 
 In `components/demo/demo-tour.tsx`:
 
@@ -1159,7 +1159,7 @@ And the auto-open, after the other hooks:
   }, [start]);
 ```
 
-- [ ] **Step 4: Run them and watch them pass**
+- [x] **Step 4: Run them and watch them pass**
 
 ```bash
 pnpm exec vitest run components/demo/demo-tour.test.tsx > /tmp/t7.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t7.log
@@ -1167,7 +1167,7 @@ pnpm exec vitest run components/demo/demo-tour.test.tsx > /tmp/t7.log 2>&1; echo
 
 Expected: `EXIT=0`, 12 tests passing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add components/demo/demo-tour.tsx components/demo/demo-tour.test.tsx
@@ -1187,7 +1187,7 @@ is in the way of every one of them.
 - Produces: `export const test` — a Playwright `test` extended so every use of it seeds the
   `demo-tour` flag before the page loads.
 
-- [ ] **Step 1: Watch the existing suite break**
+- [x] **Step 1: Watch the existing suite break**
 
 ```bash
 E2E_PORT=3101 pnpm exec playwright test e2e/demo.spec.ts --reporter=line > /tmp/t8.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/t8.log
@@ -1196,7 +1196,7 @@ E2E_PORT=3101 pnpm exec playwright test e2e/demo.spec.ts --reporter=line > /tmp/
 Expected: non-zero exit, with failures reporting an intercepted pointer event. Record which tests
 failed — this is the evidence the fixture is needed, and the PR body quotes it.
 
-- [ ] **Step 2: Write the fixture**
+- [x] **Step 2: Write the fixture**
 
 Create `e2e/demo-fixture.ts`:
 
@@ -1223,7 +1223,7 @@ export const test = base.extend({
 export { expect } from '@playwright/test';
 ```
 
-- [ ] **Step 3: Point `e2e/demo.spec.ts` at it**
+- [x] **Step 3: Point `e2e/demo.spec.ts` at it**
 
 Replace its `import { expect, test } from '@playwright/test';` with:
 
@@ -1233,7 +1233,7 @@ import { expect, test } from './demo-fixture';
 
 No test body changes.
 
-- [ ] **Step 4: Run it and watch it pass**
+- [x] **Step 4: Run it and watch it pass**
 
 ```bash
 E2E_PORT=3101 pnpm exec playwright test e2e/demo.spec.ts --reporter=line > /tmp/t8.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/t8.log
@@ -1241,7 +1241,7 @@ E2E_PORT=3101 pnpm exec playwright test e2e/demo.spec.ts --reporter=line > /tmp/
 
 Expected: `EXIT=0`, 10 passed — the same ten, unmodified.
 
-- [ ] **Step 5: Cover the new behaviour**
+- [x] **Step 5: Cover the new behaviour**
 
 In `e2e/demo-tour.spec.ts`, switch the import to `./demo-fixture` — its existing five tests open
 the tour by hand and must not race an auto-open — then add two that deliberately do not use the
@@ -1270,7 +1270,7 @@ raw('the top bar brings it back after a dismissal', async ({ page }) => {
 });
 ```
 
-- [ ] **Step 6: Run the whole e2e suite**
+- [x] **Step 6: Run the whole e2e suite**
 
 ```bash
 E2E_PORT=3101 pnpm exec playwright test --reporter=line > /tmp/e2e-b.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/e2e-b.log
@@ -1279,7 +1279,7 @@ E2E_PORT=3101 pnpm exec playwright test --reporter=line > /tmp/e2e-b.log 2>&1; e
 Expected: `EXIT=0`. Compare the number that ran against the number collected — a passing count is
 not a passing suite.
 
-- [ ] **Step 7: Commit and ship Section B**
+- [x] **Step 7: Commit and ship Section B**
 
 ```bash
 git add e2e/demo-fixture.ts e2e/demo.spec.ts e2e/demo-tour.spec.ts
