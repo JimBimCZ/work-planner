@@ -88,6 +88,26 @@ test('the step card never covers the element it points at', async ({ page }) => 
   expect(overlaps).toBe(false);
 });
 
+test('a target too tall to clear keeps its top visible', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 720 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'What can I try?' }).click();
+  for (let i = 0; i < 3; i += 1) await page.getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByText('Columns are yours')).toBeVisible();
+
+  const spotlight = page.locator('[aria-hidden][style*="box-shadow"]');
+  await expect(spotlight).toBeVisible();
+  const lit = await spotlight.boundingBox();
+  const card = await page.getByRole('dialog').boundingBox();
+
+  expect(lit).not.toBeNull();
+  expect(card).not.toBeNull();
+  // The column is taller than the viewport, so the card cannot clear it. What
+  // must hold is that the column's header and first cards stay readable above
+  // the card rather than under it.
+  expect(card!.y - Math.max(lit!.y, 0)).toBeGreaterThanOrEqual(200);
+});
+
 test('the board is interactive again after the tour closes', async ({ page }) => {
   await page.goto('/');
   await openTour(page);

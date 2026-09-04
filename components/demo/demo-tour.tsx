@@ -104,10 +104,15 @@ function placeCard(box: Box): { top: number; left: number } {
   if (!fitsRight && !fitsLeft) {
     const below = box.top + box.height + GAP;
     const above = box.top - GAP - CARD_H;
-    return {
-      top: below + CARD_H <= window.innerHeight - GAP ? below : Math.max(GAP, above),
-      left: Math.max(GAP, Math.min(box.left, window.innerWidth - CARD_W - GAP)),
-    };
+    const left = Math.max(GAP, Math.min(box.left, window.innerWidth - CARD_W - GAP));
+
+    if (below + CARD_H <= window.innerHeight - GAP) return { top: below, left };
+    if (above >= GAP) return { top: above, left };
+
+    // A target taller than the viewport — a full-height column on a phone —
+    // cannot be cleared on any side. The card goes to the bottom edge, which
+    // leaves the column's header and its first cards visible above it.
+    return { top: Math.max(GAP, window.innerHeight - CARD_H - GAP), left };
   }
 
   return {
