@@ -156,6 +156,11 @@ components/
     demo-card.tsx           # read-only card dialog with no server behind it;
                             # deliberately not board/card-body.tsx — see the
                             # comment at its top for what that costs
+    demo-tour.tsx           # the guided tour: the top bar's control, the
+                            # step card, and the box-shadow spotlight. Finds
+                            # its targets with querySelector against
+                            # data-card-id / data-column-id, so it changes
+                            # nothing under components/board/
   site-footer.tsx           # rendered by each route-group layout, not the root
                             # one; see "Footer and legal pages"
   ui/                       # shadcn primitives, including sheet.tsx — the same
@@ -185,6 +190,11 @@ lib/
   activity-limits.ts        # activity caps; imports nothing, see "Data model"
   cards-limits.ts           # the description-preview cap and previewOf; imports
                             # nothing, because card-body.tsx is a client component
+  demo-board.ts             # the demo board's fixture, and the only place its
+                            # content lives — there is no board row. Imports
+                            # nothing that reaches the database; `BoardWithCards`
+                            # arrives as `import type`, which is erased
+  demo-tour.ts              # the tour's five steps; imports nothing
 docs/
   specs/                    # brainstorm output, one per feature
   plans/                    # implementation plans with checkboxes
@@ -896,7 +906,10 @@ the reasoning.
 **The demo board is settled** and built: `/` serves a fixture board to anyone signed out and writes
 nothing anywhere — no board row, no hole in `assertBoardAccess`, no anonymous write path.
 `docs/specs/demo-board.md` holds the reasoning, including why it is a fixture rather than a board
-row.
+row. The demo board also carries a five-step guided tour, reopenable at any time from its top
+bar's `What can I try?` control; `docs/specs/demo-tour.md` holds the reasoning, including why it
+points rather than lets the visitor perform each step. Section A ships the tour open only by
+hand — the once-per-browser auto-open on first visit is that spec's Section B.
 
 Remaining sub-projects: member management and invites is shipped in full, Sections A–D; labels the
 same, Sections A–D; attachments the same, Sections A–D; the activity log the same, Sections A–D;

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { TopBar } from '@/components/app/top-bar';
 import { BoardActionsProvider } from '@/components/board/board-actions';
 import { RealtimeProvider } from '@/components/board/realtime';
+import { DemoTour } from '@/components/demo/demo-tour';
 import { DEMO_BOARD_NAME } from '@/lib/demo-board';
 
 // The (board) treatment: fixed viewport height, body scroll locked, and no
@@ -26,6 +27,7 @@ export default function DemoLayout({ children }: { children: React.ReactNode }) 
                   Nothing here is saved
                 </span>
                 <span className="font-mono text-xs text-muted min-[700px]:hidden">Demo</span>
+                <DemoTour />
                 <Link
                   href="/privacy"
                   className="rounded-[var(--radius-control)] text-[13px] text-muted hover:text-ink"
@@ -34,6 +36,7 @@ export default function DemoLayout({ children }: { children: React.ReactNode }) 
                 </Link>
                 <Link
                   href="/signin"
+                  data-tour="signin"
                   className="rounded-[var(--radius-control)] bg-flow-mid px-3 py-1.5 text-[13px] font-medium text-white"
                 >
                   Sign in
