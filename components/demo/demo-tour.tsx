@@ -186,7 +186,16 @@ export function DemoTour() {
           <DialogContent
             showCloseButton={false}
             overlayClassName="bg-transparent supports-backdrop-filter:backdrop-blur-none"
-            className={`max-w-xs gap-3 ${placement ? 'translate-x-0 translate-y-0' : ''}`}
+            // sm:max-w-xs pins the card at 320px from 640px up too: dialog.tsx
+            // carries its own sm:max-w-sm (384px), and twMerge keeps whichever
+            // max-w-* key comes later — without this one, placeCard's CARD_W
+            // math reserves 64px less than the card actually renders at, and
+            // the card overlaps the element it is meant to leave clear.
+            // transition-none only while anchored: dialog.tsx's duration-100
+            // transitions `all` by default, which would animate the inline
+            // top/left below and move the card through layout rather than
+            // jumping, the same reason the spotlight does not animate.
+            className={`max-w-xs sm:max-w-xs gap-3 ${placement ? 'translate-x-0 translate-y-0 transition-none' : ''}`}
             style={placement ?? undefined}
             // Unchanged from Task 3. Keep it: nothing in the test suite covers
             // where focus lands, so dropping it here regresses silently.

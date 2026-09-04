@@ -88,6 +88,40 @@ test('the step card never covers the element it points at', async ({ page }) => 
   expect(overlaps).toBe(false);
 });
 
+// Regression for the card rendering at dialog.tsx's sm:max-w-sm (384px)
+// rather than the tour's own max-w-xs (320px) that placeCard's CARD_W
+// assumes: at 1440x900 steps 4 and 5 are exactly where that 64px shortfall
+// showed up, so both are checked here rather than only the 360px case above.
+test('the step card never covers the element it points at, at 1440x900', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+  await page.getByRole('button', { name: 'What can I try?' }).click();
+  for (let i = 0; i < 3; i += 1) await page.getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByText('Columns are yours')).toBeVisible();
+
+  const assertNoOverlap = async () => {
+    const spotlight = page.locator('[aria-hidden][style*="box-shadow"]');
+    await expect(spotlight).toBeVisible();
+    const lit = await spotlight.boundingBox();
+    const card = await page.getByRole('dialog').boundingBox();
+
+    expect(lit).not.toBeNull();
+    expect(card).not.toBeNull();
+    const overlaps =
+      lit!.x < card!.x + card!.width &&
+      card!.x < lit!.x + lit!.width &&
+      lit!.y < card!.y + card!.height &&
+      card!.y < lit!.y + lit!.height;
+    expect(overlaps).toBe(false);
+  };
+
+  await assertNoOverlap();
+
+  await page.getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByText('Sign in for a board of your own')).toBeVisible();
+  await assertNoOverlap();
+});
+
 test('a target too tall to clear keeps its top visible', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 720 });
   await page.goto('/');
