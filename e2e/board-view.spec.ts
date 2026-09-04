@@ -63,6 +63,14 @@ test('the board drops the footer but keeps privacy in the account menu', async (
   }
 });
 
+// The demo board at / is the second footer-free route, for the same reason —
+// a locked viewport — but it has no account menu to hide the link in.
+test('the demo board drops the footer and puts privacy in the bar', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('contentinfo')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Privacy' })).toBeVisible();
+});
+
 test('the board shows its five seeded columns in order', async ({ page, context }) => {
   const { userId } = await seedSession(context);
   const boardId = await seedBoard(userId, 'Roadmap');

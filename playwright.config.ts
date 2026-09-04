@@ -36,10 +36,10 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command: 'pnpm build && pnpm start',
-    // Readiness probes /api/health, not '/'. The root redirects into the
-    // auth-gated routes, so probing it makes suite startup depend on whichever
-    // page that chain currently ends at — a signed-out run lands on /signin,
-    // and any 4xx there stalls the whole suite behind a webServer timeout.
+    // Readiness probes /api/health, not '/'. The root renders the demo board,
+    // which is a fixture: it answers 200 without the database being reachable,
+    // so it would report ready before the seeded-session harness — which does
+    // need the database — could seed anything. The health route touches it.
     url: `http://localhost:${port}/api/health`,
     // Always start a fresh production server: reusing a stray `next dev` on
     // port 3000 would run the suite against dev overlays instead of the
