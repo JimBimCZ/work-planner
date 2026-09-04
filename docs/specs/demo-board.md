@@ -14,11 +14,11 @@ sees is two OAuth buttons. The product is a board, and nobody has looked at one.
 `/` a real board, rendered from a fixture in the repository, that a signed-out visitor can drag
 cards around on.
 
-**Nothing a visitor does is written anywhere.** Not to a database, not to a session, not to
-`localStorage`. A drag mutates the client's reducer and stops there; a reload restores the board
-exactly as it shipped. That is the whole security model of this feature, and it is why the demo
-needs no anonymous write path, no rate limiting, and no reset job — which Vercel rules out anyway
-(`CLAUDE.md`, "Deployment").
+**No board content a visitor produces is written anywhere.** Not to a database, not to a
+session, not to `localStorage`. A drag mutates the client's reducer and stops there; a reload
+restores the board exactly as it shipped. The one thing that *is* stored is a flag recording
+that the guided tour has been seen (`docs/specs/demo-tour.md`) — not board content, not sent
+anywhere, and not readable by the server.
 
 ## Non-goals
 
@@ -33,8 +33,9 @@ needs no anonymous write path, no rate limiting, and no reset job — which Verc
 - **No members, no activity drawer, no attachments, no label filter, no comment composer, no card
   creation, deletion or renaming.** The demo is a board you can read and drag.
 - **No `/demo` alias.** One route, `/`.
-- **No marketing page.** No hero copy, no feature grid, no pricing, no OG image work, no sitemap.
-  The board is the pitch.
+- **No marketing page.** No hero copy, no feature grid, no pricing, no OG image work, no
+  sitemap. The board is the pitch — which is why the guided tour in
+  `docs/specs/demo-tour.md` points at the board rather than describing the product.
 - **No change to `/signin`.** `CLAUDE.md` says that screen offers the two providers and nothing
   else, and it still does.
 

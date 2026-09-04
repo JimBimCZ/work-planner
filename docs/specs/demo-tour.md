@@ -136,9 +136,17 @@ Two pieces inside it:
   No SVG mask and no four-div letterbox: one element, one rule, and the hole is the element's own
   box. It is `aria-hidden` and `pointer-events-none`.
 - **The step card** — title, body, a `2 of 5` counter whose total is the number of steps that
-  survived deliverable 3's filter rather than the number written down, and Back / Next / Skip. Positioned beside
-  the target, flipping side when it would leave the viewport; centred, with no spotlight, on the
-  opening step.
+  survived deliverable 3's filter rather than the number written down, and Back / Next / Skip.
+  Centred, with no spotlight, on the opening step. Otherwise, `placeCard` tries three fallbacks in
+  order, because the target's own size and position rule out different sides at different
+  viewports: beside the target where there is room, to its left when the right would leave the
+  viewport; when neither side fits — a full-width column on a phone is wider than the viewport
+  minus the card — below the target instead, or above it when there is no room below; and when the
+  target is taller than the viewport can clear on either side, the card sits at the bottom edge,
+  because the column's header and its first cards carry its identity and content and both sit at
+  the top. Zero overlap with the target is the rule for a normal target and cannot be achieved for
+  a target the size of the viewport itself. `e2e/demo-tour.spec.ts` pins both the strict
+  no-overlap case and the 200px-visible case that last fallback settles for.
 
 The opening step has no target deliberately: anchoring "this board is real" to a particular card
 would make the visitor hunt before they know what they are looking at.
@@ -151,7 +159,12 @@ unchanged.
 
 ### 5. When it opens, and what remembers
 
-`components/demo/demo-board.tsx` opens the tour on mount, once, gated on a `localStorage` flag:
+`components/demo/demo-tour.tsx` opens the tour on mount, once, gated on a `localStorage` flag. It
+lives in `app/(demo)/layout.tsx`'s top bar, not in `components/demo/demo-board.tsx`: the dialog
+renders through a portal and the spotlight finds its target with `querySelector`, so nothing
+requires the tour to sit inside the board's React tree, and living in the layout means no context
+bridge in the manner of `components/board/board-actions.tsx`, and no change to `demo-board.tsx` at
+all. The flag:
 
 ```
 demo-tour = 'seen'
