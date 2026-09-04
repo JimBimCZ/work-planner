@@ -213,7 +213,7 @@ export function DemoTour() {
             }}
           >
             <DialogTitle>{step.title}</DialogTitle>
-            <p aria-live="polite" className="text-[13px] leading-5 text-muted">
+            <p aria-live="polite" className="text-[13px] leading-5 text-ink">
               {step.body}
             </p>
             <div className="flex items-center justify-between gap-3">
