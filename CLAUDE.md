@@ -341,10 +341,13 @@ Column reordering uses the same helper against sibling columns. There is one ord
   `<article>` carries `{...listeners}`, and nothing in this repo calls `setActivatorNodeRef` — so
   `KeyboardSensor`'s activator finds `activatorNode.current` null, skips its `event.target` check,
   and `preventDefault`s every Enter/Space that bubbles out of a child before that child's own
-  default action runs. This constrains the real board's card `<Link>` as much as the demo's title
-  `<button>`; a `<Link>` just happens not to depend on Enter's default action the way a `<button>`
-  does, which is why it went unnoticed there. Any interactive element nested inside a draggable card
-  must stop Enter and Space propagating in its own handler so the sensor never sees them.
+  default action runs. This constrains the real board's card `<Link>` exactly as much as the demo's
+  title `<button>` — an ancestor `preventDefault` on Enter suppresses activation identically for
+  both. Only the demo button carries the fix: the real board's `<Link>` does not, so a member who
+  tabs to a card and presses Enter very likely arms a keyboard drag instead of opening it. That is an
+  open accessibility gap, not a decision anyone made — read the silence here as unfixed, not safe.
+  Any interactive element nested inside a draggable card must stop Enter and Space propagating in its
+  own handler so the sensor never sees them.
 - Dragging and writing are separate permissions. `canWrite` gates the ⋯ menus, the composer and the
   column controls; `canDrag` gates the sortable, and the demo board at `/` has the second without
   the first. `BoardCanvas`'s `run()` returns after its dispatch in demo mode, so an optimistic move
