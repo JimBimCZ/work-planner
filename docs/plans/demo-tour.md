@@ -253,6 +253,10 @@ Create `components/ui/dialog.test.tsx`:
 
 ```tsx
 // @vitest-environment jsdom
+// vitest.config.mts registers no setupFiles, so the matchers below
+// (toHaveClass, toBeInTheDocument, toHaveTextContent) come from here or not
+// at all. components/board/card-comments.test.tsx:2 is the convention.
+import '@testing-library/jest-dom/vitest';
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, expect, it } from 'vitest';
 
@@ -367,6 +371,10 @@ Create `components/demo/demo-tour.test.tsx`:
 
 ```tsx
 // @vitest-environment jsdom
+// vitest.config.mts registers no setupFiles, so the matchers below
+// (toHaveClass, toBeInTheDocument, toHaveTextContent) come from here or not
+// at all. components/board/card-comments.test.tsx:2 is the convention.
+import '@testing-library/jest-dom/vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
