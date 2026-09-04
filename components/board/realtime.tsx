@@ -65,7 +65,10 @@ export function RealtimeProvider({
   boardId,
   children,
 }: {
-  boardId: string;
+  // Null is a surface with no channel to join — the demo board, which is a
+  // fixture rather than a row. It is not an error state: the provider is
+  // still required, because the canvas calls useRealtime() unconditionally.
+  boardId: string | null;
   children: React.ReactNode;
 }) {
   // A ref, not state: adding a handler must not re-render the provider and
@@ -84,7 +87,8 @@ export function RealtimeProvider({
 
     // No credentials is a supported configuration, not an error: the app is
     // simply not realtime, which is what self-hosting without Pusher gets.
-    if (!key || !cluster) return;
+    // No board id is the same answer for a different reason — see the prop.
+    if (!key || !cluster || !boardId) return;
 
     // Deferred a tick rather than called directly: react-hooks/set-state-in-effect
     // flags a setState called synchronously in the effect body. The connection

@@ -417,16 +417,18 @@ afterEach(cleanup);
 
 const channel = { bind: vi.fn(), unbind_all: vi.fn() };
 const constructed = vi.hoisted(() => vi.fn());
+// A class, not vi.fn(impl): the provider calls `new Pusher(...)`, and a spy
+// wrapping an arrow function is not a constructor.
 vi.mock('pusher-js', () => ({
-  default: vi.fn((...args: unknown[]) => {
-    constructed(...args);
-    return {
-      connection: { bind: vi.fn(), unbind_all: vi.fn() },
-      subscribe: vi.fn(() => channel),
-      unsubscribe: vi.fn(),
-      disconnect: vi.fn(),
-    };
-  }),
+  default: class {
+    connection = { bind: vi.fn(), unbind_all: vi.fn() };
+    subscribe = vi.fn(() => channel);
+    unsubscribe = vi.fn();
+    disconnect = vi.fn();
+    constructor(...args: unknown[]) {
+      constructed(...args);
+    }
+  },
 }));
 
 const { RealtimeProvider } = await import('./realtime');
