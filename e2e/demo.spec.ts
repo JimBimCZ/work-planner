@@ -1,0 +1,59 @@
+import { expect, test } from '@playwright/test';
+
+import { closeSeedPool, removeSeededUser, seedSession } from './support/session';
+
+test.afterAll(async () => {
+  await closeSeedPool();
+});
+
+// Signed out on purpose: no seedSession, no context cookies. If any of these
+// need a session to pass, the demo is not a demo.
+test('a stranger gets the board at /', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.getByRole('heading', { name: 'Launch checklist' })).toBeVisible();
+  await expect(page.locator('[data-column-id]')).toHaveCount(5);
+  await expect(page.getByTestId('card-title').first()).toBeVisible();
+});
+
+test('the demo offers no way to change the board', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.getByRole('button', { name: 'New card' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add card' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Card actions/ })).toHaveCount(0);
+});
+
+// The card route lives under /boards/[boardId] and is signed-in only, so a
+// link on a demo card face is a trap. See board-card.test.tsx.
+test('no card on the demo board is a link', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('[data-card-id] a')).toHaveCount(0);
+});
+
+test('says that nothing is saved, and offers the way in', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.getByText('Nothing here is saved')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
+});
+
+// CLAUDE.md requires the privacy link reachable from every route. The demo is
+// a board — fixed viewport, no footer — and a signed-out visitor has no
+// account menu, so the bar carries it.
+test('keeps privacy reachable without a footer', async ({ page }) => {
+  await page.goto('/');
+
+  await expect(page.getByRole('contentinfo')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Privacy' })).toBeVisible();
+});
+
+test('sends a signed-in visitor to their own boards', async ({ page, context }) => {
+  const { userId } = await seedSession(context);
+  try {
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/boards$/);
+  } finally {
+    await removeSeededUser(userId);
+  }
+});

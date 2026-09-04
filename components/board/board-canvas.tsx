@@ -62,7 +62,17 @@ function subscribe(onChange: () => void) {
   return () => query.removeEventListener('change', onChange);
 }
 
-export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWrite: boolean }) {
+export function BoardCanvas({
+  board,
+  canWrite,
+  demo = false,
+}: {
+  board: BoardWithCards;
+  canWrite: boolean;
+  // Rendered at / from lib/demo-board.ts rather than from Postgres. Section B
+  // gives this flag its second job: a drag that never calls the server.
+  demo?: boolean;
+}) {
   const [state, dispatch] = useReducer(boardReducer, board, toBoardState);
   const [composerIn, setComposerIn] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -575,6 +585,7 @@ export function BoardCanvas({ board, canWrite }: { board: BoardWithCards; canWri
                 hue={flowHue(index, total)}
                 nextHue={flowHue(Math.min(index + 1, total - 1), total)}
                 canWrite={canWrite}
+                demo={demo}
                 composerOpen={composerIn === column.id}
                 onOpenComposer={() => setComposerIn(column.id)}
                 onCloseComposer={() => setComposerIn(null)}

@@ -5,10 +5,8 @@ test('signed out, the board list sends you to sign in', async ({ page }) => {
   await expect(page).toHaveURL('/signin?callbackUrl=%2Fboards');
 });
 
-test('signed out, the root lands on sign in', async ({ page }) => {
-  await page.goto('/');
-  await expect(page).toHaveURL(/\/signin/);
-});
+// / is not here: it serves the demo board signed out and redirects to /boards
+// signed in, and e2e/demo.spec.ts holds both directions.
 
 test('the health route reaches the database', async ({ request }) => {
   const response = await request.get('/api/health');

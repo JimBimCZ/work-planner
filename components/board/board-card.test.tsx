@@ -200,3 +200,19 @@ describe('the card has room', () => {
     expect(render()).toContain('min-h-[76px]');
   });
 });
+
+describe('the demo board', () => {
+  // The intercepting route lives under /boards/[boardId]; at / it does not
+  // exist. A link there sends a signed-out visitor to /signin from a
+  // middle-click, a long-press, or the status bar they read before clicking.
+  test('renders the title as plain text, not a link', () => {
+    const html = render({ demo: true, canWrite: false });
+    expect(html).toContain('Fix the rank tie-break');
+    expect(html).not.toContain('<a ');
+    expect(html).not.toContain('href');
+  });
+
+  test('still links on a real board', () => {
+    expect(render()).toContain('href="/boards/board-1/cards/card-1"');
+  });
+});

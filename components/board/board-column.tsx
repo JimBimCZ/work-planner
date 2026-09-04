@@ -43,6 +43,7 @@ export function BoardColumn({
   hue,
   nextHue,
   canWrite,
+  demo,
   composerOpen,
   onOpenComposer,
   onCloseComposer,
@@ -69,6 +70,7 @@ export function BoardColumn({
   hue: number;
   nextHue: number;
   canWrite: boolean;
+  demo?: boolean;
   composerOpen: boolean;
   onOpenComposer: () => void;
   onCloseComposer: () => void;
@@ -191,6 +193,7 @@ export function BoardColumn({
                         ringHue={rings.get(card.id)}
                         boardId={boardId}
                         canWrite={canWrite}
+                        demo={demo}
                         columns={columns}
                         labels={labels}
                         filtering={filtering}

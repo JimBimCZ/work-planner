@@ -71,10 +71,12 @@ export default async function BoardTitleLayout({
                 {atLeast(role, 'member') ? <NewCardButton /> : null}
               </>
             }
-            userId={session.user.id}
-            name={session.user.name ?? null}
-            email={session.user.email ?? ''}
-            image={session.user.image ?? null}
+            viewer={{
+              userId: session.user.id,
+              name: session.user.name ?? null,
+              email: session.user.email ?? '',
+              image: session.user.image ?? null,
+            }}
           />
           <div className="min-h-0 flex-1">{children}</div>
           {card}

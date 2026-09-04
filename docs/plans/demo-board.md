@@ -78,7 +78,7 @@ rendered exactly as a viewer sees one today, minus the link.
 - Produces: `DEMO_BOARD_ID: string`, `DEMO_BOARD_NAME: string`,
   `demoBoard(now: Date): BoardWithCards`. Task A5 and every later section use all three.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/demo-board.test.ts`:
 
@@ -170,7 +170,7 @@ describe('demoBoard', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run lib/demo-board.test.ts > /tmp/a1.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a1.log
@@ -178,7 +178,7 @@ pnpm exec vitest run lib/demo-board.test.ts > /tmp/a1.log 2>&1; echo "EXIT=$?"; 
 
 Expected: FAIL — `Failed to resolve import "@/lib/demo-board"`.
 
-- [ ] **Step 3: Write the fixture**
+- [x] **Step 3: Write the fixture**
 
 Create `lib/demo-board.ts`:
 
@@ -375,7 +375,7 @@ export function demoBoard(now: Date): BoardWithCards {
 }
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run lib/demo-board.test.ts > /tmp/a1.log 2>&1; echo "EXIT=$?"; tail -12 /tmp/a1.log
@@ -383,7 +383,7 @@ pnpm exec vitest run lib/demo-board.test.ts > /tmp/a1.log 2>&1; echo "EXIT=$?"; 
 
 Expected: EXIT=0, 9 tests passing.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/demo-board.ts lib/demo-board.test.ts
@@ -402,7 +402,7 @@ three days overdue in every year this board is served."
 **Interfaces:**
 - Produces: `RealtimeProvider` accepting `boardId: string | null`. Task A5 passes `null`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `components/board/realtime.test.tsx`:
 
@@ -417,16 +417,18 @@ afterEach(cleanup);
 
 const channel = { bind: vi.fn(), unbind_all: vi.fn() };
 const constructed = vi.hoisted(() => vi.fn());
+// A class, not vi.fn(impl): the provider calls `new Pusher(...)`, and a spy
+// wrapping an arrow function is not a constructor.
 vi.mock('pusher-js', () => ({
-  default: vi.fn((...args: unknown[]) => {
-    constructed(...args);
-    return {
-      connection: { bind: vi.fn(), unbind_all: vi.fn() },
-      subscribe: vi.fn(() => channel),
-      unsubscribe: vi.fn(),
-      disconnect: vi.fn(),
-    };
-  }),
+  default: class {
+    connection = { bind: vi.fn(), unbind_all: vi.fn() };
+    subscribe = vi.fn(() => channel);
+    unsubscribe = vi.fn();
+    disconnect = vi.fn();
+    constructor(...args: unknown[]) {
+      constructed(...args);
+    }
+  },
 }));
 
 const { RealtimeProvider } = await import('./realtime');
@@ -472,7 +474,7 @@ test('still renders its children with no board', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/realtime.test.tsx > /tmp/a2.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a2.log
@@ -481,7 +483,7 @@ pnpm exec vitest run components/board/realtime.test.tsx > /tmp/a2.log 2>&1; echo
 Expected: FAIL — the `boardId={null}` renders are type errors at author time and, at runtime, the
 second test fails because a client is constructed for the string `"null"` channel.
 
-- [ ] **Step 3: Make the board id nullable**
+- [x] **Step 3: Make the board id nullable**
 
 In `components/board/realtime.tsx`, change the prop type and the effect's guard:
 
@@ -507,7 +509,7 @@ and inside the effect, extend the existing early return:
     if (!key || !cluster || !boardId) return;
 ```
 
-- [ ] **Step 4: Run the test and watch it pass**
+- [x] **Step 4: Run the test and watch it pass**
 
 ```bash
 pnpm exec vitest run components/board/realtime.test.tsx > /tmp/a2.log 2>&1; echo "EXIT=$?"; tail -12 /tmp/a2.log
@@ -515,7 +517,7 @@ pnpm exec vitest run components/board/realtime.test.tsx > /tmp/a2.log 2>&1; echo
 
 Expected: EXIT=0, 3 tests passing.
 
-- [ ] **Step 5: Confirm the board route still typechecks**
+- [x] **Step 5: Confirm the board route still typechecks**
 
 ```bash
 pnpm typecheck > /tmp/a2-tc.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/a2-tc.log
@@ -524,7 +526,7 @@ pnpm typecheck > /tmp/a2-tc.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/a2-tc.log
 Expected: EXIT=0. `string` is assignable to `string | null`, so the existing call site is
 unchanged.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/board/realtime.tsx components/board/realtime.test.tsx
@@ -542,7 +544,7 @@ git commit -m "feat: let a surface with no channel skip the socket entirely"
 - Produces: `TopBar` taking `viewer?: { userId: string; name: string | null; email: string; image: string | null }`
   in place of the four separate props. Absent means no `AccountMenu`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `components/app/top-bar.test.tsx`:
 
@@ -586,7 +588,7 @@ test('renders its actions either way', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run components/app/top-bar.test.tsx > /tmp/a3.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a3.log
@@ -594,7 +596,7 @@ pnpm exec vitest run components/app/top-bar.test.tsx > /tmp/a3.log 2>&1; echo "E
 
 Expected: FAIL — `TopBar` has no `viewer` prop and requires `userId`, `email` and `image`.
 
-- [ ] **Step 3: Collapse the four props into one optional object**
+- [x] **Step 3: Collapse the four props into one optional object**
 
 Rewrite the signature and the trailing block of `components/app/top-bar.tsx`:
 
@@ -642,7 +644,7 @@ and in the returned markup, replace the unconditional `<AccountMenu … />` with
         ) : null}
 ```
 
-- [ ] **Step 4: Update both existing call sites**
+- [x] **Step 4: Update both existing call sites**
 
 `app/(app)/(chrome)/layout.tsx`:
 
@@ -669,7 +671,7 @@ and in the returned markup, replace the unconditional `<AccountMenu … />` with
             }}
 ```
 
-- [ ] **Step 5: Run the tests and the typechecker**
+- [x] **Step 5: Run the tests and the typechecker**
 
 ```bash
 pnpm exec vitest run components/app/top-bar.test.tsx > /tmp/a3.log 2>&1; echo "EXIT=$?"; tail -12 /tmp/a3.log
@@ -678,7 +680,7 @@ pnpm typecheck > /tmp/a3-tc.log 2>&1; echo "EXIT=$?"; tail -5 /tmp/a3-tc.log
 
 Expected: both EXIT=0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/app/top-bar.tsx components/app/top-bar.test.tsx "app/(app)/(chrome)/layout.tsx" "app/(app)/(board)/boards/[boardId]/layout.tsx"
@@ -696,7 +698,7 @@ git commit -m "refactor: let the top bar render without an account"
 - Produces: `BoardCard` and `BoardColumn` take `demo?: boolean`; `BoardCanvas` takes
   `demo?: boolean` and passes it down. Task B2 and Task C3 extend the same prop.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `components/board/board-card.test.tsx`:
 
@@ -718,7 +720,7 @@ describe('the demo board', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test and watch it fail**
+- [x] **Step 2: Run the test and watch it fail**
 
 ```bash
 pnpm exec vitest run components/board/board-card.test.tsx > /tmp/a4.log 2>&1; echo "EXIT=$?"; tail -20 /tmp/a4.log
@@ -726,7 +728,7 @@ pnpm exec vitest run components/board/board-card.test.tsx > /tmp/a4.log 2>&1; ec
 
 Expected: FAIL — `demo` is not a prop of `BoardCard`, and the rendered title is still an anchor.
 
-- [ ] **Step 3: Add the prop and the branch**
+- [x] **Step 3: Add the prop and the branch**
 
 In `components/board/board-card.tsx`, add `demo` to the destructured props and the type:
 
@@ -766,7 +768,7 @@ does not know about yet:
           ) : (
 ```
 
-- [ ] **Step 4: Thread it through the column and the canvas**
+- [x] **Step 4: Thread it through the column and the canvas**
 
 In `components/board/board-column.tsx`, add `demo` beside `canWrite` in both the destructuring and
 the prop type (`demo?: boolean;`), and pass it to `BoardCard`:
@@ -799,7 +801,7 @@ and pass it to each `BoardColumn`, immediately after `canWrite={canWrite}`:
                 demo={demo}
 ```
 
-- [ ] **Step 5: Run the tests and watch them pass**
+- [x] **Step 5: Run the tests and watch them pass**
 
 ```bash
 pnpm exec vitest run components/board > /tmp/a4.log 2>&1; echo "EXIT=$?"; tail -12 /tmp/a4.log
@@ -808,7 +810,7 @@ pnpm exec vitest run components/board > /tmp/a4.log 2>&1; echo "EXIT=$?"; tail -
 Expected: EXIT=0, with the whole board suite passing — the default `demo = false` leaves every
 existing test unchanged.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add components/board/board-card.tsx components/board/board-card.test.tsx components/board/board-column.tsx components/board/board-canvas.tsx
@@ -829,7 +831,7 @@ git commit -m "feat: a demo card face is text, not a link to a route that is not
 - Produces: `DemoBoard({ board }: { board: BoardWithCards })`, the client shell Task C3 adds the
   card dialog to.
 
-- [ ] **Step 1: Write the failing end-to-end test**
+- [x] **Step 1: Write the failing end-to-end test**
 
 Create `e2e/demo.spec.ts`:
 
@@ -895,7 +897,7 @@ test('sends a signed-in visitor to their own boards', async ({ page, context }) 
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 ```bash
 pnpm exec playwright test e2e/demo.spec.ts --reporter=line > /tmp/a5.log 2>&1; echo "EXIT=$?"; tail -15 /tmp/a5.log
@@ -903,7 +905,7 @@ pnpm exec playwright test e2e/demo.spec.ts --reporter=line > /tmp/a5.log 2>&1; e
 
 Expected: non-zero exit. `/` still redirects to `/boards` and then to `/signin`.
 
-- [ ] **Step 3: Write the client shell**
+- [x] **Step 3: Write the client shell**
 
 Create `components/demo/demo-board.tsx`:
 
@@ -921,7 +923,7 @@ export function DemoBoard({ board }: { board: BoardWithCards }) {
 }
 ```
 
-- [ ] **Step 4: Write the layout**
+- [x] **Step 4: Write the layout**
 
 Create `app/(demo)/layout.tsx`:
 
@@ -980,7 +982,7 @@ export default function DemoLayout({ children }: { children: React.ReactNode }) 
 `bg-flow-mid` with `text-white` is exactly what `components/board/new-card-button.tsx:13` already
 uses for the app's one accent button. No new colour, no new token.
 
-- [ ] **Step 5: Write the page, and delete the old root**
+- [x] **Step 5: Write the page, and delete the old root**
 
 Create `app/(demo)/page.tsx`:
 
@@ -1006,7 +1008,7 @@ export default async function DemoPage() {
 git rm app/page.tsx
 ```
 
-- [ ] **Step 6: Add `/` to the footer-free list**
+- [x] **Step 6: Add `/` to the footer-free list**
 
 In `e2e/board-view.spec.ts`, extend the third test's loop comment and add a case. Append this test
 after `'the board drops the footer but keeps privacy in the account menu'`:
@@ -1021,7 +1023,7 @@ test('the demo board drops the footer and puts privacy in the bar', async ({ pag
 });
 ```
 
-- [ ] **Step 7: Correct the stale comment in the Playwright config**
+- [x] **Step 7: Correct the stale comment in the Playwright config**
 
 `playwright.config.ts`'s `webServer` comment says the root "redirects into the auth-gated routes".
 That stops being true here. Update it to:
@@ -1035,7 +1037,7 @@ That stops being true here. Update it to:
 
 Leave the probe itself alone.
 
-- [ ] **Step 8: Run the new suite and watch it pass**
+- [x] **Step 8: Run the new suite and watch it pass**
 
 ```bash
 pnpm exec playwright test e2e/demo.spec.ts e2e/board-view.spec.ts --reporter=line > /tmp/a5.log 2>&1; echo "EXIT=$?"; tail -15 /tmp/a5.log
@@ -1044,7 +1046,7 @@ pnpm exec playwright test e2e/demo.spec.ts e2e/board-view.spec.ts --reporter=lin
 Expected: EXIT=0. Compare the number that ran against the number collected — a summary line is not
 an exit code.
 
-- [ ] **Step 9: Full local gate**
+- [x] **Step 9: Full local gate**
 
 ```bash
 pnpm typecheck > /tmp/a5-tc.log 2>&1; echo "TYPECHECK=$?"
@@ -1057,7 +1059,7 @@ tail -5 /tmp/a5-build.log
 Expected: all four EXIT=0. The build is what proves `lib/demo-board.ts` dragged no database import
 into the client bundle.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add "app/(demo)" components/demo/demo-board.tsx e2e/demo.spec.ts e2e/board-view.spec.ts playwright.config.ts
@@ -1073,7 +1075,7 @@ one still lands on /boards."
 **Files:**
 - Modify: `CLAUDE.md`, `docs/plans/demo-board.md`
 
-- [ ] **Step 1: Update `CLAUDE.md`**
+- [x] **Step 1: Update `CLAUDE.md`**
 
 Under **Layout**, add the group above `components/`:
 
@@ -1102,11 +1104,11 @@ Under **Open decisions**, after the labels paragraph, add:
 > included, and writes nothing anywhere. `docs/specs/demo-board.md` holds the reasoning — including
 > why it is a fixture rather than a board row.
 
-- [ ] **Step 2: Tick this plan's Section A boxes**
+- [x] **Step 2: Tick this plan's Section A boxes**
 
 Every checkbox in Tasks A1–A6, in the same commit.
 
-- [ ] **Step 3: Commit and push**
+- [x] **Step 3: Commit and push**
 
 ```bash
 git add CLAUDE.md docs/plans/demo-board.md
@@ -1114,7 +1116,7 @@ git commit -m "docs: record the demo board at /"
 git push -u origin feat/demo-board-route
 ```
 
-- [ ] **Step 4: Open the pull request**
+- [x] **Step 4: Open the pull request**
 
 ```bash
 gh pr create --base main --title "feat: demo board Section A — the board a stranger can see" --body "..."

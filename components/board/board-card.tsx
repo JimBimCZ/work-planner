@@ -114,6 +114,7 @@ export function BoardCard({
   ringHue,
   boardId,
   canWrite,
+  demo = false,
   columns,
   labels,
   filtering,
@@ -125,6 +126,8 @@ export function BoardCard({
   ringHue?: number;
   boardId: string;
   canWrite: boolean;
+  // The demo board at / has no card route to link to and no server to reach.
+  demo?: boolean;
   columns: { id: string; name: string }[];
   // The board's whole set, not this card's, so one lookup serves every card.
   labels: BoardLabel[];
@@ -185,10 +188,11 @@ export function BoardCard({
           data-testid="card-title"
           className={`text-sm font-medium leading-5 text-ink ${canWrite ? 'pr-6' : ''}`}
         >
-          {card.pending ? (
+          {card.pending || demo ? (
             // A temp id is not a card the server knows about yet — the same
             // reason useSortable disables dragging above. Not a link until it
-            // settles.
+            // settles. A demo card is never a link at all: there is no card
+            // route under /, so following one lands on /signin.
             card.title
           ) : (
             <Link
