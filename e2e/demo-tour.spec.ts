@@ -34,6 +34,52 @@ test('lights the element the step is about', async ({ page }) => {
   expect(Math.abs(lit!.y + 4 - target!.y)).toBeLessThanOrEqual(1);
 });
 
+// The regression this pins: the card used to lose its anchor while the next
+// step's target was measured, so every Next transitioned it back to the middle
+// of the viewport and dimmed the whole board for ~290ms before it snapped into
+// place — which reads as a page reload rather than as a step. Sampled per
+// frame, because the end state was never the thing that was wrong.
+test('a step change keeps the card anchored and the board lit', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 900 });
+  await page.goto('/');
+  await openTour(page);
+  await page.getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByText('Open a card')).toBeVisible();
+
+  const frames = await page.evaluate(async () => {
+    const next = [...document.querySelectorAll('button')].find(
+      (button) => button.textContent?.trim() === 'Next',
+    );
+    const trace: { lit: boolean; dimmed: boolean; left: number }[] = [];
+
+    next?.click();
+    await new Promise<void>((done) => {
+      const started = performance.now();
+      const tick = () => {
+        const overlay = document.querySelector('[data-slot="dialog-overlay"]');
+        const card = document.querySelector('[role="dialog"]')?.getBoundingClientRect();
+        trace.push({
+          lit: Boolean(document.querySelector('[aria-hidden][style*="box-shadow"]')),
+          dimmed: !overlay?.className.includes('bg-transparent'),
+          left: card ? Math.round(card.left) : -1,
+        });
+        if (performance.now() - started > 400) return done();
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+
+    return trace;
+  });
+
+  expect(frames.length).toBeGreaterThan(10);
+  expect(frames.filter((frame) => !frame.lit)).toEqual([]);
+  expect(frames.filter((frame) => frame.dimmed)).toEqual([]);
+  // A card thrown back to the centre would measure 440 at this width: the
+  // 320px card in a 1200px viewport. It stays out at the target instead.
+  expect(Math.min(...frames.map((frame) => frame.left))).toBeGreaterThan(500);
+});
+
 test('walks the whole sequence and finishes', async ({ page }) => {
   await page.goto('/');
   await openTour(page);
