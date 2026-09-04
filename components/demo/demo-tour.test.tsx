@@ -12,6 +12,21 @@ import { DemoTour } from '@/components/demo/demo-tour';
 afterEach(cleanup);
 afterEach(() => vi.restoreAllMocks());
 
+// jsdom implements no matchMedia, and the tour reads it for
+// prefers-reduced-motion. Stubbed per file rather than in a setup file,
+// matching the per-file jsdom pragma this repo uses.
+window.matchMedia = (query: string) =>
+  ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }) as MediaQueryList;
+
 // jsdom gives every element a 0x0 box, which visibleSteps reads as absent —
 // so without this only the opening step would survive and the sequence under
 // test would be one step long.
