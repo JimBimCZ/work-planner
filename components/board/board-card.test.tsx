@@ -220,13 +220,13 @@ describe('the demo board', () => {
   test('still links on a real board', () => {
     expect(render()).toContain('href="/boards/board-1/cards/card-1"');
   });
-});
 
-test('a demo card title is a button that asks to be opened', () => {
-  const html = render({ demo: true, onOpen: () => {} });
-  expect(html).toContain('<button');
-  expect(html).toContain('Fix the rank tie-break');
-  expect(html).not.toContain('href');
+  test('a demo card title is a button that asks to be opened', () => {
+    const html = render({ demo: true, canWrite: false, onOpen: () => {} });
+    expect(html).toContain('<button');
+    expect(html).toContain('Fix the rank tie-break');
+    expect(html).not.toContain('href');
+  });
 });
 
 describe('dragging apart from writing', () => {
