@@ -131,6 +131,10 @@ app/
           (.)cards/[cardId]/  # intercepted — renders as modal over the board
         cards/[cardId]/     # canonical card page — the intercept target, and
                             # what a shared link opens on a cold load
+  (demo)/
+    layout.tsx              # / for a signed-out visitor: the board with no
+                            # session, no footer, privacy in the top bar
+    page.tsx                # redirects to /boards when signed in
   (legal)/
     privacy/page.tsx        # Privacy Policy
     terms/page.tsx          # optional, same layout
@@ -345,6 +349,7 @@ Postgres `LISTEN/NOTIFY` over SSE is **not** viable here. It needs a dedicated, 
   extra Pusher traffic. Doubling every mutation's message volume to keep a rarely-open drawer warm
   is the wrong place to spend the free tier this section already names as the thing that would
   force a move to Ably.
+- `RealtimeProvider` takes `boardId: string | null`, and null is how a surface opts out of the socket entirely — the demo board at `/`, whose id is not a uuid and so could never be authorised on a channel. Without it every anonymous visitor would open a connection and subscribe to a channel `/api/pusher/auth` rejects by construction, spending a free-tier connection to fail on the app's most-visited route.
 - Presence channels (who else is viewing the board) are a later addition, not part of the first build.
 
 Last-write-wins on card fields is acceptable. Do not build OT/CRDT text merging for descriptions.
@@ -679,6 +684,8 @@ It is rendered by each route-group layout — `(app)/(chrome)`, `(auth)`, `(lega
 
 The board is the exception because it locks body scroll to a fixed viewport height, so a footer below it would be unreachable. There, the privacy link lives in the account menu instead. The link must be reachable from every route one way or the other — that is the requirement, not the footer specifically.
 
+`/` is the second exemption, and the same one: the demo board locks the viewport too. It has no account menu to hide the link in — its visitor has no account — so the privacy link sits in its top bar, beside the note saying nothing there is saved. `e2e/demo.spec.ts` and `e2e/board-view.spec.ts` both hold it there.
+
 `/privacy` is a static page (`export const dynamic = 'force-static'`), plain content in the repo rather than a CMS, with a "last updated" date that is edited whenever the policy changes. `/terms` follows the same shape if it gets added.
 
 The policy is a real legal document, not filler text. It must cover what the app actually does:
@@ -862,6 +869,11 @@ when the drawer opens, and marked with a line where the reader last looked. It d
 stream — see "Realtime" — and its entries cascade with the actor's account, which is what lets
 `/privacy` say the record of what you did is deleted with you. `docs/specs/activity-log.md` holds
 the reasoning.
+
+**The demo board is settled** and built: `/` serves a fixture board to anyone signed out and writes
+nothing anywhere — no board row, no hole in `assertBoardAccess`, no anonymous write path.
+`docs/specs/demo-board.md` holds the reasoning, including why it is a fixture rather than a board
+row.
 
 Remaining sub-projects: member management and invites is shipped in full, Sections A–D; labels the
 same, Sections A–D; attachments the same, Sections A–D; the activity log the same, Sections A–D;
