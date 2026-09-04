@@ -374,7 +374,17 @@ export function BoardCanvas({
   // pre-state, apply optimistically, and replay the inverse if the server says
   // no. The inverse rather than a snapshot is what keeps a failed request from
   // also undoing whatever landed while it was in flight.
+  //
+  // The demo board stops at the first line: it has no server to ask and no id
+  // the server would recognise, so the optimistic update is the whole update.
+  // A reload restores the fixture, which is the honest thing for a board
+  // nobody owns.
   function run(action: BoardAction, call: () => Promise<{ ok: boolean }>, message: string) {
+    if (demo) {
+      dispatch(action);
+      return;
+    }
+
     const undo = inverse(state, action);
     dispatch(action);
     setError(null);
