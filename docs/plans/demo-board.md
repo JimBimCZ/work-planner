@@ -2089,19 +2089,60 @@ codes and screenshots of an open demo card in both themes.
 Run by the final review, per `CLAUDE.md`'s model table — Opus, reading the branch against the spec,
 this plan and `CLAUDE.md` at once.
 
-- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build`, exit codes read directly.
-- [ ] `pnpm test:e2e`, with the number that ran compared against the number collected.
-- [ ] A signed-out browser at `/` drags a card, and a reload puts it back — by hand, not only in
-      Playwright.
-- [ ] The network panel shows no server-action request and no Pusher connection while dragging.
-- [ ] `/` at 360px shows one column and the switcher, with the bar's note truncated to `Demo`.
-- [ ] Both themes, by hand.
-- [ ] A signed-in browser at `/` still lands on `/boards`.
-- [ ] No file added under `app/(demo)/`, `components/demo/` or `lib/demo-board.ts` imports
-      `lib/db`, `lib/permissions`, or any module under `lib/actions/`:
+Run against `main` at `ff1e2c3` on 2026-09-04, after all four PRs had merged rather than before the
+last one — which is itself the finding this list records: the boxes below were never run at review
+time, and #116 was called done without them.
+
+- [x] `pnpm typecheck && pnpm lint && pnpm test && pnpm build`, exit codes read directly. Each step
+      run separately with its own `EXIT[step]=$?` rather than through a pipeline: `typecheck` 0,
+      `lint` 0, `test` 0 (57 files, 711 passed / 8 skipped of 719), `build` 0.
+- [x] `pnpm test:e2e`, with the number that ran compared against the number collected.
+      `--list` collects **171 in 21 files**; the run accounted for all 171 — 168 passed, 3 failed —
+      so nothing went missing behind a summary line. **The suite is red, and exits 1.** All three
+      failures are `e2e/attachments.spec.ts`, and all three are environmental rather than a
+      regression: this machine's `.env.local` carries none of the five `S3_*` variables, so
+      `storageConfigured()` is false and the attachment surface does not render at all — the first
+      failure is `getByText('Nothing attached yet')` not found, which is that absence exactly. The
+      fourth attachment test, the one that needs only the database, passes. CI supplies MinIO and
+      runs all four.
+- [x] A signed-out browser at `/` drags a card, and a reload puts it back — by hand, not only in
+      Playwright. `Search cards across a board` dragged from `demo-col-ready` to
+      `demo-col-progress`, read back from the DOM in both columns, then a reload put it back at the
+      top of `demo-col-ready`. Note for whoever repeats this: a plain synthetic drag helper does
+      **not** move the card. `PointerSensor`'s 5px activation constraint needs a real sequence of
+      `pointermove`s after the `pointerdown`, which is the same reason `e2e/demo.spec.ts` hand-rolls
+      `dragCard` instead of calling Playwright's `dragTo`.
+- [x] The network panel shows no server-action request and no Pusher connection while dragging.
+      21 requests over the whole session, **every one a GET** — the document, fonts, CSS, JS chunks
+      and the two RSC prefetches the top bar's `Privacy` and `Sign in` links issue. A server action
+      is a POST back to the page's own URL and there is none; there is no websocket and no
+      `/api/pusher/auth`, which is `RealtimeProvider` taking `boardId: null` and declining to
+      connect.
+- [x] `/` at 360px shows one column and the switcher, with the bar's note truncated to `Demo`.
+      One full-width column (`Ready to work`, 3 cards), the five switcher tabs above it, no
+      horizontal scroll, and the bar reading `Demo` rather than `Nothing here is saved`. `Privacy`
+      and `Sign in` both still reachable.
+- [x] Both themes, by hand. Board and card dialog captured in each. The emulated colour scheme has
+      to be set **before** the load, not after: the pre-paint script resolves the theme once, so
+      flipping the emulation on an already-rendered page changes nothing until a reload.
+- [x] A signed-in browser at `/` still lands on `/boards`. Confirmed twice — a seeded session cookie
+      on `curl` gets `307 → http://localhost:3000/boards` where a signed-out request gets `200`, and
+      a real browser given the same cookie navigated to `/` and ended on `/boards`. The seeded user
+      and its session were deleted afterwards.
+- [x] No file added under `app/(demo)/`, `components/demo/` or `lib/demo-board.ts` imports
+      `lib/db`, `lib/permissions`, or any module under `lib/actions/`. **Clean — but the command
+      this plan originally carried reports the opposite**, and the corrected one is below. The
+      original grepped for the bare module names anywhere in the file, and `lib/demo-board.ts:6`
+      *mentions* `lib/db` in a comment explaining why it does not import it — so the check exits 0,
+      reads as "not clean", and would have sent a reviewer looking for a violation that is not
+      there. Matching the import instead:
 
 ```bash
-grep -rn "lib/db\|lib/permissions\|lib/actions" "app/(demo)" components/demo lib/demo-board.ts; echo "EXIT=$? (1 means clean)"
+grep -rn "from '\(.*\)\(lib/db\|lib/permissions\|lib/actions\)" "app/(demo)" components/demo lib/demo-board.ts; echo "EXIT=$? (1 means clean)"
 ```
 
-- [ ] Screenshots attached to each PR.
+- [x] Screenshots attached to each PR. **Late, and not on the PRs.** Sections B and C merged without
+      any, so they are committed here instead — `docs/screenshots/demo-section-b/` (a drag held
+      mid-flight: the slot the card left behind, the armed well, the drop line, and the tilted
+      overlay) and `docs/screenshots/demo-section-c/` (board and card dialog in both themes, 360px
+      in both, and the signed-in redirect). Section A's already existed.
